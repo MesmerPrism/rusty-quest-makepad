@@ -1,0 +1,59 @@
+{
+  "schema": "rusty.lattice.display_view_set.v1",
+  "view_set_id": "view_set.quest_makepad.synthetic_stereo",
+  "reference_space": {
+    "stable_id": "app-local",
+    "kind": "local"
+  },
+  "predicted_display_time_ns": 123456789,
+  "source": "fixture.synthetic-display-view",
+  "revision": 1,
+  "left": {
+    "eye": "left",
+    "pose": {
+      "position": {
+        "x": -0.032,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      }
+    },
+    "fov": {
+      "angle_left_radians": -0.80,
+      "angle_right_radians": 0.78,
+      "angle_up_radians": 0.74,
+      "angle_down_radians": -0.72
+    },
+    "valid": true,
+    "confidence": 1.0
+  },
+  "right": {
+    "eye": "right",
+    "pose": {
+      "position": {
+        "x": 0.032,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "orientation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 1.0
+      }
+    },
+    "fov": {
+      "angle_left_radians": -0.78,
+      "angle_right_radians": 0.80,
+      "angle_up_radians": 0.74,
+      "angle_down_radians": -0.72
+    },
+    "valid": true,
+    "confidence": 1.0
+  }
+}

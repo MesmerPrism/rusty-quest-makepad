@@ -1,5 +1,9 @@
 //! Profile-driven Quest Makepad camera shell adapter.
 
+use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
+use rusty_optics_model::{
+    ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
+};
 use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplayRuntime};
 use serde_json::Value;
 
@@ -15,6 +19,8 @@ pub const SETTING_MESH_REPLAY_SOURCE: &str = "makepad.mesh_replay.source";
 pub const SETTING_MESH_REPLAY_SPEED: &str = "makepad.mesh_replay.speed";
 /// Replay opacity setting id.
 pub const SETTING_MESH_REPLAY_OPACITY: &str = "makepad.mesh_replay.opacity";
+/// Default projection footprint sample grid for app-shell contract smoke tests.
+pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
 
 /// Replay subset of the camera shell effective settings.
 #[derive(Clone, Debug, PartialEq)]
@@ -89,6 +95,69 @@ pub fn mesh_replay_runtime_from_effective_settings_json(
     Ok(runtime)
 }
 
+/// Baseline projection reports derived from a Lattice display view set.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CameraShellProjectionReports {
+    /// Source Lattice view set id.
+    pub view_set_id: String,
+    /// Left view projection report.
+    pub left: ProjectionGeometryReport,
+    /// Right view projection report.
+    pub right: ProjectionGeometryReport,
+}
+
+/// Parse a Lattice display view set JSON payload and derive baseline Optics
+/// projection geometry reports.
+pub fn projection_reports_from_lattice_view_set_json(
+    json: &str,
+) -> Result<CameraShellProjectionReports, CameraShellConfigError> {
+    let view_set: DisplayViewSet = serde_json::from_str(json)
+        .map_err(|_| CameraShellConfigError::MalformedDisplayViewSetJson)?;
+    projection_reports_from_lattice_view_set(&view_set)
+}
+
+/// Derive baseline Optics projection geometry reports from a Lattice view set.
+pub fn projection_reports_from_lattice_view_set(
+    view_set: &DisplayViewSet,
+) -> Result<CameraShellProjectionReports, CameraShellConfigError> {
+    if let Err(errors) = validate_display_view_set(view_set) {
+        let message = errors
+            .into_iter()
+            .map(|error| error.message)
+            .collect::<Vec<_>>()
+            .join("; ");
+        return Err(CameraShellConfigError::InvalidDisplayViewSet(message));
+    }
+
+    let source_valid_uv_rect = Rect2::UNIT;
+    let left = ProjectionGeometryReport::from_homographies(
+        format!("{}.left.projection", view_set.view_set_id),
+        "left",
+        VideoProjectionMapping::FullFrameSurface,
+        IDENTITY_HOMOGRAPHY,
+        IDENTITY_HOMOGRAPHY,
+        source_valid_uv_rect,
+        DEFAULT_PROJECTION_FOOTPRINT_GRID,
+    )
+    .map_err(|error| CameraShellConfigError::ProjectionReport(error.to_string()))?;
+    let right = ProjectionGeometryReport::from_homographies(
+        format!("{}.right.projection", view_set.view_set_id),
+        "right",
+        VideoProjectionMapping::FullFrameSurface,
+        IDENTITY_HOMOGRAPHY,
+        IDENTITY_HOMOGRAPHY,
+        source_valid_uv_rect,
+        DEFAULT_PROJECTION_FOOTPRINT_GRID,
+    )
+    .map_err(|error| CameraShellConfigError::ProjectionReport(error.to_string()))?;
+
+    Ok(CameraShellProjectionReports {
+        view_set_id: view_set.view_set_id.clone(),
+        left,
+        right,
+    })
+}
+
 /// Camera shell effective-settings parsing error.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CameraShellConfigError {
@@ -104,6 +173,12 @@ pub enum CameraShellConfigError {
     MissingSetting(&'static str),
     /// Setting value has the wrong type or range.
     InvalidSettingValue(&'static str),
+    /// Lattice display view set JSON could not be parsed.
+    MalformedDisplayViewSetJson,
+    /// Lattice display view set failed validation.
+    InvalidDisplayViewSet(String),
+    /// Optics projection report could not be built.
+    ProjectionReport(String),
 }
 
 impl std::fmt::Display for CameraShellConfigError {
@@ -125,6 +200,11 @@ impl std::fmt::Display for CameraShellConfigError {
             Self::InvalidSettingValue(setting_id) => {
                 write!(f, "invalid value for setting {setting_id}")
             }
+            Self::MalformedDisplayViewSetJson => f.write_str("malformed display view set JSON"),
+            Self::InvalidDisplayViewSet(message) => {
+                write!(f, "invalid display view set: {message}")
+            }
+            Self::ProjectionReport(message) => write!(f, "invalid projection report: {message}"),
         }
     }
 }
@@ -186,6 +266,8 @@ mod tests {
 
     const EFFECTIVE_SETTINGS_FIXTURE: &str =
         include_str!("../../../fixtures/effective-settings/mesh-replay.effective-settings.json");
+    const LATTICE_VIEW_SET_FIXTURE: &str =
+        include_str!("../../../fixtures/lattice/synthetic-display-view-set.json");
 
     #[test]
     fn effective_settings_configures_replay_runtime() {
@@ -252,5 +334,38 @@ mod tests {
         let config = mesh_replay_config_from_effective_settings_json(&high_values).unwrap();
         assert_eq!(config.speed, 8.0);
         assert_eq!(config.opacity, 1.0);
+    }
+
+    #[test]
+    fn lattice_view_set_builds_optics_projection_reports() {
+        let reports =
+            projection_reports_from_lattice_view_set_json(LATTICE_VIEW_SET_FIXTURE).unwrap();
+        assert_eq!(
+            reports.view_set_id,
+            "view_set.quest_makepad.synthetic_stereo"
+        );
+        assert_eq!(
+            reports.left.schema,
+            "rusty.optics.video_projection_geometry.v1"
+        );
+        assert_eq!(reports.left.view_id, "left");
+        assert_eq!(reports.right.view_id, "right");
+        assert_eq!(
+            reports
+                .left
+                .source_valid_screen_uv_footprint
+                .active_fraction,
+            1.0
+        );
+    }
+
+    #[test]
+    fn damaged_lattice_view_set_is_rejected() {
+        let damaged = LATTICE_VIEW_SET_FIXTURE.replace("\"eye\": \"left\"", "\"eye\": \"mono\"");
+        let error = projection_reports_from_lattice_view_set_json(&damaged).unwrap_err();
+        assert!(matches!(
+            error,
+            CameraShellConfigError::InvalidDisplayViewSet(_)
+        ));
     }
 }

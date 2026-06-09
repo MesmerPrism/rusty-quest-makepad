@@ -27,6 +27,12 @@ The current replay slice is:
 4. `rusty-quest-makepad-mesh-replay` applies the replay config and emits
    app-local markers.
 
+The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
+view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
+reports. Runtime adapters still own platform event loops and camera homography
+inputs; this crate owns the app-facing bridge between clean Lattice/Optics
+contracts and Quest Makepad behavior.
+
 ## Non-Ownership
 
 - generic Makepad settings resolver;

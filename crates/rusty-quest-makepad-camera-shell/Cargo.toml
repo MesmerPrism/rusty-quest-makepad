@@ -7,6 +7,8 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+rusty-lattice-model = { git = "https://github.com/MesmerPrism/rusty-lattice.git", rev = "1279dfd88c15b54d53500218186acbeb81ebf61a" }
+rusty-optics-model = { git = "https://github.com/MesmerPrism/rusty-optics.git", rev = "55e340e6698c993f2de81d7bbb650697906a4846", features = ["serde"] }
 rusty-quest-makepad-mesh-replay = { path = "../rusty-quest-makepad-mesh-replay" }
 serde_json = "1"
 

@@ -11,6 +11,9 @@ adapters.
 - The camera shell replay adapter lives in
   `rusty-quest-makepad-camera-shell` and consumes
   `rusty.gui.makepad.effective_settings.v1`.
+- The camera shell adapter consumes `rusty.lattice.display_view_set.v1` and
+  emits baseline `rusty.optics.video_projection_geometry.v1` reports for
+  contract smoke tests.
 
 ## Not Copied Wholesale
 
