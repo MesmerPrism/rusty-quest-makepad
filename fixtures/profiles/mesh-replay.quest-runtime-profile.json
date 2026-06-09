@@ -5,6 +5,7 @@
   "owned_android_properties": [
     "debug.rustyquest.makepad.mesh.replay.enabled",
     "debug.rustyquest.makepad.mesh.replay.speed",
+    "debug.rustyquest.makepad.mesh.replay.source",
     "debug.rustyquest.makepad.mesh.replay.opacity",
     "debug.rustyquest.makepad.render.scale",
     "debug.rustyquest.makepad.collision.enabled",
@@ -21,6 +22,11 @@
       "name": "debug.rustyquest.makepad.mesh.replay.speed",
       "value": "1.5",
       "source_setting_id": "makepad.mesh_replay.speed"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.source",
+      "value": "public-synthetic-hand-sequence",
+      "source_setting_id": "makepad.mesh_replay.source"
     },
     {
       "name": "debug.rustyquest.makepad.mesh.replay.opacity",
@@ -55,4 +61,3 @@
     "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-QuestMakepadProfiles.ps1"
   ]
 }
-
