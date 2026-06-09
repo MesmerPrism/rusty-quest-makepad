@@ -27,6 +27,11 @@ The current replay slice is:
 4. `rusty-quest-makepad-mesh-replay` applies the replay config and emits
    app-local markers.
 
+The camera-shell adapter re-exports the mesh replay runtime, uniforms, and
+marker schema constants as the app-facing boundary. Hostess and other active
+Makepad shells should consume that adapter surface instead of depending on the
+lower replay crate directly or reparsing replay settings locally.
+
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
 reports. Runtime adapters still own platform event loops and camera homography

@@ -4,7 +4,11 @@ use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
 use rusty_optics_model::{
     ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
 };
-use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplayRuntime};
+use rusty_quest_makepad_mesh_replay::MeshReplayConfig;
+pub use rusty_quest_makepad_mesh_replay::{
+    MeshReplayRuntime, MeshReplayUniforms, REPLAY_MARKER_PREFIX, REPLAY_SCHEMA_ID,
+    SELECTED_SEGMENT_COUNT,
+};
 use serde_json::Value;
 
 /// Canonical camera shell app id.
