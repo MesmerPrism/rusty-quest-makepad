@@ -22,17 +22,21 @@ function Invoke-Checked {
 }
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$MakepadRoot = if ($env:RUSTY_MAKEPAD_ROOT) { Resolve-Path $env:RUSTY_MAKEPAD_ROOT } else { Resolve-Path (Join-Path $RepoRoot "..\rusty-makepad") }
-$QuestRoot = if ($env:RUSTY_QUEST_ROOT) { Resolve-Path $env:RUSTY_QUEST_ROOT } else { Resolve-Path (Join-Path $RepoRoot "..\rusty-quest") }
-
-$surface = Join-Path $RepoRoot "fixtures\settings\quest-makepad-camera-shell.settings.json"
-$settingsProfile = Join-Path $RepoRoot "fixtures\profiles\mesh-replay.settings-profile.json"
-$questProfile = Join-Path $RepoRoot "fixtures\profiles\mesh-replay.quest-runtime-profile.json"
-$effectiveOut = Join-Path $RepoRoot "local-artifacts\quest-makepad-effective-settings.json"
-
 New-Item -ItemType Directory -Path (Join-Path $RepoRoot "local-artifacts") -Force | Out-Null
 
-Invoke-Checked "Quest Makepad settings surface" "cargo" @("run", "-p", "rusty-makepad-settings-cli", "--", "validate-surface", "--surface", $surface, "--profile", $settingsProfile) -WorkingDirectory $MakepadRoot
-Invoke-Checked "Quest Makepad effective settings" "cargo" @("run", "-p", "rusty-makepad-settings-cli", "--", "resolve", "--surface", $surface, "--profile", $settingsProfile, "--out", $effectiveOut) -WorkingDirectory $MakepadRoot
-Invoke-Checked "Quest Makepad runtime profile dry-run" "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "tools\Apply-RuntimeProfile.ps1", "-ProfilePath", $questProfile, "-DryRun", "-Out", "local-artifacts\quest-makepad-property-write-plan.json") -WorkingDirectory $QuestRoot
+Invoke-Checked "Quest Makepad runtime bundle" "powershell" @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "tools\Build-QuestMakepadRuntimeBundle.ps1")
 
+$reportPath = Join-Path $RepoRoot "local-artifacts\quest-makepad-runtime-bundle\runtime-bundle-report.json"
+$report = Get-Content -Path $reportPath -Raw | ConvertFrom-Json
+if ($report.schema -ne "rusty.quest.makepad.runtime_bundle_report.v1") {
+    throw "runtime bundle report schema mismatch: $($report.schema)"
+}
+if ($report.boundary.legacy_reference_source_used -ne $false) {
+    throw "runtime bundle unexpectedly used a legacy reference source"
+}
+if ($report.boundary.device_write_performed -ne $false) {
+    throw "runtime bundle test must remain dry-run only"
+}
+if ($report.property_write_plan.set_count -lt 1) {
+    throw "runtime bundle did not produce set operations"
+}

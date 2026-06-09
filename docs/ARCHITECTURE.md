@@ -27,6 +27,15 @@ The current replay slice is:
 4. `rusty-quest-makepad-mesh-replay` applies the replay config and emits
    app-local markers.
 
+`tools\Build-QuestMakepadRuntimeBundle.ps1` is the cohesive operator entry
+point for that path. It accepts a Quest Makepad profile bundle, delegates
+settings resolution to `rusty-makepad`, delegates platform property planning to
+`rusty-quest`, verifies that each planned property points back to the effective
+setting that produced it, and writes
+`rusty.quest.makepad.runtime_bundle_report.v1` provenance. The report is not a
+new settings authority; it is the trace that ties the existing authorities
+together for one app launch or hotload preparation.
+
 The camera-shell adapter exposes a full runtime bundle from one effective
 settings report: parsed camera-shell settings plus a configured mesh replay
 runtime. It also re-exports the mesh replay runtime, uniforms, and marker schema

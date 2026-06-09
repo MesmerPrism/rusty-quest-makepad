@@ -7,6 +7,16 @@ The initial slice defines the Quest Makepad camera shell settings surface and
 profile bundle used to move mesh replay and future SDF/ADF, collision, and
 particle controls out of ad hoc launch settings.
 
+Use the runtime bundle builder as the single entry point for this profile:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1
+```
+
+It resolves the canonical Makepad effective settings, asks `rusty-quest` for the
+matching Quest property write plan, and writes one provenance report under
+`local-artifacts\quest-makepad-runtime-bundle`.
+
 It also contains `rusty-quest-makepad-mesh-replay`, a reusable parser/runtime
 for Matter-owned recorded mesh surface sequences.
 
