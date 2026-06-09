@@ -1,0 +1,146 @@
+{
+  "schema": "rusty.gui.makepad.effective_settings.v1",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "surface_schema": "rusty.gui.makepad.app_settings_surface.v1",
+  "surface_version": 1,
+  "revision": 1,
+  "generated_at": "fixture:mesh-replay:2026-06-09",
+  "settings": [
+    {
+      "setting_id": "makepad.mesh_replay.enabled",
+      "value": true,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": false,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "readback_field": "meshReplayEnabled"
+    },
+    {
+      "setting_id": "makepad.mesh_replay.speed",
+      "value": 1.5,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 1.0,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "frame_safe",
+      "writer_policy": "session_hotload",
+      "readback_field": "meshReplaySpeed"
+    },
+    {
+      "setting_id": "makepad.mesh_replay.source",
+      "value": "public-synthetic-hand-sequence",
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": "public-synthetic-hand-sequence",
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "meshReplaySource"
+    },
+    {
+      "setting_id": "makepad.mesh_replay.opacity",
+      "value": 0.75,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 0.85,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "frame_safe",
+      "writer_policy": "session_hotload",
+      "readback_field": "meshReplayOpacity"
+    },
+    {
+      "setting_id": "makepad.render.scale",
+      "value": 0.9,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 0.9,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "renderScale"
+    },
+    {
+      "setting_id": "makepad.collision.enabled",
+      "value": false,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": false,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "readback_field": "collisionEnabled"
+    },
+    {
+      "setting_id": "makepad.sdf_adf.overlay_mode",
+      "value": "off",
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": "off",
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "sdfAdfOverlayMode"
+    },
+    {
+      "setting_id": "makepad.particles.enabled",
+      "value": false,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": false,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "readback_field": "particlesEnabled"
+    }
+  ]
+}

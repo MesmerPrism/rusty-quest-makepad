@@ -15,10 +15,14 @@ Reference pressure retained:
 - the current shader-panel edge overlay exports four representative segments
   as `[x0, y0, x1, y1]` uniforms.
 
+The `rusty-quest-makepad-camera-shell` crate is the first app-facing adapter
+slice extracted into this repo. It intentionally consumes the new effective
+settings report instead of the previous launch/profile stack, which keeps replay
+behavior deterministic and traceable.
+
 Rejected overreach:
 
-- no app shell move in this slice;
+- no full app shell move in this slice;
 - no full triangle renderer yet;
 - no SDF/ADF, collision, or particle simulation authority in this repo;
 - no dependency on the legacy source repo.
-

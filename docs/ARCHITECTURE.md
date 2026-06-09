@@ -11,6 +11,22 @@ bundles.
 - Quest Makepad profile bundles over canonical Makepad settings;
 - app-local readback markers.
 
+## Camera Shell Settings Path
+
+The active camera shell consumes
+`rusty.gui.makepad.effective_settings.v1` as the single settings boundary. The
+generic resolver lives in `rusty-makepad`; Quest runtime property write plans
+live in `rusty-quest`; this repo owns only the app adapter that applies the
+effective values to Quest Makepad behavior.
+
+The current replay slice is:
+
+1. `rusty-makepad` validates and resolves the settings surface/profile.
+2. `rusty-quest` emits a dry-run or device property write plan for transport.
+3. `rusty-quest-makepad-camera-shell` reads the effective settings report.
+4. `rusty-quest-makepad-mesh-replay` applies the replay config and emits
+   app-local markers.
+
 ## Non-Ownership
 
 - generic Makepad settings resolver;
@@ -18,4 +34,3 @@ bundles.
 - platform ADB/property writer authority;
 - Matter mesh/SDF/collision/particle truth;
 - Manifold command/session authority.
-

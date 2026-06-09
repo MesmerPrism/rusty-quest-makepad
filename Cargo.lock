@@ -33,6 +33,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusty-quest-makepad-camera-shell"
+version = "0.1.0"
+dependencies = [
+ "rusty-quest-makepad-mesh-replay",
+ "serde_json",
+]
+
+[[package]]
 name = "rusty-quest-makepad-mesh-replay"
 version = "0.1.0"
 dependencies = [
