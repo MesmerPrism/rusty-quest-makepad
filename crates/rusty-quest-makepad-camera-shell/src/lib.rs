@@ -19,8 +19,91 @@ pub const SETTING_MESH_REPLAY_SOURCE: &str = "makepad.mesh_replay.source";
 pub const SETTING_MESH_REPLAY_SPEED: &str = "makepad.mesh_replay.speed";
 /// Replay opacity setting id.
 pub const SETTING_MESH_REPLAY_OPACITY: &str = "makepad.mesh_replay.opacity";
+/// Render scale setting id.
+pub const SETTING_RENDER_SCALE: &str = "makepad.render.scale";
+/// Collision enable setting id.
+pub const SETTING_COLLISION_ENABLED: &str = "makepad.collision.enabled";
+/// SDF/ADF overlay mode setting id.
+pub const SETTING_SDF_ADF_OVERLAY_MODE: &str = "makepad.sdf_adf.overlay_mode";
+/// Particle overlay enable setting id.
+pub const SETTING_PARTICLES_ENABLED: &str = "makepad.particles.enabled";
 /// Default projection footprint sample grid for app-shell contract smoke tests.
 pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
+
+/// Complete camera-shell subset of the canonical effective-settings report.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CameraShellEffectiveConfig {
+    /// Replay settings.
+    pub replay: CameraShellReplayConfig,
+    /// Render scale for the Makepad/XR runtime.
+    pub render_scale: f32,
+    /// Whether collision behavior is enabled.
+    pub collision_enabled: bool,
+    /// SDF/ADF overlay mode.
+    pub sdf_adf_overlay_mode: SdfAdfOverlayMode,
+    /// Whether particle behavior is enabled.
+    pub particles_enabled: bool,
+}
+
+impl CameraShellEffectiveConfig {
+    /// Parse the app-facing camera-shell config from canonical effective
+    /// settings.
+    pub fn from_effective_settings_json(json: &str) -> Result<Self, CameraShellConfigError> {
+        let value: Value =
+            serde_json::from_str(json).map_err(|_| CameraShellConfigError::MalformedJson)?;
+        validate_header(&value)?;
+        let settings = settings_array(&value)?;
+        let replay = CameraShellReplayConfig::from_settings(settings)?;
+        let render_scale = parse_f32_setting(settings, SETTING_RENDER_SCALE)?;
+        let collision_enabled = parse_bool_setting(settings, SETTING_COLLISION_ENABLED)?;
+        let sdf_adf_overlay_mode = parse_sdf_adf_overlay_mode(settings)?;
+        let particles_enabled = parse_bool_setting(settings, SETTING_PARTICLES_ENABLED)?;
+
+        Ok(Self {
+            replay,
+            render_scale,
+            collision_enabled,
+            sdf_adf_overlay_mode,
+            particles_enabled,
+        })
+    }
+}
+
+/// SDF/ADF overlay modes exposed by the camera shell settings surface.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SdfAdfOverlayMode {
+    /// No SDF/ADF overlay.
+    Off,
+    /// SDF overlay.
+    Sdf,
+    /// ADF overlay.
+    Adf,
+    /// Combined SDF and ADF overlay.
+    Combined,
+}
+
+impl SdfAdfOverlayMode {
+    /// Stable setting value.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Sdf => "sdf",
+            Self::Adf => "adf",
+            Self::Combined => "combined",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "off" => Some(Self::Off),
+            "sdf" => Some(Self::Sdf),
+            "adf" => Some(Self::Adf),
+            "combined" => Some(Self::Combined),
+            _ => None,
+        }
+    }
+}
 
 /// Replay subset of the camera shell effective settings.
 #[derive(Clone, Debug, PartialEq)]
@@ -41,11 +124,11 @@ impl CameraShellReplayConfig {
         let value: Value =
             serde_json::from_str(json).map_err(|_| CameraShellConfigError::MalformedJson)?;
         validate_header(&value)?;
-        let settings = value
-            .get("settings")
-            .and_then(Value::as_array)
-            .ok_or(CameraShellConfigError::MissingField("settings"))?;
+        let settings = settings_array(&value)?;
+        Self::from_settings(settings)
+    }
 
+    fn from_settings(settings: &[Value]) -> Result<Self, CameraShellConfigError> {
         let enabled = setting_value(settings, SETTING_MESH_REPLAY_ENABLED)?
             .as_bool()
             .ok_or(CameraShellConfigError::InvalidSettingValue(
@@ -249,6 +332,14 @@ fn setting_value<'a>(
         })
 }
 
+fn settings_array(value: &Value) -> Result<&[Value], CameraShellConfigError> {
+    value
+        .get("settings")
+        .and_then(Value::as_array)
+        .map(Vec::as_slice)
+        .ok_or(CameraShellConfigError::MissingField("settings"))
+}
+
 fn parse_f32_setting(
     settings: &[Value],
     setting_id: &'static str,
@@ -258,6 +349,26 @@ fn parse_f32_setting(
         .filter(|number| number.is_finite())
         .map(|number| number as f32)
         .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id))
+}
+
+fn parse_bool_setting(
+    settings: &[Value],
+    setting_id: &'static str,
+) -> Result<bool, CameraShellConfigError> {
+    setting_value(settings, setting_id)?
+        .as_bool()
+        .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id))
+}
+
+fn parse_sdf_adf_overlay_mode(
+    settings: &[Value],
+) -> Result<SdfAdfOverlayMode, CameraShellConfigError> {
+    setting_value(settings, SETTING_SDF_ADF_OVERLAY_MODE)?
+        .as_str()
+        .and_then(SdfAdfOverlayMode::parse)
+        .ok_or(CameraShellConfigError::InvalidSettingValue(
+            SETTING_SDF_ADF_OVERLAY_MODE,
+        ))
 }
 
 #[cfg(test)]
@@ -288,6 +399,21 @@ mod tests {
         assert!(marker.contains("schema=rusty.quest.makepad.mesh_replay.v1"));
         assert!(marker.contains("source=public-synthetic-hand-sequence"));
         assert!(marker.contains("speed=1.500"));
+    }
+
+    #[test]
+    fn effective_settings_configures_full_camera_shell_surface() {
+        let config =
+            CameraShellEffectiveConfig::from_effective_settings_json(EFFECTIVE_SETTINGS_FIXTURE)
+                .unwrap();
+
+        assert!(config.replay.enabled);
+        assert_eq!(config.replay.speed, 1.5);
+        assert_eq!(config.render_scale, 0.9);
+        assert!(!config.collision_enabled);
+        assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Off);
+        assert_eq!(config.sdf_adf_overlay_mode.as_str(), "off");
+        assert!(!config.particles_enabled);
     }
 
     #[test]
@@ -323,6 +449,34 @@ mod tests {
         assert_eq!(
             CameraShellReplayConfig::from_effective_settings_json(&missing_setting).unwrap_err(),
             CameraShellConfigError::MissingSetting(SETTING_MESH_REPLAY_OPACITY)
+        );
+    }
+
+    #[test]
+    fn rejects_missing_non_replay_setting() {
+        let missing_setting =
+            EFFECTIVE_SETTINGS_FIXTURE.replace(SETTING_COLLISION_ENABLED, "makepad.unused");
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&missing_setting).unwrap_err(),
+            CameraShellConfigError::MissingSetting(SETTING_COLLISION_ENABLED)
+        );
+    }
+
+    #[test]
+    fn parses_non_default_sdf_adf_overlay_mode() {
+        let combined =
+            EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"off\"", "\"value\": \"combined\"");
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&combined).unwrap();
+        assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Combined);
+    }
+
+    #[test]
+    fn rejects_invalid_sdf_adf_overlay_mode() {
+        let invalid =
+            EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"off\"", "\"value\": \"private\"");
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(SETTING_SDF_ADF_OVERLAY_MODE)
         );
     }
 

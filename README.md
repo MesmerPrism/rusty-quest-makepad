@@ -11,8 +11,10 @@ It also contains `rusty-quest-makepad-mesh-replay`, a reusable parser/runtime
 for Matter-owned recorded mesh surface sequences.
 
 `rusty-quest-makepad-camera-shell` is the app-facing adapter slice. It consumes
-canonical effective settings and configures the mesh replay runtime without
-depending on the previous source repo or hand-authored launch values.
+the canonical effective-settings report for the published camera-shell surface
+and configures mesh replay, render scale, collision, SDF/ADF overlay, and
+particle toggles without depending on the previous source repo or hand-authored
+launch values.
 
 ## Validation
 
