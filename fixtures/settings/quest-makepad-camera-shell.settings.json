@@ -1,0 +1,131 @@
+{
+  "schema": "rusty.gui.makepad.app_settings_surface.v1",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "version": 1,
+  "settings": [
+    {
+      "id": "makepad.mesh_replay.enabled",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.mesh_replay",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "mesh-replay-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_MESH_REPLAY_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.mesh.replay.enabled" },
+        { "kind": "ui_control", "name": "control.quest_makepad.mesh_replay.enabled" }
+      ],
+      "readback_field": "meshReplayEnabled"
+    },
+    {
+      "id": "makepad.mesh_replay.speed",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.mesh_replay",
+      "value_type": "number",
+      "unit": "x",
+      "minimum": 0.1,
+      "maximum": 8.0,
+      "default": 1.0,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "mesh-replay-speed" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_MESH_REPLAY_SPEED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.mesh.replay.speed" },
+        { "kind": "ui_control", "name": "control.quest_makepad.mesh_replay.speed" }
+      ],
+      "readback_field": "meshReplaySpeed"
+    },
+    {
+      "id": "makepad.mesh_replay.opacity",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.mesh_replay",
+      "value_type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.85,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "mesh-replay-opacity" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_MESH_REPLAY_OPACITY" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.mesh.replay.opacity" }
+      ],
+      "readback_field": "meshReplayOpacity"
+    },
+    {
+      "id": "makepad.render.scale",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.render",
+      "value_type": "number",
+      "unit": "x",
+      "minimum": 0.5,
+      "maximum": 1.5,
+      "default": 0.9,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "render-scale" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_RENDER_SCALE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.render.scale" }
+      ],
+      "readback_field": "renderScale"
+    },
+    {
+      "id": "makepad.collision.enabled",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.collision",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "collision-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_COLLISION_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.collision.enabled" }
+      ],
+      "readback_field": "collisionEnabled"
+    },
+    {
+      "id": "makepad.sdf_adf.overlay_mode",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.sdf_adf",
+      "value_type": "enum",
+      "enum_values": ["off", "sdf", "adf", "combined"],
+      "default": "off",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "sdf-adf-overlay-mode" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_SDF_ADF_OVERLAY_MODE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.sdf_adf.overlay_mode" }
+      ],
+      "readback_field": "sdfAdfOverlayMode"
+    },
+    {
+      "id": "makepad.particles.enabled",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.particles",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.enabled" }
+      ],
+      "readback_field": "particlesEnabled"
+    }
+  ]
+}
+

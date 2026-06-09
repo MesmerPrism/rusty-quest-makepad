@@ -1,0 +1,37 @@
+{
+  "schema": "rusty.gui.makepad.settings_profile.v1",
+  "profile_id": "profile.quest_makepad.mesh_replay",
+  "surface_app_id": "rusty-quest-makepad.camera-shell",
+  "layer": "runtime_profile",
+  "values": [
+    {
+      "setting_id": "makepad.mesh_replay.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "makepad.mesh_replay.speed",
+      "value": 1.5
+    },
+    {
+      "setting_id": "makepad.mesh_replay.opacity",
+      "value": 0.75
+    },
+    {
+      "setting_id": "makepad.render.scale",
+      "value": 0.9
+    },
+    {
+      "setting_id": "makepad.collision.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.sdf_adf.overlay_mode",
+      "value": "off"
+    },
+    {
+      "setting_id": "makepad.particles.enabled",
+      "value": false
+    }
+  ]
+}
+

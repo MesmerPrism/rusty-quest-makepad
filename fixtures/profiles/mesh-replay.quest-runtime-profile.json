@@ -1,0 +1,58 @@
+{
+  "schema": "rusty.quest.runtime_profile.v1",
+  "profile_id": "profile.quest.makepad.mesh_replay",
+  "target_platform": "quest",
+  "owned_android_properties": [
+    "debug.rustyquest.makepad.mesh.replay.enabled",
+    "debug.rustyquest.makepad.mesh.replay.speed",
+    "debug.rustyquest.makepad.mesh.replay.opacity",
+    "debug.rustyquest.makepad.render.scale",
+    "debug.rustyquest.makepad.collision.enabled",
+    "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+    "debug.rustyquest.makepad.particles.enabled"
+  ],
+  "set_properties": [
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.enabled",
+      "value": "true",
+      "source_setting_id": "makepad.mesh_replay.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.speed",
+      "value": "1.5",
+      "source_setting_id": "makepad.mesh_replay.speed"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.opacity",
+      "value": "0.75",
+      "source_setting_id": "makepad.mesh_replay.opacity"
+    },
+    {
+      "name": "debug.rustyquest.makepad.render.scale",
+      "value": "0.9",
+      "source_setting_id": "makepad.render.scale"
+    },
+    {
+      "name": "debug.rustyquest.makepad.collision.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.collision.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+      "value": "off",
+      "source_setting_id": "makepad.sdf_adf.overlay_mode"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.particles.enabled"
+    }
+  ],
+  "expected_markers": [
+    "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS"
+  ],
+  "validation_commands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-QuestMakepadProfiles.ps1"
+  ]
+}
+

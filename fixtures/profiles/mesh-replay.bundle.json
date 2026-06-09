@@ -1,0 +1,11 @@
+{
+  "schema": "rusty.quest.makepad.runtime_profile.v1",
+  "bundle_id": "bundle.quest_makepad.mesh_replay",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "settings_surface": "fixtures/settings/quest-makepad-camera-shell.settings.json",
+  "settings_profile": "fixtures/profiles/mesh-replay.settings-profile.json",
+  "quest_runtime_profile": "fixtures/profiles/mesh-replay.quest-runtime-profile.json",
+  "effective_settings_marker": "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+  "notes": "Mesh replay starts through the canonical Makepad settings surface; Quest properties are generated transport operations."
+}
+
