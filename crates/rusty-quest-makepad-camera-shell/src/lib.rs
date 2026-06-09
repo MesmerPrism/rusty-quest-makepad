@@ -73,6 +73,30 @@ impl CameraShellEffectiveConfig {
     }
 }
 
+/// App-facing runtime bundle built from one canonical effective-settings
+/// report.
+#[derive(Debug)]
+pub struct CameraShellRuntimeBundle {
+    /// Full effective settings config consumed by the camera shell.
+    pub effective_config: CameraShellEffectiveConfig,
+    /// Mesh replay runtime configured from the replay subset.
+    pub mesh_replay_runtime: MeshReplayRuntime,
+}
+
+/// Build the full app-facing runtime bundle from canonical effective settings
+/// JSON.
+pub fn camera_shell_runtime_bundle_from_effective_settings_json(
+    json: &str,
+) -> Result<CameraShellRuntimeBundle, CameraShellConfigError> {
+    let effective_config = CameraShellEffectiveConfig::from_effective_settings_json(json)?;
+    let mut mesh_replay_runtime = MeshReplayRuntime::default();
+    mesh_replay_runtime.configure(effective_config.replay.clone().into_mesh_replay_config());
+    Ok(CameraShellRuntimeBundle {
+        effective_config,
+        mesh_replay_runtime,
+    })
+}
+
 /// SDF/ADF overlay modes exposed by the camera shell settings surface.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SdfAdfOverlayMode {
@@ -176,10 +200,8 @@ pub fn mesh_replay_config_from_effective_settings_json(
 pub fn mesh_replay_runtime_from_effective_settings_json(
     json: &str,
 ) -> Result<MeshReplayRuntime, CameraShellConfigError> {
-    let config = mesh_replay_config_from_effective_settings_json(json)?;
-    let mut runtime = MeshReplayRuntime::default();
-    runtime.configure(config);
-    Ok(runtime)
+    camera_shell_runtime_bundle_from_effective_settings_json(json)
+        .map(|bundle| bundle.mesh_replay_runtime)
 }
 
 /// Baseline projection reports derived from a Lattice display view set.
@@ -418,6 +440,26 @@ mod tests {
         assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Off);
         assert_eq!(config.sdf_adf_overlay_mode.as_str(), "off");
         assert!(!config.particles_enabled);
+    }
+
+    #[test]
+    fn effective_settings_builds_full_runtime_bundle() {
+        let mut bundle =
+            camera_shell_runtime_bundle_from_effective_settings_json(EFFECTIVE_SETTINGS_FIXTURE)
+                .unwrap();
+
+        assert!(bundle.effective_config.replay.enabled);
+        assert_eq!(bundle.effective_config.render_scale, 0.9);
+        assert!(!bundle.effective_config.collision_enabled);
+        assert_eq!(
+            bundle.effective_config.sdf_adf_overlay_mode,
+            SdfAdfOverlayMode::Off
+        );
+        assert!(!bundle.effective_config.particles_enabled);
+
+        let step = bundle.mesh_replay_runtime.step(0.0);
+        assert!(step.enabled);
+        assert_eq!(step.frame_index, 0);
     }
 
     #[test]
