@@ -18,6 +18,9 @@
     "debug.rustyquest.makepad.matter.surface.leaf_triangle_count",
     "debug.rustyquest.makepad.particles.count",
     "debug.rustyquest.makepad.particles.seed",
+    "debug.rustyquest.makepad.particles.execution.backend",
+    "debug.rustyquest.makepad.particles.execution.batch_size",
+    "debug.rustyquest.makepad.particles.execution.max_threads",
     "debug.rustyquest.makepad.sdf.slice.voxel_size",
     "debug.rustyquest.makepad.sdf.slice.max_cells"
   ],
@@ -96,6 +99,21 @@
       "name": "debug.rustyquest.makepad.particles.seed",
       "value": "23",
       "source_setting_id": "makepad.particles.seed"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.execution.backend",
+      "value": "serial",
+      "source_setting_id": "makepad.particles.execution.backend"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.execution.batch_size",
+      "value": "256",
+      "source_setting_id": "makepad.particles.execution.batch_size"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.execution.max_threads",
+      "value": "0",
+      "source_setting_id": "makepad.particles.execution.max_threads"
     },
     {
       "name": "debug.rustyquest.makepad.sdf.slice.voxel_size",

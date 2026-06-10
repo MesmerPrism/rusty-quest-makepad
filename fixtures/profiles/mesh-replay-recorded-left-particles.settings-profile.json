@@ -65,6 +65,18 @@
       "value": 23
     },
     {
+      "setting_id": "makepad.particles.execution.backend",
+      "value": "serial"
+    },
+    {
+      "setting_id": "makepad.particles.execution.batch_size",
+      "value": 256
+    },
+    {
+      "setting_id": "makepad.particles.execution.max_threads",
+      "value": 0
+    },
+    {
       "setting_id": "makepad.sdf.slice.voxel_size",
       "value": 0.1
     },

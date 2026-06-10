@@ -8,7 +8,7 @@
 mod worker;
 
 use core::fmt;
-use std::time::Instant;
+use std::{num::NonZeroUsize, time::Instant};
 
 use rusty_matter_model::Vec3;
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
@@ -17,7 +17,8 @@ use rusty_matter_surface_runtime::{
     MatterSurfaceParticleDistanceRefreshPolicy, MatterSurfaceParticleSnapshot,
     MatterSurfaceRuntime, MatterSurfaceRuntimeConfig, MatterSurfaceRuntimeError,
     MatterSurfaceRuntimeStats, MatterSurfaceRuntimeUpdate, MatterSurfaceStepDiagnostics,
-    DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT, DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
+    ParticleExecutionConfig, DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
+    DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
 };
 use rusty_optics_mesh::SdfSliceVisual;
 use rusty_optics_model::OpticsError;
@@ -26,7 +27,7 @@ use rusty_optics_particles::{
 };
 use rusty_quest_makepad_mesh_replay::{MeshReplayError, MeshReplayRuntime};
 
-pub use rusty_matter_surface_runtime::MatterSurfaceContactProbe;
+pub use rusty_matter_surface_runtime::{MatterSurfaceContactProbe, ParticleExecutionBackend};
 pub use worker::{
     QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerError,
     QuestMakepadMatterSurfaceWorkerFrame, QuestMakepadMatterSurfaceWorkerOutput,
@@ -88,6 +89,8 @@ pub const DEFAULT_MIN_PARTICLE_RADIUS: f32 = 0.0012;
 pub const DEFAULT_WORLD_CONTENT_CENTER: [f32; 3] = [0.0, 0.0, -0.5];
 /// Default displayed content radius in Makepad world units.
 pub const DEFAULT_WORLD_CONTENT_TARGET_RADIUS: f32 = 0.16;
+/// Default Matter particle execution batch size used by Quest Makepad profiles.
+pub const DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE: usize = 256;
 
 /// One animated hand/surface source frame ready for the native Matter runtime.
 #[derive(Clone, Debug, PartialEq)]
@@ -178,6 +181,12 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub particle_seed: u32,
     /// Policy for extra per-particle snapshot distance refreshes.
     pub particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy,
+    /// Low-rate Matter particle execution backend.
+    pub particle_execution_backend: ParticleExecutionBackend,
+    /// Logical Matter particle execution batch size.
+    pub particle_execution_batch_size: NonZeroUsize,
+    /// Optional Matter particle worker cap; `None` lets the backend choose.
+    pub particle_execution_max_threads: Option<usize>,
     /// Maximum triangles in a surface-distance leaf.
     pub leaf_triangle_count: usize,
     /// SDF slice voxel size when slice output is enabled.
@@ -198,6 +207,10 @@ impl Default for QuestMakepadMatterSurfaceConfig {
             particle_count: DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
             particle_seed: DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
             particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::StepOnly,
+            particle_execution_backend: ParticleExecutionBackend::Serial,
+            particle_execution_batch_size: NonZeroUsize::new(DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE)
+                .expect("default particle execution batch size is non-zero"),
+            particle_execution_max_threads: None,
             leaf_triangle_count: 8,
             sdf_voxel_size: 0.05,
             sdf_padding_voxels: 1,
@@ -215,6 +228,11 @@ impl QuestMakepadMatterSurfaceConfig {
         config.distance_sampler.leaf_triangle_count = self.leaf_triangle_count;
         config.collider.enabled = self.collision_enabled;
         config.particle_distance_refresh_policy = self.particle_distance_refresh_policy;
+        config.particles.execution = ParticleExecutionConfig {
+            backend: self.particle_execution_backend,
+            batch_size: self.particle_execution_batch_size,
+            max_threads: self.particle_execution_max_threads,
+        };
         config
     }
 
@@ -1052,6 +1070,7 @@ mod tests {
             sdf_slice_enabled: true,
             particles_enabled: true,
             particle_count: 16,
+            particle_execution_batch_size: NonZeroUsize::new(4).unwrap(),
             sdf_voxel_size: 0.12,
             sdf_max_voxels: 4_096,
             ..QuestMakepadMatterSurfaceConfig::default()
@@ -1121,7 +1140,7 @@ mod tests {
         assert!(marker.contains("particleClosestSamples="));
         assert!(marker.contains("particleRefreshSamples=16"));
         assert!(marker.contains("particleExecutionBackend=serial"));
-        assert!(marker.contains("particleExecutionBatchSize=256"));
+        assert!(marker.contains("particleExecutionBatchSize=4"));
         assert!(marker.contains("particleExecutionChunks="));
         assert!(marker.contains("particleExecutionWorkers=1"));
         assert!(marker.contains("particleExecutionElapsedMicros="));

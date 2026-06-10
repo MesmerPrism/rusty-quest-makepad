@@ -2,19 +2,20 @@
 
 mod mesh_replay_source;
 
-use std::path::Path;
+use std::{num::NonZeroUsize, path::Path};
 
 use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
 use rusty_optics_model::{
     ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
 };
 pub use rusty_quest_makepad_matter_surface::{
-    world_particle_batch_from_upload, MatterSurfaceContactProbe, QuestMakepadMatterSurfaceConfig,
-    QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceRuntime,
-    QuestMakepadMatterSurfaceStageTimings, QuestMakepadMatterSurfaceWorker,
-    QuestMakepadMatterSurfaceWorkerFrame, QuestMakepadMatterSurfaceWorkerOutput,
-    QuestMakepadParticleRow, QuestMakepadParticleUpload, QuestMakepadWorldParticleBatch,
-    QuestMakepadWorldParticleInstance, QuestMakepadWorldParticlePlacement,
+    world_particle_batch_from_upload, MatterSurfaceContactProbe, ParticleExecutionBackend,
+    QuestMakepadMatterSurfaceConfig, QuestMakepadMatterSurfaceFrame,
+    QuestMakepadMatterSurfaceRuntime, QuestMakepadMatterSurfaceStageTimings,
+    QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerFrame,
+    QuestMakepadMatterSurfaceWorkerOutput, QuestMakepadParticleRow, QuestMakepadParticleUpload,
+    QuestMakepadWorldParticleBatch, QuestMakepadWorldParticleInstance,
+    QuestMakepadWorldParticlePlacement, DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE,
     DEFAULT_WORLD_CONTENT_CENTER, DEFAULT_WORLD_CONTENT_TARGET_RADIUS,
     QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE, QUEST_MAKEPAD_CONTENT_LOCAL_SPACE,
     QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX, QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
@@ -73,6 +74,14 @@ pub const SETTING_MATTER_SURFACE_LEAF_TRIANGLE_COUNT: &str =
 pub const SETTING_MATTER_PARTICLE_COUNT: &str = "makepad.particles.count";
 /// Native Matter particle seed setting id.
 pub const SETTING_MATTER_PARTICLE_SEED: &str = "makepad.particles.seed";
+/// Native Matter particle execution backend setting id.
+pub const SETTING_MATTER_PARTICLE_EXECUTION_BACKEND: &str = "makepad.particles.execution.backend";
+/// Native Matter particle execution batch-size setting id.
+pub const SETTING_MATTER_PARTICLE_EXECUTION_BATCH_SIZE: &str =
+    "makepad.particles.execution.batch_size";
+/// Native Matter particle execution max-thread setting id; zero means no cap.
+pub const SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS: &str =
+    "makepad.particles.execution.max_threads";
 /// Native Matter SDF slice voxel-size setting id.
 pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
 /// Native Matter SDF slice max-cell setting id.
@@ -587,6 +596,27 @@ fn parse_matter_surface_config(
     )?;
     config.particle_seed =
         parse_u32_setting_or_default(settings, SETTING_MATTER_PARTICLE_SEED, config.particle_seed)?;
+    config.particle_execution_backend = parse_particle_execution_backend_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_EXECUTION_BACKEND,
+        config.particle_execution_backend,
+    )?;
+    config.particle_execution_batch_size = parse_nonzero_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_EXECUTION_BATCH_SIZE,
+        config.particle_execution_batch_size,
+    )?;
+    let max_threads_default = config.particle_execution_max_threads.unwrap_or(0);
+    let max_threads = parse_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS,
+        max_threads_default,
+    )?;
+    config.particle_execution_max_threads = if max_threads == 0 {
+        None
+    } else {
+        Some(max_threads)
+    };
     config.sdf_voxel_size = parse_f32_setting_or_default(
         settings,
         SETTING_MATTER_SDF_SLICE_VOXEL_SIZE,
@@ -598,6 +628,27 @@ fn parse_matter_surface_config(
         config.sdf_max_voxels,
     )?;
     Ok(config)
+}
+
+fn parse_particle_execution_backend_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: ParticleExecutionBackend,
+) -> Result<ParticleExecutionBackend, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_str()
+            .and_then(parse_particle_execution_backend)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
+fn parse_particle_execution_backend(value: &str) -> Option<ParticleExecutionBackend> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "serial" => Some(ParticleExecutionBackend::Serial),
+        _ => None,
+    }
 }
 
 fn parse_f32_setting_or_default(
@@ -613,6 +664,15 @@ fn parse_f32_setting_or_default(
             .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
         None => Ok(default),
     }
+}
+
+fn parse_nonzero_usize_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: NonZeroUsize,
+) -> Result<NonZeroUsize, CameraShellConfigError> {
+    let value = parse_usize_setting_or_default(settings, setting_id, default.get())?;
+    NonZeroUsize::new(value).ok_or(CameraShellConfigError::InvalidSettingValue(setting_id))
 }
 
 fn parse_usize_setting_or_default(
@@ -705,6 +765,15 @@ mod tests {
         assert!(config.matter_surface.particles_enabled);
         assert_eq!(config.matter_surface.leaf_triangle_count, 8);
         assert_eq!(config.matter_surface.particle_count, 1_000);
+        assert_eq!(
+            config.matter_surface.particle_execution_backend,
+            ParticleExecutionBackend::Serial
+        );
+        assert_eq!(
+            config.matter_surface.particle_execution_batch_size.get(),
+            DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE
+        );
+        assert_eq!(config.matter_surface.particle_execution_max_threads, None);
     }
 
     #[test]
@@ -725,6 +794,14 @@ mod tests {
         assert_eq!(bundle.effective_config.particle_render_draw_limit, 192);
         assert!(bundle.effective_config.matter_surface.enabled);
         assert_eq!(bundle.matter_surface_runtime.config().particle_count, 1_000);
+        assert_eq!(
+            bundle
+                .matter_surface_runtime
+                .config()
+                .particle_execution_batch_size
+                .get(),
+            DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE
+        );
 
         let step = bundle.mesh_replay_runtime.step(0.0);
         assert!(step.enabled);
@@ -816,6 +893,59 @@ mod tests {
     }
 
     #[test]
+    fn parses_particle_execution_settings() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_EXECUTION_BATCH_SIZE,
+            serde_json::json!(128),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS,
+            serde_json::json!(2),
+        );
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(
+            config.matter_surface.particle_execution_backend,
+            ParticleExecutionBackend::Serial
+        );
+        assert_eq!(
+            config.matter_surface.particle_execution_batch_size.get(),
+            128
+        );
+        assert_eq!(
+            config.matter_surface.particle_execution_max_threads,
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_particle_execution_settings() {
+        let invalid_batch = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_EXECUTION_BATCH_SIZE,
+            serde_json::json!(0),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_batch).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(
+                SETTING_MATTER_PARTICLE_EXECUTION_BATCH_SIZE
+            )
+        );
+
+        let invalid_backend = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_EXECUTION_BACKEND,
+            serde_json::json!("rayon"),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_backend).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(SETTING_MATTER_PARTICLE_EXECUTION_BACKEND)
+        );
+    }
+
+    #[test]
     fn normalizes_values_at_runtime_boundary() {
         let high_values = EFFECTIVE_SETTINGS_FIXTURE
             .replace("\"value\": 1.5", "\"value\": 12.0")
@@ -856,5 +986,24 @@ mod tests {
             error,
             CameraShellConfigError::InvalidDisplayViewSet(_)
         ));
+    }
+
+    fn effective_settings_with_value(json: &str, setting_id: &str, value: Value) -> String {
+        let mut report: Value = serde_json::from_str(json).expect("effective settings JSON");
+        let settings = report
+            .get_mut("settings")
+            .and_then(Value::as_array_mut)
+            .expect("settings array");
+        let setting = settings
+            .iter_mut()
+            .find(|candidate| {
+                candidate
+                    .get("setting_id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|candidate| candidate == setting_id)
+            })
+            .expect("effective setting");
+        setting["value"] = value;
+        serde_json::to_string(&report).expect("effective settings JSON")
     }
 }

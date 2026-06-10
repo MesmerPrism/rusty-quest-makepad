@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 3,
+  "version": 4,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -265,6 +265,59 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.seed" }
       ],
       "readback_field": "particlesSeed"
+    },
+    {
+      "id": "makepad.particles.execution.backend",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "enum",
+      "enum_values": ["serial"],
+      "default": "serial",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-execution-backend" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_EXECUTION_BACKEND" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.execution.backend" }
+      ],
+      "readback_field": "particlesExecutionBackend"
+    },
+    {
+      "id": "makepad.particles.execution.batch_size",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 1,
+      "maximum": 4096,
+      "default": 256,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-execution-batch-size" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_EXECUTION_BATCH_SIZE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.execution.batch_size" }
+      ],
+      "readback_field": "particlesExecutionBatchSize"
+    },
+    {
+      "id": "makepad.particles.execution.max_threads",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0,
+      "maximum": 8,
+      "default": 0,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-execution-max-threads" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_EXECUTION_MAX_THREADS" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.execution.max_threads" }
+      ],
+      "readback_field": "particlesExecutionMaxThreads"
     },
     {
       "id": "makepad.sdf.slice.voxel_size",
