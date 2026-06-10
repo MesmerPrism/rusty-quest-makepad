@@ -159,6 +159,10 @@ from the previous `29.228` to `9.823`, `particleVisualMs` from `41.535` to
 `particleStepMs` stayed about the same because Matter still simulated all
 source particles. Evidence:
 `S:\Work\tmp\quest-makepad-visual-row-cap-density-20260611-0013`.
+A follow-up Matter hot-path allocation cleanup, validated in
+`S:\Work\tmp\quest-makepad-hotpath-allocation-density-20260611-0044`,
+reduced the same `32768`/`8192` profile's `particleStepMs` mean from
+`433.741` to `404.871` without changing particle truth or visual cap markers.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
