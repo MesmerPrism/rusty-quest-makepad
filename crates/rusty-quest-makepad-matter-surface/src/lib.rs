@@ -187,6 +187,8 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub particle_execution_batch_size: NonZeroUsize,
     /// Optional Matter particle worker cap; `None` lets the backend choose.
     pub particle_execution_max_threads: Option<usize>,
+    /// Optional cap for elapsed time simulated by one particle frame.
+    pub particle_max_frame_delta_seconds: Option<f32>,
     /// Maximum triangles in a surface-distance leaf.
     pub leaf_triangle_count: usize,
     /// SDF slice voxel size when slice output is enabled.
@@ -211,6 +213,7 @@ impl Default for QuestMakepadMatterSurfaceConfig {
             particle_execution_batch_size: NonZeroUsize::new(DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE)
                 .expect("default particle execution batch size is non-zero"),
             particle_execution_max_threads: None,
+            particle_max_frame_delta_seconds: None,
             leaf_triangle_count: 8,
             sdf_voxel_size: 0.05,
             sdf_padding_voxels: 1,
@@ -233,6 +236,7 @@ impl QuestMakepadMatterSurfaceConfig {
             batch_size: self.particle_execution_batch_size,
             max_threads: self.particle_execution_max_threads,
         };
+        config.particles.max_frame_delta_seconds = self.particle_max_frame_delta_seconds;
         config
     }
 
@@ -678,7 +682,7 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -691,6 +695,18 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.stats.particle_count,
             frame.stats.particle_distance_refresh_policy.marker_value(),
             frame.stats.particle_distance_samples,
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0.0, |diagnostics| diagnostics.particles.input_delta_seconds),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0.0, |diagnostics| diagnostics.particles.simulated_delta_seconds),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0.0, |diagnostics| diagnostics.particles.dropped_delta_seconds),
             frame
                 .particle_step
                 .as_ref()
@@ -1136,6 +1152,9 @@ mod tests {
         assert!(marker.contains("distanceSamplerRefit=false"));
         assert!(marker.contains("particleDistanceRefreshPolicy=step-only"));
         assert!(marker.contains("particleDistanceSamples=16"));
+        assert!(marker.contains("particleInputDeltaSeconds=0.033333"));
+        assert!(marker.contains("particleSimulatedDeltaSeconds=0.033333"));
+        assert!(marker.contains("particleDroppedDeltaSeconds=0.000000"));
         assert!(marker.contains("particleSubsteps="));
         assert!(marker.contains("particleClosestSamples="));
         assert!(marker.contains("particleRefreshSamples=16"));
@@ -1160,6 +1179,35 @@ mod tests {
         assert!(world_marker.contains("contentCenterDistanceMeters=0.500"));
         assert!(!world_marker.contains("rusty.xr"));
         assert!(!world_marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn adapter_can_bound_particle_simulation_delta() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_max_frame_delta_seconds: Some(1.0 / 60.0),
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 0.25, &[])
+            .expect("adapter frame builds");
+        let diagnostics = frame
+            .particle_step
+            .as_ref()
+            .expect("particles step when enabled");
+
+        assert_eq!(diagnostics.particles.input_delta_seconds, 0.25);
+        assert!((diagnostics.particles.simulated_delta_seconds - 1.0 / 60.0).abs() < 1.0e-6);
+        assert!((diagnostics.particles.dropped_delta_seconds - (0.25 - 1.0 / 60.0)).abs() < 1.0e-6);
+        let marker = runtime.marker_line("unit-test", &frame);
+        assert!(marker.contains("particleInputDeltaSeconds=0.250000"));
+        assert!(marker.contains("particleSimulatedDeltaSeconds=0.016667"));
+        assert!(marker.contains("particleDroppedDeltaSeconds=0.233333"));
     }
 
     #[cfg(feature = "parallel")]

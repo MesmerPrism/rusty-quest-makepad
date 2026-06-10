@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 5,
+  "version": 6,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -354,6 +354,24 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.execution.max_threads" }
       ],
       "readback_field": "particlesExecutionMaxThreads"
+    },
+    {
+      "id": "makepad.particles.simulation.max_frame_delta_seconds",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0,
+      "maximum": 1.0,
+      "default": 0,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-simulation-max-frame-delta-seconds" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_SIMULATION_MAX_FRAME_DELTA_SECONDS" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.simulation.max_frame_delta_seconds" }
+      ],
+      "readback_field": "particlesSimulationMaxFrameDeltaSeconds"
     },
     {
       "id": "makepad.sdf.slice.voxel_size",

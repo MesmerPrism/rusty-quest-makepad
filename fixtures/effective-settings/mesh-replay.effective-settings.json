@@ -2,7 +2,7 @@
   "schema": "rusty.gui.makepad.effective_settings.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
   "surface_schema": "rusty.gui.makepad.app_settings_surface.v1",
-  "surface_version": 5,
+  "surface_version": 6,
   "revision": 1,
   "generated_at": "SystemTime { intervals: 134255928663162744 }",
   "settings": [
@@ -345,6 +345,23 @@
       "hotload_policy": "scene_rebuild",
       "writer_policy": "session_hotload",
       "readback_field": "particlesExecutionMaxThreads"
+    },
+    {
+      "setting_id": "makepad.particles.simulation.max_frame_delta_seconds",
+      "value": 0,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 0,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "readback_field": "particlesSimulationMaxFrameDeltaSeconds"
     },
     {
       "setting_id": "makepad.sdf.slice.voxel_size",

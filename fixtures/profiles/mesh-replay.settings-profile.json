@@ -85,6 +85,10 @@
       "value": 0
     },
     {
+      "setting_id": "makepad.particles.simulation.max_frame_delta_seconds",
+      "value": 0
+    },
+    {
       "setting_id": "makepad.sdf.slice.voxel_size",
       "value": 0.05
     },

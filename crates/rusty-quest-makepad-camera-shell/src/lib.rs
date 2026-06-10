@@ -86,6 +86,9 @@ pub const SETTING_MATTER_PARTICLE_EXECUTION_BATCH_SIZE: &str =
 /// Native Matter particle execution max-thread setting id; zero means no cap.
 pub const SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS: &str =
     "makepad.particles.execution.max_threads";
+/// Native Matter particle maximum simulated frame delta; zero means unbounded.
+pub const SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS: &str =
+    "makepad.particles.simulation.max_frame_delta_seconds";
 /// Native Matter SDF slice voxel-size setting id.
 pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
 /// Native Matter SDF slice max-cell setting id.
@@ -684,6 +687,17 @@ fn parse_matter_surface_config(
     } else {
         Some(max_threads)
     };
+    let max_frame_delta_seconds_default = config.particle_max_frame_delta_seconds.unwrap_or(0.0);
+    let max_frame_delta_seconds = parse_non_negative_f32_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS,
+        max_frame_delta_seconds_default,
+    )?;
+    config.particle_max_frame_delta_seconds = if max_frame_delta_seconds == 0.0 {
+        None
+    } else {
+        Some(max_frame_delta_seconds)
+    };
     config.sdf_voxel_size = parse_f32_setting_or_default(
         settings,
         SETTING_MATTER_SDF_SLICE_VOXEL_SIZE,
@@ -756,6 +770,19 @@ fn parse_positive_f32_setting_or_default(
 ) -> Result<f32, CameraShellConfigError> {
     let value = parse_f32_setting_or_default(settings, setting_id, default)?;
     if value > 0.0 {
+        Ok(value)
+    } else {
+        Err(CameraShellConfigError::InvalidSettingValue(setting_id))
+    }
+}
+
+fn parse_non_negative_f32_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: f32,
+) -> Result<f32, CameraShellConfigError> {
+    let value = parse_f32_setting_or_default(settings, setting_id, default)?;
+    if value >= 0.0 {
         Ok(value)
     } else {
         Err(CameraShellConfigError::InvalidSettingValue(setting_id))
@@ -875,6 +902,7 @@ mod tests {
             DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE
         );
         assert_eq!(config.matter_surface.particle_execution_max_threads, None);
+        assert_eq!(config.matter_surface.particle_max_frame_delta_seconds, None);
     }
 
     #[test]
@@ -1010,6 +1038,11 @@ mod tests {
             SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS,
             serde_json::json!(2),
         );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS,
+            serde_json::json!(0.033333335),
+        );
         let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
 
         assert_eq!(
@@ -1023,6 +1056,10 @@ mod tests {
         assert_eq!(
             config.matter_surface.particle_execution_max_threads,
             Some(2)
+        );
+        assert_eq!(
+            config.matter_surface.particle_max_frame_delta_seconds,
+            Some(0.033333335)
         );
     }
 
@@ -1073,6 +1110,18 @@ mod tests {
         assert_eq!(
             CameraShellEffectiveConfig::from_effective_settings_json(&invalid_backend).unwrap_err(),
             CameraShellConfigError::InvalidSettingValue(SETTING_MATTER_PARTICLE_EXECUTION_BACKEND)
+        );
+
+        let invalid_delta = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS,
+            serde_json::json!(-0.1),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_delta).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(
+                SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS
+            )
         );
     }
 

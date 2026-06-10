@@ -120,6 +120,21 @@ effective-settings path. The 2026-06-10 Rayon/4 run cut 4096-particle mean
 developed backlog. Keep serial as the committed default and treat the next
 density implementation as bounded-cadence/drop-backlog work before GPU compute.
 
+The bounded-cadence density path now has a canonical setting:
+`makepad.particles.simulation.max_frame_delta_seconds`, where committed
+profiles use `0` for unbounded behavior and local density sweeps can set a
+positive cap such as `0.022`. Evidence should include
+`particleInputDeltaSeconds`, `particleSimulatedDeltaSeconds`, and
+`particleDroppedDeltaSeconds` in
+`RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_RUNTIME`. The 2026-06-10 bounded Rayon/4
+sweep at `1024`, `2048`, `4096`, `8192`, and `16384` source particles used
+static-ring billboards at `size_scale=0.2` with camera/collision/SDF off.
+Render cadence stayed `90.0` Hz, texture upload stayed `0`, and GPU repaint
+stayed about `0.40`-`1.19 ms`; Matter worker time remained the limit. The
+current Makepad world-particle draw path caps visible instances at `8192`, so
+the `16384` run is compute evidence only: Matter emitted `16384` rows while
+draw markers reported `drawnInstances=8192` and `droppedRows=8192`.
+
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
 Hostess app-private path:
