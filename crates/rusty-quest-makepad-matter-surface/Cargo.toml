@@ -6,6 +6,10 @@ authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+default = []
+parallel = ["rusty-matter-surface-runtime/parallel"]
+
 [dependencies]
 rusty-matter-model = { path = "../../../rusty-matter/crates/rusty-matter-model" }
 rusty-matter-sdf = { path = "../../../rusty-matter/crates/rusty-matter-sdf" }

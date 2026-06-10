@@ -73,8 +73,13 @@ camera-shell surface exposes `makepad.particles.render.animation_mode` and
 `static-ring` plus `0.2` size scale at 1024, 2048, and 4096 particles to keep
 billboard render cost low while measuring Matter particle stepping. That sweep
 showed render/GPU/upload stayed light and the serial Matter worker became the
-bottleneck, so the next density slice should be a measured Rayon/bounded-catchup
-experiment rather than a higher serial count.
+bottleneck. A follow-up APK built with Hostess feature
+`matter-particles-parallel` validated `backend=rayon` through the same
+effective-settings path: at 4096 particles, Rayon/4 reduced mean
+`particleStepMs` from the prior serial `658.822` to `294.979`, while
+render/upload stayed light. Rayon is therefore an explicit high-density
+experiment path, not the committed default. The next density slice should add
+bounded simulation cadence or stale-work dropping before GPU compute.
 
 `rusty-quest-makepad-camera-shell` is the app-facing adapter slice. It consumes
 the canonical effective-settings report for the published camera-shell surface

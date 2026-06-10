@@ -714,6 +714,8 @@ fn parse_particle_execution_backend_setting_or_default(
 fn parse_particle_execution_backend(value: &str) -> Option<ParticleExecutionBackend> {
     match value.trim().to_ascii_lowercase().as_str() {
         "serial" => Some(ParticleExecutionBackend::Serial),
+        #[cfg(feature = "parallel")]
+        "rayon" => Some(ParticleExecutionBackend::Parallel),
         _ => None,
     }
 }
@@ -1024,6 +1026,31 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn parses_parallel_particle_execution_backend_when_feature_enabled() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_EXECUTION_BACKEND,
+            serde_json::json!("rayon"),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS,
+            serde_json::json!(2),
+        );
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(
+            config.matter_surface.particle_execution_backend,
+            ParticleExecutionBackend::Parallel
+        );
+        assert_eq!(
+            config.matter_surface.particle_execution_max_threads,
+            Some(2)
+        );
+    }
+
     #[test]
     fn rejects_invalid_particle_execution_settings() {
         let invalid_batch = effective_settings_with_value(
@@ -1041,7 +1068,7 @@ mod tests {
         let invalid_backend = effective_settings_with_value(
             EFFECTIVE_SETTINGS_FIXTURE,
             SETTING_MATTER_PARTICLE_EXECUTION_BACKEND,
-            serde_json::json!("rayon"),
+            serde_json::json!("private"),
         );
         assert_eq!(
             CameraShellEffectiveConfig::from_effective_settings_json(&invalid_backend).unwrap_err(),

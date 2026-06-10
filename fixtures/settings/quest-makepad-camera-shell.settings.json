@@ -307,7 +307,7 @@
       "owner_repo": "rusty-quest-makepad",
       "owner_module": "camera_shell.matter_surface",
       "value_type": "enum",
-      "enum_values": ["serial"],
+      "enum_values": ["serial", "rayon"],
       "default": "serial",
       "hotload_policy": "scene_rebuild",
       "writer_policy": "session_hotload",

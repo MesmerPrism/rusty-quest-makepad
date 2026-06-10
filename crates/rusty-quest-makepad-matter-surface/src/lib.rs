@@ -1162,6 +1162,40 @@ mod tests {
         assert!(!world_marker.contains("RUSTY_XR"));
     }
 
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn adapter_reports_parallel_particle_execution_when_feature_enabled() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 64,
+            particle_execution_backend: ParticleExecutionBackend::Parallel,
+            particle_execution_batch_size: NonZeroUsize::new(8).unwrap(),
+            particle_execution_max_threads: Some(2),
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("parallel runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("adapter frame builds");
+        let diagnostics = frame
+            .particle_step
+            .as_ref()
+            .expect("particles step when enabled");
+
+        assert_eq!(
+            diagnostics.particles.execution.backend,
+            ParticleExecutionBackend::Parallel
+        );
+        assert_eq!(diagnostics.particles.execution.batch_size, 8);
+        assert_eq!(diagnostics.particles.execution.worker_count, 2);
+        let marker = runtime.marker_line("unit-test", &frame);
+        assert!(marker.contains("particleExecutionBackend=rayon"));
+        assert!(marker.contains("particleExecutionWorkers=2"));
+    }
+
     #[test]
     fn adapter_steps_generic_source_frame_like_replay_frame() {
         let replay = enabled_replay();

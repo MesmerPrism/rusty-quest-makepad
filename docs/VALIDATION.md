@@ -86,7 +86,13 @@ instead of changing the committed visual smoke defaults. Use matching
 serial Matter `particleStepMs`/worker latency grew into hundreds of
 milliseconds. This indicates the current density bottleneck is Matter CPU
 stepping plus fixed-step backlog, not billboard rendering or CPU-GPU upload.
-The next density validation should compare Rayon worker caps and bounded
+To validate the opt-in Rayon path, build the Hostess APK with
+`--features matter-particles-parallel`, then patch only generated/local
+effective settings with `makepad.particles.execution.backend=rayon` and a
+positive `makepad.particles.execution.max_threads`. The 2026-06-10 Rayon/4
+Quest run kept render/upload light and reduced 4096-particle mean
+`particleStepMs` from the prior serial `658.822` to `294.979`, but still
+showed worker backlog. The next density validation should add bounded
 catch-up/drop policy before considering a GPU compute backend.
 
 The profile validation runs through

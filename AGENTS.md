@@ -111,8 +111,14 @@ or a local bundle copy. Safe density knobs are
 `makepad.particles.render.size_scale=0.2`. The 2026-06-10 headset sweep at
 1024, 2048, and 4096 static small billboards showed light Makepad render/GPU
 cost and zero texture upload, while the serial Matter particle worker developed
-large backlog. Treat the next density step as Rayon/bounded-catchup measurement,
-not as a higher serial-count smoke.
+large backlog. A separate APK built with Hostess feature
+`matter-particles-parallel` can request
+`makepad.particles.execution.backend=rayon` and
+`makepad.particles.execution.max_threads` through the same generated
+effective-settings path. The 2026-06-10 Rayon/4 run cut 4096-particle mean
+`particleStepMs` from the prior serial `658.822` to `294.979`, but still
+developed backlog. Keep serial as the committed default and treat the next
+density implementation as bounded-cadence/drop-backlog work before GPU compute.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
