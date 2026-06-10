@@ -13,8 +13,7 @@ use std::{num::NonZeroUsize, time::Instant};
 use rusty_matter_model::Vec3;
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
 use rusty_matter_surface_runtime::{
-    MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput,
-    MatterSurfaceParticleDistanceRefreshPolicy, MatterSurfaceParticleSnapshot,
+    MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput, MatterSurfaceParticleSnapshot,
     MatterSurfaceRuntime, MatterSurfaceRuntimeConfig, MatterSurfaceRuntimeError,
     MatterSurfaceRuntimeStats, MatterSurfaceRuntimeUpdate, MatterSurfaceStepDiagnostics,
     ParticleExecutionConfig, DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
@@ -27,7 +26,9 @@ use rusty_optics_particles::{
 };
 use rusty_quest_makepad_mesh_replay::{MeshReplayError, MeshReplayRuntime};
 
-pub use rusty_matter_surface_runtime::{MatterSurfaceContactProbe, ParticleExecutionBackend};
+pub use rusty_matter_surface_runtime::{
+    MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
+};
 pub use worker::{
     QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerError,
     QuestMakepadMatterSurfaceWorkerFrame, QuestMakepadMatterSurfaceWorkerOutput,

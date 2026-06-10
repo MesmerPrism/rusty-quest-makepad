@@ -73,6 +73,10 @@
       "value": 23
     },
     {
+      "setting_id": "makepad.particles.distance_refresh_policy",
+      "value": "step-only"
+    },
+    {
       "setting_id": "makepad.particles.execution.backend",
       "value": "serial"
     },

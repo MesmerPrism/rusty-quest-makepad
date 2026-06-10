@@ -134,6 +134,19 @@ stayed about `0.40`-`1.19 ms`; Matter worker time remained the limit. The
 current Makepad world-particle draw path caps visible instances at `8192`, so
 the `16384` run is compute evidence only: Matter emitted `16384` rows while
 draw markers reported `drawnInstances=8192` and `droppedRows=8192`.
+For compute-focused sweeps, also set
+`makepad.particles.distance_refresh_policy=disabled` in generated/local
+effective settings. This skips only the extra snapshot/debug
+`last_surface_distance` refresh pass; Matter integration still samples the
+animated hand surface and markers should show `particleClosestSamples` equal to
+the source particle count. The 2026-06-10 disabled-refresh Rayon/4 sweep with
+static-ring billboards at `size_scale=0.2` reached `1024`, `2048`, `4096`,
+`8192`, `16384`, and `32768` source particles. Evidence showed
+`particleDistanceSamples=0`, `particleRefreshSamples=0`, texture upload bytes
+`0`, and app-owned cadence at `90.0` Hz. Step means were about `14.3`,
+`26.3`, `48.6`, `101.0`, `188.9`, and `428.7 ms` respectively; above `8192`
+the current renderer still draws only `8192` instances, so higher counts are
+Matter compute evidence plus capped visual proof.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the

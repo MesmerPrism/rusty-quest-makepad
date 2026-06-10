@@ -9,7 +9,8 @@ use rusty_optics_model::{
     ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
 };
 pub use rusty_quest_makepad_matter_surface::{
-    world_particle_batch_from_upload, MatterSurfaceContactProbe, ParticleExecutionBackend,
+    world_particle_batch_from_upload, MatterSurfaceContactProbe,
+    MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
     QuestMakepadMatterSurfaceConfig, QuestMakepadMatterSurfaceFrame,
     QuestMakepadMatterSurfaceRuntime, QuestMakepadMatterSurfaceStageTimings,
     QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerFrame,
@@ -89,6 +90,9 @@ pub const SETTING_MATTER_PARTICLE_EXECUTION_MAX_THREADS: &str =
 /// Native Matter particle maximum simulated frame delta; zero means unbounded.
 pub const SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS: &str =
     "makepad.particles.simulation.max_frame_delta_seconds";
+/// Native Matter particle snapshot-distance refresh policy setting id.
+pub const SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY: &str =
+    "makepad.particles.distance_refresh_policy";
 /// Native Matter SDF slice voxel-size setting id.
 pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
 /// Native Matter SDF slice max-cell setting id.
@@ -666,6 +670,12 @@ fn parse_matter_surface_config(
     )?;
     config.particle_seed =
         parse_u32_setting_or_default(settings, SETTING_MATTER_PARTICLE_SEED, config.particle_seed)?;
+    config.particle_distance_refresh_policy =
+        parse_particle_distance_refresh_policy_setting_or_default(
+            settings,
+            SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY,
+            config.particle_distance_refresh_policy,
+        )?;
     config.particle_execution_backend = parse_particle_execution_backend_setting_or_default(
         settings,
         SETTING_MATTER_PARTICLE_EXECUTION_BACKEND,
@@ -730,6 +740,33 @@ fn parse_particle_execution_backend(value: &str) -> Option<ParticleExecutionBack
         "serial" => Some(ParticleExecutionBackend::Serial),
         #[cfg(feature = "parallel")]
         "rayon" => Some(ParticleExecutionBackend::Parallel),
+        _ => None,
+    }
+}
+
+fn parse_particle_distance_refresh_policy_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: MatterSurfaceParticleDistanceRefreshPolicy,
+) -> Result<MatterSurfaceParticleDistanceRefreshPolicy, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_str()
+            .and_then(parse_particle_distance_refresh_policy)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
+fn parse_particle_distance_refresh_policy(
+    value: &str,
+) -> Option<MatterSurfaceParticleDistanceRefreshPolicy> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "surface-update-and-step" => {
+            Some(MatterSurfaceParticleDistanceRefreshPolicy::SurfaceUpdateAndStep)
+        }
+        "step-only" => Some(MatterSurfaceParticleDistanceRefreshPolicy::StepOnly),
+        "disabled" => Some(MatterSurfaceParticleDistanceRefreshPolicy::Disabled),
         _ => None,
     }
 }
@@ -894,6 +931,10 @@ mod tests {
         assert_eq!(config.matter_surface.leaf_triangle_count, 8);
         assert_eq!(config.matter_surface.particle_count, 1_000);
         assert_eq!(
+            config.matter_surface.particle_distance_refresh_policy,
+            MatterSurfaceParticleDistanceRefreshPolicy::StepOnly
+        );
+        assert_eq!(
             config.matter_surface.particle_execution_backend,
             ParticleExecutionBackend::Serial
         );
@@ -1043,8 +1084,17 @@ mod tests {
             SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS,
             serde_json::json!(0.033333335),
         );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY,
+            serde_json::json!("disabled"),
+        );
         let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
 
+        assert_eq!(
+            config.matter_surface.particle_distance_refresh_policy,
+            MatterSurfaceParticleDistanceRefreshPolicy::Disabled
+        );
         assert_eq!(
             config.matter_surface.particle_execution_backend,
             ParticleExecutionBackend::Serial
@@ -1121,6 +1171,18 @@ mod tests {
             CameraShellEffectiveConfig::from_effective_settings_json(&invalid_delta).unwrap_err(),
             CameraShellConfigError::InvalidSettingValue(
                 SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS
+            )
+        );
+
+        let invalid_policy = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY,
+            serde_json::json!("private"),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_policy).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(
+                SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY
             )
         );
     }

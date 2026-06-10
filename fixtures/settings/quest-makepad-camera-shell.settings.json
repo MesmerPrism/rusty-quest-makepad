@@ -303,6 +303,23 @@
       "readback_field": "particlesSeed"
     },
     {
+      "id": "makepad.particles.distance_refresh_policy",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "enum",
+      "enum_values": ["surface-update-and-step", "step-only", "disabled"],
+      "default": "step-only",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-distance-refresh-policy" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_DISTANCE_REFRESH_POLICY" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.distance_refresh_policy" }
+      ],
+      "readback_field": "particlesDistanceRefreshPolicy"
+    },
+    {
       "id": "makepad.particles.execution.backend",
       "owner_repo": "rusty-quest-makepad",
       "owner_module": "camera_shell.matter_surface",

@@ -20,6 +20,7 @@
     "debug.rustyquest.makepad.matter.surface.leaf_triangle_count",
     "debug.rustyquest.makepad.particles.count",
     "debug.rustyquest.makepad.particles.seed",
+    "debug.rustyquest.makepad.particles.distance_refresh_policy",
     "debug.rustyquest.makepad.particles.execution.backend",
     "debug.rustyquest.makepad.particles.execution.batch_size",
     "debug.rustyquest.makepad.particles.execution.max_threads",
@@ -112,6 +113,11 @@
       "name": "debug.rustyquest.makepad.particles.seed",
       "value": "23",
       "source_setting_id": "makepad.particles.seed"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.distance_refresh_policy",
+      "value": "step-only",
+      "source_setting_id": "makepad.particles.distance_refresh_policy"
     },
     {
       "name": "debug.rustyquest.makepad.particles.execution.backend",
