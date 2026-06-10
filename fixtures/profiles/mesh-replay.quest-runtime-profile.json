@@ -14,6 +14,7 @@
     "debug.rustyquest.makepad.collision.enabled",
     "debug.rustyquest.makepad.sdf_adf.overlay_mode",
     "debug.rustyquest.makepad.particles.enabled",
+    "debug.rustyquest.makepad.particles.render.draw_limit",
     "debug.rustyquest.makepad.matter.surface.leaf_triangle_count",
     "debug.rustyquest.makepad.particles.count",
     "debug.rustyquest.makepad.particles.seed",
@@ -48,7 +49,7 @@
     },
     {
       "name": "debug.rustyquest.makepad.camera.streaming.enabled",
-      "value": "true",
+      "value": "false",
       "source_setting_id": "makepad.camera.streaming.enabled"
     },
     {
@@ -75,6 +76,11 @@
       "name": "debug.rustyquest.makepad.particles.enabled",
       "value": "true",
       "source_setting_id": "makepad.particles.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.render.draw_limit",
+      "value": "192",
+      "source_setting_id": "makepad.particles.render.draw_limit"
     },
     {
       "name": "debug.rustyquest.makepad.matter.surface.leaf_triangle_count",

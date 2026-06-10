@@ -44,6 +44,8 @@ pub const SETTING_COLLISION_ENABLED: &str = "makepad.collision.enabled";
 pub const SETTING_SDF_ADF_OVERLAY_MODE: &str = "makepad.sdf_adf.overlay_mode";
 /// Particle overlay enable setting id.
 pub const SETTING_PARTICLES_ENABLED: &str = "makepad.particles.enabled";
+/// Particle renderer draw-limit setting id.
+pub const SETTING_PARTICLE_RENDER_DRAW_LIMIT: &str = "makepad.particles.render.draw_limit";
 /// Native Matter surface-runtime leaf triangle count setting id.
 pub const SETTING_MATTER_SURFACE_LEAF_TRIANGLE_COUNT: &str =
     "makepad.matter.surface_runtime.leaf_triangle_count";
@@ -55,6 +57,8 @@ pub const SETTING_MATTER_PARTICLE_SEED: &str = "makepad.particles.seed";
 pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
 /// Native Matter SDF slice max-cell setting id.
 pub const SETTING_MATTER_SDF_SLICE_MAX_CELLS: &str = "makepad.sdf.slice.max_cells";
+/// Default world-particle draw cap for current Quest Makepad billboard smoke.
+pub const DEFAULT_PARTICLE_RENDER_DRAW_LIMIT: usize = 96;
 /// Default projection footprint sample grid for app-shell contract smoke tests.
 pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
 
@@ -73,6 +77,8 @@ pub struct CameraShellEffectiveConfig {
     pub sdf_adf_overlay_mode: SdfAdfOverlayMode,
     /// Whether particle behavior is enabled.
     pub particles_enabled: bool,
+    /// Makepad-side particle render draw cap; does not change Matter truth.
+    pub particle_render_draw_limit: usize,
     /// Native Matter surface runtime config derived from effective settings.
     pub matter_surface: QuestMakepadMatterSurfaceConfig,
 }
@@ -92,6 +98,11 @@ impl CameraShellEffectiveConfig {
         let collision_enabled = parse_bool_setting(settings, SETTING_COLLISION_ENABLED)?;
         let sdf_adf_overlay_mode = parse_sdf_adf_overlay_mode(settings)?;
         let particles_enabled = parse_bool_setting(settings, SETTING_PARTICLES_ENABLED)?;
+        let particle_render_draw_limit = parse_usize_setting_or_default(
+            settings,
+            SETTING_PARTICLE_RENDER_DRAW_LIMIT,
+            DEFAULT_PARTICLE_RENDER_DRAW_LIMIT,
+        )?;
         let matter_surface = parse_matter_surface_config(
             settings,
             replay.enabled,
@@ -107,6 +118,7 @@ impl CameraShellEffectiveConfig {
             collision_enabled,
             sdf_adf_overlay_mode,
             particles_enabled,
+            particle_render_draw_limit,
             matter_surface,
         })
     }
@@ -629,11 +641,12 @@ mod tests {
         assert!(config.replay.enabled);
         assert_eq!(config.replay.speed, 1.5);
         assert_eq!(config.render_scale, 0.9);
-        assert!(config.camera_streaming_enabled);
+        assert!(!config.camera_streaming_enabled);
         assert!(config.collision_enabled);
         assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Sdf);
         assert_eq!(config.sdf_adf_overlay_mode.as_str(), "sdf");
         assert!(config.particles_enabled);
+        assert_eq!(config.particle_render_draw_limit, 192);
         assert!(config.matter_surface.enabled);
         assert!(config.matter_surface.sdf_slice_enabled);
         assert!(config.matter_surface.particles_enabled);
@@ -649,13 +662,14 @@ mod tests {
 
         assert!(bundle.effective_config.replay.enabled);
         assert_eq!(bundle.effective_config.render_scale, 0.9);
-        assert!(bundle.effective_config.camera_streaming_enabled);
+        assert!(!bundle.effective_config.camera_streaming_enabled);
         assert!(bundle.effective_config.collision_enabled);
         assert_eq!(
             bundle.effective_config.sdf_adf_overlay_mode,
             SdfAdfOverlayMode::Sdf
         );
         assert!(bundle.effective_config.particles_enabled);
+        assert_eq!(bundle.effective_config.particle_render_draw_limit, 192);
         assert!(bundle.effective_config.matter_surface.enabled);
         assert_eq!(bundle.matter_surface_runtime.config().particle_count, 1_000);
 

@@ -26,7 +26,7 @@
     },
     {
       "setting_id": "makepad.camera.streaming.enabled",
-      "value": true
+      "value": false
     },
     {
       "setting_id": "makepad.projection.depth_meters",
@@ -47,6 +47,10 @@
     {
       "setting_id": "makepad.particles.enabled",
       "value": true
+    },
+    {
+      "setting_id": "makepad.particles.render.draw_limit",
+      "value": 192
     },
     {
       "setting_id": "makepad.matter.surface_runtime.leaf_triangle_count",
