@@ -181,6 +181,8 @@ pub struct QuestMakepadParticleRow {
     pub color: [f32; 4],
     /// Velocity-derived normal and animation frame as `[x, y, z, frame01]`.
     pub normal_frame: [f32; 4],
+    /// Rotation, speed, visual envelope, and flags as `[rotation, aux0, aux1, flags]`.
+    pub aux: [f32; 4],
 }
 
 /// Bounded particle upload.
@@ -234,6 +236,8 @@ pub struct QuestMakepadWorldParticleInstance {
     pub color: [f32; 4],
     /// Source normal and animation frame as `[x, y, z, frame01]`.
     pub normal_frame: [f32; 4],
+    /// Renderer-neutral visual animation metadata as `[rotation, aux0, aux1, flags]`.
+    pub aux: [f32; 4],
 }
 
 /// Bounded Makepad-facing world particle batch.
@@ -282,7 +286,7 @@ impl QuestMakepadWorldParticleBatch {
             vec3_marker_token(self.content_center),
             self.content_radius,
             self.replay_to_world_scale,
-            self.content_center[2].abs(),
+            vec3_length(self.content_center),
             spread,
         )
     }
@@ -623,6 +627,12 @@ fn particle_upload_from_visual_frame(frame: &ParticleVisualFrame) -> QuestMakepa
                 sample.normal.z,
                 sample.frame01,
             ],
+            aux: [
+                sample.rotation_radians,
+                sample.aux0,
+                sample.aux1,
+                sample.flags as f32,
+            ],
         })
         .collect();
     QuestMakepadParticleUpload {
@@ -671,6 +681,7 @@ pub fn world_particle_batch_from_upload(
                 ],
                 color: row.color,
                 normal_frame: row.normal_frame,
+                aux: row.aux,
             }
         })
         .collect::<Vec<_>>();
@@ -729,6 +740,10 @@ fn instance_spread_token(instances: &[QuestMakepadWorldParticleInstance]) -> Str
         maximum[1] - minimum[1],
         maximum[2] - minimum[2],
     ])
+}
+
+fn vec3_length(value: [f32; 3]) -> f32 {
+    (value[0] * value[0] + value[1] * value[1] + value[2] * value[2]).sqrt()
 }
 
 fn midpoint(minimum: [f32; 3], maximum: [f32; 3]) -> [f32; 3] {
@@ -895,11 +910,13 @@ mod tests {
                     position_radius: [0.0, 0.0, 0.0, 0.02],
                     color: [0.2, 0.8, 1.0, 1.0],
                     normal_frame: [0.0, 0.0, 1.0, 0.5],
+                    aux: [0.25, 0.0, 0.0, 0.0],
                 },
                 QuestMakepadParticleRow {
                     position_radius: [1.0, 0.0, 0.0, 0.02],
                     color: [1.0, 0.5, 0.2, 1.0],
                     normal_frame: [1.0, 0.0, 0.0, 0.25],
+                    aux: [0.75, 0.0, 0.0, 0.0],
                 },
             ],
         };
@@ -937,6 +954,7 @@ mod tests {
                     position_radius: [index as f32, index as f32 * 0.5, index as f32 * -0.25, 0.02],
                     color: [0.2, 0.8, 1.0, 1.0],
                     normal_frame: [0.0, 0.0, 1.0, 0.5],
+                    aux: [index as f32 * 0.01, 0.0, 0.0, 0.0],
                 })
                 .collect(),
         };
@@ -971,5 +989,21 @@ mod tests {
             QUEST_MAKEPAD_CONTENT_LOCAL_SPACE
         );
         assert_eq!(placement.center, [0.0, 0.58, -0.22]);
+
+        let batch = QuestMakepadWorldParticleBatch {
+            schema_id: QUEST_MAKEPAD_WORLD_PARTICLE_BATCH_SCHEMA_ID.to_owned(),
+            source_schema_id: QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID.to_owned(),
+            coordinate_space: placement.coordinate_space.to_owned(),
+            render_mode: QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE.to_owned(),
+            content_center: placement.center,
+            content_radius: placement.target_radius,
+            replay_to_world_scale: 1.0,
+            source_rows: 0,
+            dropped_rows: 0,
+            instances: Vec::new(),
+        };
+        assert!(batch
+            .marker_line("unit-test")
+            .contains("contentCenterDistanceMeters=0.620"));
     }
 }
