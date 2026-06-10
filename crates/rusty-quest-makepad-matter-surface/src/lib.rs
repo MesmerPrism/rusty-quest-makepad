@@ -5,8 +5,11 @@
 //! simulation truth, settings resolution, Android property transport, or
 //! Makepad backend resources.
 
+mod worker;
+
 use core::fmt;
 
+use rusty_matter_model::Vec3;
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
 use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput, MatterSurfaceParticleSnapshot,
@@ -22,6 +25,12 @@ use rusty_optics_particles::{
 use rusty_quest_makepad_mesh_replay::{MeshReplayError, MeshReplayRuntime};
 
 pub use rusty_matter_surface_runtime::MatterSurfaceContactProbe;
+pub use worker::{
+    QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerError,
+    QuestMakepadMatterSurfaceWorkerFrame, QuestMakepadMatterSurfaceWorkerOutput,
+    QuestMakepadMatterSurfaceWorkerStats, QUEST_MAKEPAD_MATTER_SURFACE_WORKER_MARKER_PREFIX,
+    QUEST_MAKEPAD_MATTER_SURFACE_WORKER_SCHEMA_ID,
+};
 
 /// Quest Makepad Matter surface marker schema.
 pub const QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID: &str =
@@ -77,6 +86,78 @@ pub const DEFAULT_MIN_PARTICLE_RADIUS: f32 = 0.0012;
 pub const DEFAULT_WORLD_CONTENT_CENTER: [f32; 3] = [0.0, 0.0, -0.5];
 /// Default displayed content radius in Makepad world units.
 pub const DEFAULT_WORLD_CONTENT_TARGET_RADIUS: f32 = 0.16;
+
+/// One animated hand/surface source frame ready for the native Matter runtime.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuestMakepadMatterSurfaceSourceFrame {
+    /// Stable source identity, for example a recorded replay or realtime hand pair.
+    pub source_id: String,
+    /// Matter-owned surface frame input.
+    pub frame: MatterSurfaceFrameInput,
+    /// Source-space bounds minimum for reset/scaling policy.
+    pub bounds_min: [f32; 3],
+    /// Source-space bounds maximum for reset/scaling policy.
+    pub bounds_max: [f32; 3],
+    /// Source-space radius used for particle cloud sizing.
+    pub bounds_radius: f32,
+}
+
+impl QuestMakepadMatterSurfaceSourceFrame {
+    /// Creates a source frame from a Matter frame input and source bounds.
+    #[must_use]
+    pub fn new(
+        source_id: impl Into<String>,
+        frame: MatterSurfaceFrameInput,
+        bounds_min: [f32; 3],
+        bounds_max: [f32; 3],
+    ) -> Self {
+        Self {
+            source_id: source_id.into(),
+            frame,
+            bounds_min,
+            bounds_max,
+            bounds_radius: bounds_max_half_extent(bounds_min, bounds_max),
+        }
+    }
+
+    /// Creates a source frame from the current replay frame.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuestMakepadMatterSurfaceError`] when replay frame conversion
+    /// fails.
+    pub fn from_replay(replay: &MeshReplayRuntime) -> Result<Self, QuestMakepadMatterSurfaceError> {
+        let sequence = replay.sequence();
+        let source_id = if replay.config().source.trim().is_empty() {
+            sequence.sequence_id().to_owned()
+        } else {
+            replay.config().source.clone()
+        };
+        Ok(Self {
+            source_id,
+            frame: MatterSurfaceFrameInput::new(
+                replay.current_frame_index(),
+                replay.playback_seconds().max(0.0),
+                replay.current_surface()?,
+            ),
+            bounds_min: sequence.bounds_min(),
+            bounds_max: sequence.bounds_max(),
+            bounds_radius: sequence.bounds_radius(),
+        })
+    }
+
+    fn bounds_center(&self) -> Vec3 {
+        Vec3::new(
+            (self.bounds_min[0] + self.bounds_max[0]) * 0.5,
+            (self.bounds_min[1] + self.bounds_max[1]) * 0.5,
+            (self.bounds_min[2] + self.bounds_max[2]) * 0.5,
+        )
+    }
+
+    fn surface_radius(&self) -> f32 {
+        self.bounds_radius.max(0.001)
+    }
+}
 
 /// Quest Makepad native Matter surface adapter config.
 #[derive(Clone, Debug, PartialEq)]
@@ -306,7 +387,9 @@ impl QuestMakepadWorldParticleBatch {
 /// Adapter frame output.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadMatterSurfaceFrame {
-    /// Runtime update for the current replay surface.
+    /// Stable source identity for this frame.
+    pub source_id: String,
+    /// Runtime update for the current source surface.
     pub matter_update: MatterSurfaceRuntimeUpdate,
     /// Runtime stats after the frame step.
     pub stats: MatterSurfaceRuntimeStats,
@@ -401,19 +484,36 @@ impl QuestMakepadMatterSurfaceRuntime {
         delta_seconds: f32,
         probes: &[MatterSurfaceContactProbe],
     ) -> Result<QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceError> {
-        let surface = replay.current_surface()?;
-        let sequence = replay.sequence();
-        let center = sequence.bounds_center();
-        let surface_radius = sequence.bounds_radius().max(0.001);
+        self.step_from_source_frame(
+            QuestMakepadMatterSurfaceSourceFrame::from_replay(replay)?,
+            delta_seconds,
+            probes,
+        )
+    }
+
+    /// Steps from a source frame that already carries a Matter surface.
+    ///
+    /// Recorded replay and future realtime Quest hand-mesh providers should
+    /// converge here so Matter remains the only SDF/collider/particle authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuestMakepadMatterSurfaceError`] when Matter or Optics payload
+    /// construction fails.
+    pub fn step_from_source_frame(
+        &mut self,
+        source_frame: QuestMakepadMatterSurfaceSourceFrame,
+        delta_seconds: f32,
+        probes: &[MatterSurfaceContactProbe],
+    ) -> Result<QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceError> {
+        let center = source_frame.bounds_center();
+        let surface_radius = source_frame.surface_radius();
         let cloud_radius = surface_radius * DEFAULT_PARTICLE_CLOUD_RADIUS_SCALE;
         let particle_radius =
             (surface_radius * DEFAULT_PARTICLE_RADIUS_SCALE).max(DEFAULT_MIN_PARTICLE_RADIUS);
+        let source_id = source_frame.source_id.clone();
 
-        let matter_update = self.matter.update_frame(MatterSurfaceFrameInput::new(
-            replay.current_frame_index(),
-            replay.playback_seconds().max(0.0),
-            surface,
-        ))?;
+        let matter_update = self.matter.update_frame(source_frame.frame)?;
 
         if self.config.enabled && self.config.particles_enabled {
             if !self.particles_initialized
@@ -472,6 +572,7 @@ impl QuestMakepadMatterSurfaceRuntime {
             };
 
         Ok(QuestMakepadMatterSurfaceFrame {
+            source_id,
             matter_update,
             stats: self.matter.stats(),
             collision,
@@ -488,11 +589,12 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
             if self.config.enabled { "ready" } else { "disabled" },
+            sanitize_marker_value(&frame.source_id),
             frame.matter_update.topology_key.schema_id,
             frame.matter_update.frame_index.unwrap_or(0),
             frame.matter_update.vertex_count,
@@ -765,6 +867,13 @@ fn midpoint(minimum: [f32; 3], maximum: [f32; 3]) -> [f32; 3] {
     ]
 }
 
+fn bounds_max_half_extent(minimum: [f32; 3], maximum: [f32; 3]) -> f32 {
+    let extent_x = maximum[0] - minimum[0];
+    let extent_y = maximum[1] - minimum[1];
+    let extent_z = maximum[2] - minimum[2];
+    extent_x.max(extent_y).max(extent_z).max(0.0) * 0.5
+}
+
 fn bounds_radius(minimum: [f32; 3], maximum: [f32; 3]) -> f32 {
     let center = midpoint(minimum, maximum);
     let dx = (maximum[0] - center[0])
@@ -800,7 +909,7 @@ fn vec3_marker_token(value: [f32; 3]) -> String {
 mod tests {
     use super::*;
     use rusty_matter_model::Vec3;
-    use rusty_quest_makepad_mesh_replay::MeshReplayConfig;
+    use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplaySequence};
 
     fn enabled_replay() -> MeshReplayRuntime {
         let mut replay = MeshReplayRuntime::default();
@@ -872,6 +981,7 @@ mod tests {
 
         let marker = runtime.marker_line("unit-test", &frame);
         assert!(marker.contains("nativeMatterRuntime=true"));
+        assert!(marker.contains("sourceId=public-synthetic-hand-sequence"));
         assert!(marker.contains("wasmRuntimeUsed=false"));
         assert!(marker.contains("shaderScaffoldUsed=false"));
         assert!(marker.contains("proceduralParticleOverlayUsed=false"));
@@ -887,6 +997,131 @@ mod tests {
         assert!(world_marker.contains("contentCenterDistanceMeters=0.500"));
         assert!(!world_marker.contains("rusty.xr"));
         assert!(!world_marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn adapter_steps_generic_source_frame_like_replay_frame() {
+        let replay = enabled_replay();
+        let source_frame = QuestMakepadMatterSurfaceSourceFrame::from_replay(&replay)
+            .expect("source frame builds");
+
+        assert_eq!(source_frame.source_id, "public-synthetic-hand-sequence");
+        assert_eq!(source_frame.frame.frame_index, replay.current_frame_index());
+        assert_eq!(source_frame.bounds_min, replay.sequence().bounds_min());
+        assert_eq!(source_frame.bounds_max, replay.sequence().bounds_max());
+        assert_eq!(
+            source_frame.bounds_radius,
+            replay.sequence().bounds_radius()
+        );
+
+        let config = QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            collision_enabled: true,
+            sdf_slice_enabled: false,
+            particles_enabled: false,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        };
+        let mut source_runtime =
+            QuestMakepadMatterSurfaceRuntime::new(config.clone()).expect("runtime builds");
+        let mut replay_runtime =
+            QuestMakepadMatterSurfaceRuntime::new(config).expect("runtime builds");
+
+        let probes = [MatterSurfaceContactProbe::sphere(
+            "probe.center",
+            Vec3::new(0.0, 0.0, 0.0),
+            0.25,
+        )];
+        let from_source = source_runtime
+            .step_from_source_frame(source_frame, 1.0 / 60.0, &probes)
+            .expect("source frame steps");
+        let from_replay = replay_runtime
+            .step_from_replay(&replay, 1.0 / 60.0, &probes)
+            .expect("replay frame steps");
+
+        assert_eq!(from_source.source_id, from_replay.source_id);
+        assert_eq!(
+            from_source.matter_update.frame_index,
+            from_replay.matter_update.frame_index
+        );
+        assert_eq!(
+            from_source.matter_update.vertex_count,
+            from_replay.matter_update.vertex_count
+        );
+        assert_eq!(
+            from_source.matter_update.triangle_count,
+            from_replay.matter_update.triangle_count
+        );
+        assert_eq!(
+            from_source.collision_upload.rows.len(),
+            from_replay.collision_upload.rows.len()
+        );
+
+        let marker = source_runtime.marker_line("unit-test", &from_source);
+        assert!(marker.contains("sourceId=public-synthetic-hand-sequence"));
+        assert!(!marker.contains("rusty.xr"));
+        assert!(!marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn external_recorded_sequence_steps_through_source_frame_when_configured() {
+        let Ok(sequence_path) = std::env::var("RUSTY_QUEST_MAKEPAD_RECORDED_SEQUENCE_JSON") else {
+            return;
+        };
+        let sequence_json =
+            std::fs::read_to_string(&sequence_path).expect("recorded sequence JSON reads");
+        let sequence =
+            MeshReplaySequence::from_json_str(&sequence_json).expect("recorded sequence parses");
+        assert!(sequence.vertex_count() > 8);
+        assert!(sequence.triangle_count() > 6);
+        assert!(sequence.frame_count() > 1);
+
+        let mut replay = MeshReplayRuntime::from_sequence(
+            sequence,
+            MeshReplayConfig::normalized(
+                true,
+                "recorded-meta-quest-hand-sequence".to_owned(),
+                1.0,
+                1.0,
+            ),
+        );
+        replay.step(0.0);
+
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            collision_enabled: true,
+            sdf_slice_enabled: false,
+            particles_enabled: false,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+        let frame = runtime
+            .step_from_source_frame(
+                QuestMakepadMatterSurfaceSourceFrame::from_replay(&replay)
+                    .expect("source frame builds"),
+                1.0 / 60.0,
+                &[MatterSurfaceContactProbe::sphere(
+                    "probe.center",
+                    replay.sequence().bounds_center(),
+                    replay.sequence().bounds_radius().max(0.01),
+                )],
+            )
+            .expect("recorded source frame steps");
+
+        assert_eq!(frame.source_id, "recorded-meta-quest-hand-sequence");
+        assert_eq!(
+            frame.matter_update.vertex_count,
+            replay.sequence().vertex_count()
+        );
+        assert_eq!(
+            frame.matter_update.triangle_count,
+            replay.sequence().triangle_count()
+        );
+        assert_eq!(frame.collision_upload.rows.len(), 1);
+        let marker = runtime.marker_line("external-recorded-sequence", &frame);
+        assert!(marker.contains("nativeMatterRuntime=true"));
+        assert!(marker.contains("sourceId=recorded-meta-quest-hand-sequence"));
+        assert!(marker.contains("wasmRuntimeUsed=false"));
+        assert!(marker.contains("shaderScaffoldUsed=false"));
     }
 
     #[test]

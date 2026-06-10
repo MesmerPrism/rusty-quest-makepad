@@ -1,0 +1,10 @@
+{
+  "schema": "rusty.quest.makepad.runtime_profile.v1",
+  "bundle_id": "bundle.quest_makepad.mesh_replay_recorded_left",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "settings_surface": "fixtures/settings/quest-makepad-camera-shell.settings.json",
+  "settings_profile": "fixtures/profiles/mesh-replay-recorded-left.settings-profile.json",
+  "quest_runtime_profile": "fixtures/profiles/mesh-replay-recorded-left.quest-runtime-profile.json",
+  "effective_settings_marker": "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+  "notes": "Recorded left-hand replay selects an external Matter sequence staged beside effective settings; this profile keeps SDF and particles off for first full-mesh performance classification."
+}

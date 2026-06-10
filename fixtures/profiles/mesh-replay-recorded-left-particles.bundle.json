@@ -1,0 +1,10 @@
+{
+  "schema": "rusty.quest.makepad.runtime_profile.v1",
+  "bundle_id": "bundle.quest_makepad.mesh_replay_recorded_left_particles",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "settings_surface": "fixtures/settings/quest-makepad-camera-shell.settings.json",
+  "settings_profile": "fixtures/profiles/mesh-replay-recorded-left-particles.settings-profile.json",
+  "quest_runtime_profile": "fixtures/profiles/mesh-replay-recorded-left-particles.quest-runtime-profile.json",
+  "effective_settings_marker": "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+  "notes": "Recorded left-hand replay with the measured 64-particle visual-inspection budget. Camera streaming, collision probes, and SDF debug slices remain off so the profile isolates recorded replay plus billboard particles."
+}

@@ -1,17 +1,24 @@
 //! Profile-driven Quest Makepad camera shell adapter.
 
+mod mesh_replay_source;
+
+use std::path::Path;
+
 use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
 use rusty_optics_model::{
     ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
 };
 pub use rusty_quest_makepad_matter_surface::{
     world_particle_batch_from_upload, MatterSurfaceContactProbe, QuestMakepadMatterSurfaceConfig,
-    QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceRuntime, QuestMakepadParticleRow,
-    QuestMakepadParticleUpload, QuestMakepadWorldParticleBatch, QuestMakepadWorldParticleInstance,
+    QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceRuntime,
+    QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerFrame,
+    QuestMakepadMatterSurfaceWorkerOutput, QuestMakepadParticleRow, QuestMakepadParticleUpload,
+    QuestMakepadWorldParticleBatch, QuestMakepadWorldParticleInstance,
     QuestMakepadWorldParticlePlacement, DEFAULT_WORLD_CONTENT_CENTER,
     DEFAULT_WORLD_CONTENT_TARGET_RADIUS, QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE,
     QUEST_MAKEPAD_CONTENT_LOCAL_SPACE, QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
-    QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID, QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE,
+    QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID, QUEST_MAKEPAD_MATTER_SURFACE_WORKER_MARKER_PREFIX,
+    QUEST_MAKEPAD_MATTER_SURFACE_WORKER_SCHEMA_ID, QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE,
     QUEST_MAKEPAD_WORLD_PARTICLE_BATCH_SCHEMA_ID,
     QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_MODE,
     QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_SOURCE,
@@ -25,6 +32,14 @@ pub use rusty_quest_makepad_mesh_replay::{
     SELECTED_SEGMENT_COUNT,
 };
 use serde_json::Value;
+
+use mesh_replay_source::mesh_replay_runtime_from_config;
+pub use mesh_replay_source::{
+    MESH_REPLAY_SOURCE_PUBLIC_SYNTHETIC_HAND_SEQUENCE,
+    MESH_REPLAY_SOURCE_RECORDED_META_QUEST_HAND_LEFT,
+    MESH_REPLAY_SOURCE_RECORDED_META_QUEST_HAND_RIGHT, RECORDED_META_QUEST_HAND_LEFT_SEQUENCE_FILE,
+    RECORDED_META_QUEST_HAND_RIGHT_SEQUENCE_FILE,
+};
 
 /// Canonical camera shell app id.
 pub const CAMERA_SHELL_APP_ID: &str = "rusty-quest-makepad.camera-shell";
@@ -146,8 +161,25 @@ pub fn camera_shell_runtime_bundle_from_effective_settings_json(
     json: &str,
 ) -> Result<CameraShellRuntimeBundle, CameraShellConfigError> {
     let effective_config = CameraShellEffectiveConfig::from_effective_settings_json(json)?;
-    let mut mesh_replay_runtime = MeshReplayRuntime::default();
-    mesh_replay_runtime.configure(effective_config.replay.clone().into_mesh_replay_config());
+    build_camera_shell_runtime_bundle(effective_config, None)
+}
+
+/// Build the full app-facing runtime bundle from canonical effective settings
+/// JSON and a directory that may contain external replay data-plane assets.
+pub fn camera_shell_runtime_bundle_from_effective_settings_json_with_replay_asset_dir(
+    json: &str,
+    replay_asset_dir: &Path,
+) -> Result<CameraShellRuntimeBundle, CameraShellConfigError> {
+    let effective_config = CameraShellEffectiveConfig::from_effective_settings_json(json)?;
+    build_camera_shell_runtime_bundle(effective_config, Some(replay_asset_dir))
+}
+
+fn build_camera_shell_runtime_bundle(
+    effective_config: CameraShellEffectiveConfig,
+    replay_asset_dir: Option<&Path>,
+) -> Result<CameraShellRuntimeBundle, CameraShellConfigError> {
+    let mesh_replay_runtime =
+        mesh_replay_runtime_from_config(&effective_config.replay, replay_asset_dir)?;
     let matter_surface_runtime =
         QuestMakepadMatterSurfaceRuntime::new(effective_config.matter_surface.clone())
             .map_err(|error| CameraShellConfigError::MatterSurfaceRuntime(error.to_string()))?;
@@ -314,6 +346,19 @@ pub fn mesh_replay_runtime_from_effective_settings_json(
         .map(|bundle| bundle.mesh_replay_runtime)
 }
 
+/// Build a mesh replay runtime from canonical effective settings and an
+/// external replay asset directory.
+pub fn mesh_replay_runtime_from_effective_settings_json_with_replay_asset_dir(
+    json: &str,
+    replay_asset_dir: &Path,
+) -> Result<MeshReplayRuntime, CameraShellConfigError> {
+    camera_shell_runtime_bundle_from_effective_settings_json_with_replay_asset_dir(
+        json,
+        replay_asset_dir,
+    )
+    .map(|bundle| bundle.mesh_replay_runtime)
+}
+
 /// Baseline projection reports derived from a Lattice display view set.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraShellProjectionReports {
@@ -400,6 +445,8 @@ pub enum CameraShellConfigError {
     ProjectionReport(String),
     /// Native Matter surface runtime could not be built.
     MatterSurfaceRuntime(String),
+    /// External replay source assets are missing or invalid.
+    MeshReplayAsset(String),
 }
 
 impl std::fmt::Display for CameraShellConfigError {
@@ -429,6 +476,7 @@ impl std::fmt::Display for CameraShellConfigError {
             Self::MatterSurfaceRuntime(message) => {
                 write!(f, "invalid Matter surface runtime: {message}")
             }
+            Self::MeshReplayAsset(message) => write!(f, "invalid mesh replay asset: {message}"),
         }
     }
 }

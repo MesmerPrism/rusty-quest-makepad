@@ -22,10 +22,47 @@ for Matter-owned recorded mesh surface sequences. Replay frames can be exposed
 as native Matter `TriangleMeshSurface` values for downstream adapters.
 
 `rusty-quest-makepad-matter-surface` is the native Matter runtime adapter for
-the Quest Makepad surface slice. It consumes mesh replay frames, steps
+the Quest Makepad surface slice. It consumes source frames from smoke replay,
+recorded replay, and future realtime hand providers, steps
 `rusty-matter-surface-runtime`, packages bounded Makepad-facing rows for
 distance slices, collision contacts, and particles, and uses Optics crates for
 renderer-neutral visuals. It is not simulation authority.
+
+The adapter also exposes `QuestMakepadMatterSurfaceWorker`, a nonblocking
+latest-wins execution wrapper for headset apps. Hostess and other OpenXR
+render loops should submit source-frame/config deltas to this worker and render
+the latest completed frame, instead of rebuilding Matter distance/collider and
+particle payloads directly on the render cadence. The worker owns scheduling
+and evidence counters only; `rusty-matter-surface-runtime` remains the
+simulation authority.
+
+For the optional recorded full hand-mesh replay smoke, generate a local Matter
+sequence from the external recorded GLB and run the adapter test with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\mesh-replay-recorded-left.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-recorded-left
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRecordedMeshReplay.ps1 -GlbPath S:\Work\tmp\quest-handmesh-matter-full-20260601-123844\quest-handmesh-1780310333778406776.glb -OutDir local-artifacts\quest-makepad-runtime-bundle-recorded-left -FrameCount 120
+```
+
+The output stays under
+`local-artifacts\quest-makepad-runtime-bundle-recorded-left`; do not commit the
+generated sequences or route them through settings JSON. The tool extracts mesh
+indices `0,1` by default, so the recorded hand pair is represented as two
+single-surface replay sequences until Matter owns a multi-surface contract.
+Hostess resolves the selected recorded source from a sibling `mesh-replay`
+directory beside the effective-settings file.
+
+For headset visual inspection with billboard particles, use the sibling
+`mesh-replay-recorded-left-particles.bundle.json` bundle and generate the same
+recorded replay data into
+`local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles`. That
+profile intentionally keeps camera streaming, collision probes, and SDF debug
+slices off, with `makepad.particles.count=64` and
+`makepad.particles.render.draw_limit=64`, because headset simpleperf showed the
+recorded full-mesh proof path is currently CPU-bound in Matter distance
+sampler rebuild and direct particle sampling when run on the render thread.
+Use a separate profile/run when collision probe evidence is the measurement
+target.
 
 `rusty-quest-makepad-camera-shell` is the app-facing adapter slice. It consumes
 the canonical effective-settings report for the published camera-shell surface

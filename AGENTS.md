@@ -58,6 +58,49 @@ cargo makepad android --variant=quest --abi=aarch64 --sdk-path="$env:ANDROID_HOM
 camera streaming remains controlled by effective settings, and high-rate
 particle/SDF data must stay out of settings/control JSON.
 
+## Recorded Full Hand-Mesh Replay Smoke
+
+The committed `public-synthetic-hand-sequence` fixture is only an eight-vertex
+smoke replay. For browser-parity recorded hand-mesh validation, keep the large
+recorded GLB/sequence as a local artifact and build it through Matter:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\mesh-replay-recorded-left.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-recorded-left
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRecordedMeshReplay.ps1 -GlbPath S:\Work\tmp\quest-handmesh-matter-full-20260601-123844\quest-handmesh-1780310333778406776.glb -OutDir local-artifacts\quest-makepad-runtime-bundle-recorded-left -FrameCount 120
+```
+
+The tools write a staging-ready local bundle under
+`local-artifacts\quest-makepad-runtime-bundle-recorded-left`: effective settings
+at the root, and generated replay JSON under `mesh-replay`. The recorded replay
+builder sets `RUSTY_QUEST_MAKEPAD_RECORDED_SEQUENCE_JSON` only for the adapter
+smoke test and proves each generated hand sequence enters the same Matter
+source-frame boundary as the bundled replay. It extracts mesh indices `0,1` by
+default for the recorded left/right GLB. Do not commit the generated sequences
+or put high-rate recorded frames into settings/control JSON.
+
+For the current recorded replay plus billboard-particle headset inspection
+profile, use the sibling bundle/output path:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\mesh-replay-recorded-left-particles.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRecordedMeshReplay.ps1 -GlbPath S:\Work\tmp\quest-handmesh-matter-full-20260601-123844\quest-handmesh-1780310333778406776.glb -OutDir local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles -FrameCount 120
+```
+
+That profile keeps camera streaming, collision probes, and SDF debug slices off
+and uses `makepad.particles.count=64` /
+`makepad.particles.render.draw_limit=64`. Headset simpleperf showed this slice
+is CPU-bound in Matter distance sampler rebuild/direct particle sampling while
+Matter still runs on the OpenXR render thread, so larger particle and collision
+budgets should be measured in separate runs until the nonblocking worker/latest
+snapshot boundary lands.
+
+The nonblocking boundary lives in `rusty-quest-makepad-matter-surface` as
+`QuestMakepadMatterSurfaceWorker`. Headset apps submit source-frame requests to
+that worker and render the latest completed payload. Evidence should include
+`RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_WORKER mode=latest-wins workerThread=true
+renderThreadBlocking=false` plus the normal Matter runtime marker. Do not move
+the worker's high-rate frame payloads into settings/control JSON.
+
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
 Hostess app-private path:

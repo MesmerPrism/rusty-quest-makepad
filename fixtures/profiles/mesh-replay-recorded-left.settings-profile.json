@@ -1,0 +1,76 @@
+{
+  "schema": "rusty.gui.makepad.settings_profile.v1",
+  "profile_id": "profile.quest_makepad.mesh_replay_recorded_left",
+  "surface_app_id": "rusty-quest-makepad.camera-shell",
+  "layer": "runtime_profile",
+  "values": [
+    {
+      "setting_id": "makepad.mesh_replay.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "makepad.mesh_replay.speed",
+      "value": 1.0
+    },
+    {
+      "setting_id": "makepad.mesh_replay.source",
+      "value": "recorded-meta-quest-hand-left"
+    },
+    {
+      "setting_id": "makepad.mesh_replay.opacity",
+      "value": 0.75
+    },
+    {
+      "setting_id": "makepad.render.scale",
+      "value": 0.9
+    },
+    {
+      "setting_id": "makepad.camera.streaming.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.projection.depth_meters",
+      "value": 0.5
+    },
+    {
+      "setting_id": "makepad.projection.runtime_resolution.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "makepad.collision.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "makepad.sdf_adf.overlay_mode",
+      "value": "off"
+    },
+    {
+      "setting_id": "makepad.particles.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.particles.render.draw_limit",
+      "value": 0
+    },
+    {
+      "setting_id": "makepad.matter.surface_runtime.leaf_triangle_count",
+      "value": 8
+    },
+    {
+      "setting_id": "makepad.particles.count",
+      "value": 0
+    },
+    {
+      "setting_id": "makepad.particles.seed",
+      "value": 23
+    },
+    {
+      "setting_id": "makepad.sdf.slice.voxel_size",
+      "value": 0.1
+    },
+    {
+      "setting_id": "makepad.sdf.slice.max_cells",
+      "value": 4096
+    }
+  ]
+}
