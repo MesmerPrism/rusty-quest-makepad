@@ -660,7 +660,7 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -685,6 +685,24 @@ impl QuestMakepadMatterSurfaceRuntime {
                 .particle_step
                 .as_ref()
                 .map_or(0, |diagnostics| diagnostics.refreshed_distance_samples),
+            frame.particle_step.as_ref().map_or("none", |diagnostics| {
+                diagnostics.particles.execution.backend.marker_value()
+            }),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0, |diagnostics| diagnostics.particles.execution.batch_size),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0, |diagnostics| diagnostics.particles.execution.chunk_count),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0, |diagnostics| diagnostics.particles.execution.worker_count),
+            frame.particle_step.as_ref().map_or(0, |diagnostics| {
+                diagnostics.particles.execution.elapsed_micros
+            }),
             frame.collision_upload.rows.len(),
             frame
                 .particle_upload
@@ -1102,6 +1120,11 @@ mod tests {
         assert!(marker.contains("particleSubsteps="));
         assert!(marker.contains("particleClosestSamples="));
         assert!(marker.contains("particleRefreshSamples=16"));
+        assert!(marker.contains("particleExecutionBackend=serial"));
+        assert!(marker.contains("particleExecutionBatchSize=256"));
+        assert!(marker.contains("particleExecutionChunks="));
+        assert!(marker.contains("particleExecutionWorkers=1"));
+        assert!(marker.contains("particleExecutionElapsedMicros="));
         assert!(marker.contains("adapterTotalMs="));
         assert!(marker.contains("matterUpdateMs="));
         assert!(marker.contains("particleStepMs="));
