@@ -11,6 +11,7 @@ use core::fmt;
 use std::{num::NonZeroUsize, time::Instant};
 
 use rusty_matter_model::Vec3;
+use rusty_matter_particles::{ParticleRenderPayload, ParticleSet};
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
 use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput, MatterSurfaceParticleSnapshot,
@@ -190,6 +191,11 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub particle_execution_max_threads: Option<usize>,
     /// Optional cap for elapsed time simulated by one particle frame.
     pub particle_max_frame_delta_seconds: Option<f32>,
+    /// Optional cap for Optics/Makepad visual rows derived from Matter particles.
+    ///
+    /// This does not change Matter particle truth or simulation count. It only
+    /// bounds renderer-facing projection work for current Makepad draw caps.
+    pub particle_visual_row_limit: Option<usize>,
     /// Maximum triangles in a surface-distance leaf.
     pub leaf_triangle_count: usize,
     /// SDF slice voxel size when slice output is enabled.
@@ -215,6 +221,7 @@ impl Default for QuestMakepadMatterSurfaceConfig {
                 .expect("default particle execution batch size is non-zero"),
             particle_execution_max_threads: None,
             particle_max_frame_delta_seconds: None,
+            particle_visual_row_limit: None,
             leaf_triangle_count: 8,
             sdf_voxel_size: 0.05,
             sdf_padding_voxels: 1,
@@ -311,6 +318,8 @@ pub struct QuestMakepadParticleRow {
 pub struct QuestMakepadParticleUpload {
     /// Schema identifier.
     pub schema_id: String,
+    /// Full Matter source row count before visual-row capping.
+    pub source_rows: usize,
     /// Packed particle rows.
     pub rows: Vec<QuestMakepadParticleRow>,
 }
@@ -640,12 +649,15 @@ impl QuestMakepadMatterSurfaceRuntime {
         let started_at = Instant::now();
         let particle_snapshot = self.matter.particle_snapshot();
         stage_timings.particle_snapshot_ms = elapsed_ms(started_at);
+        let particle_source_rows = self.matter.stats().particle_count;
         let (particle_visual_frame, particle_upload) =
             if self.config.enabled && self.config.particles_enabled {
                 let started_at = Instant::now();
-                let payload = self
-                    .matter
-                    .particle_render_payload("quest.makepad.particles.current")?;
+                let payload = particle_render_payload_for_visual_limit(
+                    &self.matter,
+                    "quest.makepad.particles.current",
+                    self.config.particle_visual_row_limit,
+                )?;
                 stage_timings.particle_payload_ms = elapsed_ms(started_at);
                 let started_at = Instant::now();
                 let frame = resolve_animated_particle_visual_frame(
@@ -655,7 +667,7 @@ impl QuestMakepadMatterSurfaceRuntime {
                 )?;
                 stage_timings.particle_visual_ms = elapsed_ms(started_at);
                 let started_at = Instant::now();
-                let upload = particle_upload_from_visual_frame(&frame);
+                let upload = particle_upload_from_visual_frame(&frame, particle_source_rows);
                 stage_timings.particle_upload_ms = elapsed_ms(started_at);
                 (Some(frame), Some(upload))
             } else {
@@ -683,7 +695,7 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -742,7 +754,12 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame
                 .particle_upload
                 .as_ref()
+                .map_or(0, |upload| upload.source_rows),
+            frame
+                .particle_upload
+                .as_ref()
                 .map_or(0, |upload| upload.rows.len()),
+            optional_usize_marker_token(self.config.particle_visual_row_limit),
             frame
                 .sdf_slice_upload
                 .as_ref()
@@ -868,7 +885,47 @@ fn collision_upload_from_batch(
     }
 }
 
-fn particle_upload_from_visual_frame(frame: &ParticleVisualFrame) -> QuestMakepadParticleUpload {
+fn particle_render_payload_for_visual_limit(
+    matter: &MatterSurfaceRuntime,
+    payload_id: &'static str,
+    visual_row_limit: Option<usize>,
+) -> Result<ParticleRenderPayload, QuestMakepadMatterSurfaceError> {
+    let Some(limit) = visual_row_limit else {
+        return matter
+            .particle_render_payload(payload_id)
+            .map_err(Into::into);
+    };
+
+    let source_particles = matter.particle_runtime().particles();
+    let source_count = source_particles.particles.len();
+    let visual_count = source_count.min(limit);
+    if visual_count == source_count {
+        return matter
+            .particle_render_payload(payload_id)
+            .map_err(Into::into);
+    }
+
+    let mut sampled = ParticleSet::with_capacity(source_particles.set_id.clone(), visual_count);
+    sampled.time_seconds = source_particles.time_seconds;
+    for selection_index in 0..visual_count {
+        if let Some(source_index) =
+            evenly_spaced_source_index(selection_index, visual_count, source_count)
+        {
+            if let Some(particle) = source_particles.particles.get(source_index) {
+                sampled.push(particle.clone());
+            }
+        }
+    }
+
+    ParticleRenderPayload::from_particle_set(payload_id, &sampled)
+        .map_err(MatterSurfaceRuntimeError::from)
+        .map_err(Into::into)
+}
+
+fn particle_upload_from_visual_frame(
+    frame: &ParticleVisualFrame,
+    source_rows: usize,
+) -> QuestMakepadParticleUpload {
     let rows = frame
         .samples
         .iter()
@@ -901,6 +958,7 @@ fn particle_upload_from_visual_frame(frame: &ParticleVisualFrame) -> QuestMakepa
         .collect();
     QuestMakepadParticleUpload {
         schema_id: QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID.to_owned(),
+        source_rows,
         rows,
     }
 }
@@ -918,11 +976,12 @@ pub fn world_particle_batch_from_upload(
     let bounds_radius = bounds_radius(bounds_min, bounds_max).max(0.001);
     let placement_radius = placement.target_radius.max(0.001);
     let scale = placement_radius / bounds_radius;
-    let instance_count = upload.rows.len().min(max_instances);
+    let upload_rows = upload.rows.len();
+    let instance_count = upload_rows.min(max_instances);
     let instances = (0..instance_count)
         .filter_map(|selection_index| {
             let source_index =
-                evenly_spaced_source_index(selection_index, instance_count, upload.rows.len())?;
+                evenly_spaced_source_index(selection_index, instance_count, upload_rows)?;
             upload.rows.get(source_index)
         })
         .map(|row| {
@@ -957,8 +1016,8 @@ pub fn world_particle_batch_from_upload(
         content_center: placement.center,
         content_radius: placement_radius,
         replay_to_world_scale: scale,
-        source_rows: upload.rows.len(),
-        dropped_rows: upload.rows.len().saturating_sub(instances.len()),
+        source_rows: upload.source_rows,
+        dropped_rows: upload.source_rows.saturating_sub(instances.len()),
         instances,
     }
 }
@@ -1060,6 +1119,10 @@ fn vec3_marker_token(value: [f32; 3]) -> String {
     format!("{:.6},{:.6},{:.6}", value[0], value[1], value[2])
 }
 
+fn optional_usize_marker_token(value: Option<usize>) -> String {
+    value.map_or_else(|| "none".to_owned(), |value| value.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1123,7 +1186,9 @@ mod tests {
                 .refreshed_distance_samples,
             16
         );
-        assert_eq!(frame.particle_upload.as_ref().unwrap().rows.len(), 16);
+        let upload = frame.particle_upload.as_ref().unwrap();
+        assert_eq!(upload.source_rows, 16);
+        assert_eq!(upload.rows.len(), 16);
         let world_batch = frame
             .world_particle_batch(
                 replay.sequence().bounds_min(),
@@ -1164,6 +1229,9 @@ mod tests {
         assert!(marker.contains("particleExecutionChunks="));
         assert!(marker.contains("particleExecutionWorkers=1"));
         assert!(marker.contains("particleExecutionElapsedMicros="));
+        assert!(marker.contains("particleSourceRows=16"));
+        assert!(marker.contains("particleRows=16"));
+        assert!(marker.contains("particleVisualRowLimit=none"));
         assert!(marker.contains("adapterTotalMs="));
         assert!(marker.contains("matterUpdateMs="));
         assert!(marker.contains("particleStepMs="));
@@ -1209,6 +1277,56 @@ mod tests {
         assert!(marker.contains("particleInputDeltaSeconds=0.250000"));
         assert!(marker.contains("particleSimulatedDeltaSeconds=0.016667"));
         assert!(marker.contains("particleDroppedDeltaSeconds=0.233333"));
+    }
+
+    #[test]
+    fn adapter_caps_particle_visual_rows_without_changing_matter_count() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 32,
+            particle_visual_row_limit: Some(8),
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 60.0, &[])
+            .expect("adapter frame builds");
+
+        assert_eq!(frame.stats.particle_count, 32);
+        assert_eq!(frame.particle_snapshot.samples.len(), 32);
+        assert_eq!(
+            frame
+                .particle_visual_frame
+                .as_ref()
+                .expect("visual frame")
+                .samples
+                .len(),
+            8
+        );
+        let upload = frame.particle_upload.as_ref().expect("particle upload");
+        assert_eq!(upload.source_rows, 32);
+        assert_eq!(upload.rows.len(), 8);
+
+        let world_batch = frame
+            .world_particle_batch(
+                replay.sequence().bounds_min(),
+                replay.sequence().bounds_max(),
+                QuestMakepadWorldParticlePlacement::default(),
+                8,
+            )
+            .expect("world particle batch builds");
+        assert_eq!(world_batch.source_rows, 32);
+        assert_eq!(world_batch.instances.len(), 8);
+        assert_eq!(world_batch.dropped_rows, 24);
+
+        let marker = runtime.marker_line("unit-test", &frame);
+        assert!(marker.contains("particleCount=32"));
+        assert!(marker.contains("particleSourceRows=32"));
+        assert!(marker.contains("particleRows=8"));
+        assert!(marker.contains("particleVisualRowLimit=8"));
     }
 
     #[cfg(feature = "parallel")]
@@ -1422,6 +1540,7 @@ mod tests {
     fn world_particle_batch_places_content_center_half_meter_in_front() {
         let upload = QuestMakepadParticleUpload {
             schema_id: QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID.to_owned(),
+            source_rows: 2,
             rows: vec![
                 QuestMakepadParticleRow {
                     position_radius: [0.0, 0.0, 0.0, 0.02],
@@ -1466,6 +1585,7 @@ mod tests {
     fn world_particle_batch_samples_across_source_rows() {
         let upload = QuestMakepadParticleUpload {
             schema_id: QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID.to_owned(),
+            source_rows: 10,
             rows: (0..10)
                 .map(|index| QuestMakepadParticleRow {
                     position_radius: [index as f32, index as f32 * 0.5, index as f32 * -0.25, 0.02],

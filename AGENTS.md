@@ -146,7 +146,19 @@ static-ring billboards at `size_scale=0.2` reached `1024`, `2048`, `4096`,
 `0`, and app-owned cadence at `90.0` Hz. Step means were about `14.3`,
 `26.3`, `48.6`, `101.0`, `188.9`, and `428.7 ms` respectively; above `8192`
 the current renderer still draws only `8192` instances, so higher counts are
-Matter compute evidence plus capped visual proof.
+Matter compute evidence plus capped visual proof. The adapter now applies the
+existing `makepad.particles.render.draw_limit` before Optics visual-frame
+resolution and Makepad row packing. In runtime markers, `particleCount` and
+`particleSourceRows` are full Matter source counts, while `particleRows` is the
+capped visual row count and `particleVisualRowLimit` is the effective cap.
+World draw markers still report full `sourceRows`, drawn instances, and
+`droppedRows`. A focused 2026-06-11 headset run at `32768` source particles
+with draw limit `8192` confirmed the split: `particlePayloadMs` mean dropped
+from the previous `29.228` to `9.823`, `particleVisualMs` from `41.535` to
+`10.474`, and `particleUploadMs` from `1.230` to `0.280`, while
+`particleStepMs` stayed about the same because Matter still simulated all
+source particles. Evidence:
+`S:\Work\tmp\quest-makepad-visual-row-cap-density-20260611-0013`.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the

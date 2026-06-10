@@ -210,6 +210,7 @@ impl CameraShellEffectiveConfig {
             collision_enabled,
             sdf_adf_overlay_mode,
             particles_enabled,
+            particle_render_draw_limit,
         )?;
 
         Ok(Self {
@@ -650,12 +651,14 @@ fn parse_matter_surface_config(
     collision_enabled: bool,
     overlay_mode: SdfAdfOverlayMode,
     particles_enabled: bool,
+    particle_render_draw_limit: usize,
 ) -> Result<QuestMakepadMatterSurfaceConfig, CameraShellConfigError> {
     let runtime_mode = SdfAdfRuntimeMode::from_overlay_mode(overlay_mode);
     let mut config = QuestMakepadMatterSurfaceConfig::default();
     config.collision_enabled = collision_enabled;
     config.sdf_slice_enabled = runtime_mode.matter_sdf_enabled();
     config.particles_enabled = particles_enabled;
+    config.particle_visual_row_limit = Some(particle_render_draw_limit);
     config.enabled = replay_enabled
         && (config.collision_enabled || config.sdf_slice_enabled || particles_enabled);
     config.leaf_triangle_count = parse_usize_setting_or_default(
@@ -944,6 +947,7 @@ mod tests {
         );
         assert_eq!(config.matter_surface.particle_execution_max_threads, None);
         assert_eq!(config.matter_surface.particle_max_frame_delta_seconds, None);
+        assert_eq!(config.matter_surface.particle_visual_row_limit, Some(192));
     }
 
     #[test]
@@ -976,6 +980,13 @@ mod tests {
                 .particle_execution_batch_size
                 .get(),
             DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE
+        );
+        assert_eq!(
+            bundle
+                .matter_surface_runtime
+                .config()
+                .particle_visual_row_limit,
+            Some(192)
         );
 
         let step = bundle.mesh_replay_runtime.step(0.0);
