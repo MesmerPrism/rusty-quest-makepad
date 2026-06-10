@@ -8,6 +8,7 @@
 mod worker;
 
 use core::fmt;
+use std::time::Instant;
 
 use rusty_matter_model::Vec3;
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
@@ -384,6 +385,39 @@ impl QuestMakepadWorldParticleBatch {
     }
 }
 
+/// Adapter-stage timings for one Matter-backed surface frame.
+///
+/// These are compact evidence fields for performance classification. They are
+/// not a simulation contract and they do not carry high-rate particle or mesh
+/// data.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct QuestMakepadMatterSurfaceStageTimings {
+    /// Total adapter wall-clock time for the frame.
+    pub total_ms: f32,
+    /// Native Matter frame update time, including current distance sampler work.
+    pub matter_update_ms: f32,
+    /// Particle reset time when a reset was needed.
+    pub particle_reset_ms: f32,
+    /// Native Matter particle step time.
+    pub particle_step_ms: f32,
+    /// Collision probe time.
+    pub collision_probe_ms: f32,
+    /// Collision row packing time.
+    pub collision_upload_ms: f32,
+    /// SDF grid and debug visual build time.
+    pub sdf_build_ms: f32,
+    /// SDF row packing time.
+    pub sdf_upload_ms: f32,
+    /// Particle snapshot readout time.
+    pub particle_snapshot_ms: f32,
+    /// Matter particle render payload build time.
+    pub particle_payload_ms: f32,
+    /// Optics particle visual frame conversion time.
+    pub particle_visual_ms: f32,
+    /// Particle row packing time.
+    pub particle_upload_ms: f32,
+}
+
 /// Adapter frame output.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadMatterSurfaceFrame {
@@ -407,6 +441,8 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub particle_visual_frame: Option<ParticleVisualFrame>,
     /// Optional particle upload rows.
     pub particle_upload: Option<QuestMakepadParticleUpload>,
+    /// Adapter timing evidence for this frame.
+    pub stage_timings: QuestMakepadMatterSurfaceStageTimings,
 }
 
 impl QuestMakepadMatterSurfaceFrame {
@@ -506,6 +542,8 @@ impl QuestMakepadMatterSurfaceRuntime {
         delta_seconds: f32,
         probes: &[MatterSurfaceContactProbe],
     ) -> Result<QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceError> {
+        let total_started_at = Instant::now();
+        let mut stage_timings = QuestMakepadMatterSurfaceStageTimings::default();
         let center = source_frame.bounds_center();
         let surface_radius = source_frame.surface_radius();
         let cloud_radius = surface_radius * DEFAULT_PARTICLE_CLOUD_RADIUS_SCALE;
@@ -513,12 +551,15 @@ impl QuestMakepadMatterSurfaceRuntime {
             (surface_radius * DEFAULT_PARTICLE_RADIUS_SCALE).max(DEFAULT_MIN_PARTICLE_RADIUS);
         let source_id = source_frame.source_id.clone();
 
+        let started_at = Instant::now();
         let matter_update = self.matter.update_frame(source_frame.frame)?;
+        stage_timings.matter_update_ms = elapsed_ms(started_at);
 
         if self.config.enabled && self.config.particles_enabled {
             if !self.particles_initialized
                 || self.matter.stats().particle_count != self.config.particle_count
             {
+                let started_at = Instant::now();
                 self.matter.reset_particles(
                     center,
                     self.config.particle_count,
@@ -527,49 +568,69 @@ impl QuestMakepadMatterSurfaceRuntime {
                     surface_radius,
                     self.config.particle_seed,
                 )?;
+                stage_timings.particle_reset_ms += elapsed_ms(started_at);
                 self.particles_initialized = true;
             }
+            let started_at = Instant::now();
             self.matter.step_particles(
                 surface_radius,
                 center,
                 cloud_radius,
                 delta_seconds.max(0.0),
             )?;
+            stage_timings.particle_step_ms = elapsed_ms(started_at);
         }
 
+        let started_at = Instant::now();
         let collision = if self.config.enabled && self.config.collision_enabled {
             self.matter.probe_contacts(probes)
         } else {
             self.matter.probe_contacts(&[])
         };
+        stage_timings.collision_probe_ms = elapsed_ms(started_at);
+        let started_at = Instant::now();
         let collision_upload = collision_upload_from_batch(&collision);
+        stage_timings.collision_upload_ms = elapsed_ms(started_at);
 
         let (sdf_slice, sdf_slice_upload) = if self.config.enabled && self.config.sdf_slice_enabled
         {
+            let started_at = Instant::now();
             let grid = self.matter.build_sdf_grid(self.config.sdf_config())?;
             let slice = SdfSliceVisual::middle_z("quest.makepad.sdf_slice.middle_z", &grid)?;
+            stage_timings.sdf_build_ms = elapsed_ms(started_at);
+            let started_at = Instant::now();
             let upload = distance_slice_upload_from_visual(&slice);
+            stage_timings.sdf_upload_ms = elapsed_ms(started_at);
             (Some(slice), Some(upload))
         } else {
             (None, None)
         };
 
+        let started_at = Instant::now();
         let particle_snapshot = self.matter.particle_snapshot();
+        stage_timings.particle_snapshot_ms = elapsed_ms(started_at);
         let (particle_visual_frame, particle_upload) =
             if self.config.enabled && self.config.particles_enabled {
+                let started_at = Instant::now();
                 let payload = self
                     .matter
                     .particle_render_payload("quest.makepad.particles.current")?;
+                stage_timings.particle_payload_ms = elapsed_ms(started_at);
+                let started_at = Instant::now();
                 let frame = resolve_animated_particle_visual_frame(
                     "quest.makepad.particles.visual.current",
                     &payload,
                     &self.particle_profile,
                 )?;
+                stage_timings.particle_visual_ms = elapsed_ms(started_at);
+                let started_at = Instant::now();
                 let upload = particle_upload_from_visual_frame(&frame);
+                stage_timings.particle_upload_ms = elapsed_ms(started_at);
                 (Some(frame), Some(upload))
             } else {
                 (None, None)
             };
+        stage_timings.total_ms = elapsed_ms(total_started_at);
 
         Ok(QuestMakepadMatterSurfaceFrame {
             source_id,
@@ -582,6 +643,7 @@ impl QuestMakepadMatterSurfaceRuntime {
             particle_snapshot,
             particle_visual_frame,
             particle_upload,
+            stage_timings,
         })
     }
 
@@ -589,7 +651,7 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -614,6 +676,18 @@ impl QuestMakepadMatterSurfaceRuntime {
                 .distance_sampler
                 .as_ref()
                 .map_or(0, |stats| stats.leaf_triangle_count),
+            frame.stage_timings.total_ms,
+            frame.stage_timings.matter_update_ms,
+            frame.stage_timings.particle_reset_ms,
+            frame.stage_timings.particle_step_ms,
+            frame.stage_timings.collision_probe_ms,
+            frame.stage_timings.collision_upload_ms,
+            frame.stage_timings.sdf_build_ms,
+            frame.stage_timings.sdf_upload_ms,
+            frame.stage_timings.particle_snapshot_ms,
+            frame.stage_timings.particle_payload_ms,
+            frame.stage_timings.particle_visual_ms,
+            frame.stage_timings.particle_upload_ms,
         )
     }
 }
@@ -901,6 +975,10 @@ fn sanitize_marker_value(value: &str) -> String {
         .collect()
 }
 
+fn elapsed_ms(started_at: Instant) -> f32 {
+    started_at.elapsed().as_secs_f32() * 1000.0
+}
+
 fn vec3_marker_token(value: [f32; 3]) -> String {
     format!("{:.6},{:.6},{:.6}", value[0], value[1], value[2])
 }
@@ -986,6 +1064,11 @@ mod tests {
         assert!(marker.contains("shaderScaffoldUsed=false"));
         assert!(marker.contains("proceduralParticleOverlayUsed=false"));
         assert!(marker.contains("dataPlane=makepad-compact-uniform-rows"));
+        assert!(marker.contains("adapterTotalMs="));
+        assert!(marker.contains("matterUpdateMs="));
+        assert!(marker.contains("particleStepMs="));
+        assert!(marker.contains("particleVisualMs="));
+        assert!(frame.stage_timings.total_ms >= frame.stage_timings.matter_update_ms);
         assert!(!marker.contains("rusty.xr"));
         assert!(!marker.contains("RUSTY_XR"));
 

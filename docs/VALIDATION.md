@@ -30,7 +30,11 @@ Hostess. Worker evidence in headset logs should include
 `mode=latest-wins`, `workerThread=true`, and
 `renderThreadBlocking=false`, followed by normal
 `RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_RUNTIME` markers from the completed
-Matter-backed frame.
+Matter-backed frame. Runtime markers should include compact stage timings such
+as `adapterTotalMs`, `matterUpdateMs`, `particleStepMs`, `particleVisualMs`,
+and row-packing timings so performance runs can separate Matter CPU work,
+Optics conversion, Makepad-facing packing, upload pressure, and GPU repaint
+before considering cache or GPU-backend changes.
 
 Optional recorded full hand-mesh replay smoke:
 
