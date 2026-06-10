@@ -34,10 +34,13 @@ Matter-backed frame. Runtime markers should include compact stage timings such
 as `adapterTotalMs`, `matterUpdateMs`, `particleStepMs`, `particleVisualMs`,
 and row-packing timings, plus `distanceSamplerRefit`,
 `particleDistanceRefreshPolicy`, `particleDistanceSamples`,
-`particleSubsteps`, `particleClosestSamples`, and `particleRefreshSamples`.
-Those fields let performance runs separate Matter CPU work, Optics conversion,
+`particleSubsteps`, `particleClosestSamples`, `particleSurfaceNodeTests`,
+`particleSurfaceLeafTests`, `particleSurfaceTriangleTests`,
+`particleRefreshSamples`, `particleRefreshNodeTests`,
+`particleRefreshLeafTests`, and `particleRefreshTriangleTests`. Those fields
+let performance runs separate Matter CPU query shape, Optics conversion,
 Makepad-facing packing, upload pressure, and GPU repaint before considering
-cache or GPU-backend changes.
+cache, ADF, or GPU-backend changes.
 
 Optional recorded full hand-mesh replay smoke:
 

@@ -139,9 +139,13 @@ For compute-focused sweeps, also set
 effective settings. This skips only the extra snapshot/debug
 `last_surface_distance` refresh pass; Matter integration still samples the
 animated hand surface and markers should show `particleClosestSamples` equal to
-the source particle count. The 2026-06-10 disabled-refresh Rayon/4 sweep with
-static-ring billboards at `size_scale=0.2` reached `1024`, `2048`, `4096`,
-`8192`, `16384`, and `32768` source particles. Evidence showed
+the source particle count. Newer runtime markers also expose
+`particleSurfaceNodeTests`, `particleSurfaceLeafTests`, and
+`particleSurfaceTriangleTests` so density runs can measure Matter
+surface-distance query shape directly before ADF or GPU work. The 2026-06-10
+disabled-refresh Rayon/4 sweep with static-ring billboards at `size_scale=0.2`
+reached `1024`, `2048`, `4096`, `8192`, `16384`, and `32768` source particles.
+Evidence showed
 `particleDistanceSamples=0`, `particleRefreshSamples=0`, texture upload bytes
 `0`, and app-owned cadence at `90.0` Hz. Step means were about `14.3`,
 `26.3`, `48.6`, `101.0`, `188.9`, and `428.7 ms` respectively; above `8192`

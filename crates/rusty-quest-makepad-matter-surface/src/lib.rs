@@ -694,8 +694,25 @@ impl QuestMakepadMatterSurfaceRuntime {
     /// Builds an evidence marker for a frame.
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
+        let particle_step = frame.particle_step.as_ref();
+        let particle_surface_node_tests =
+            particle_step.map_or(0, |diagnostics| diagnostics.particles.surface_node_tests);
+        let particle_surface_leaf_tests =
+            particle_step.map_or(0, |diagnostics| diagnostics.particles.surface_leaf_tests);
+        let particle_surface_triangle_tests = particle_step.map_or(0, |diagnostics| {
+            diagnostics.particles.surface_triangle_tests
+        });
+        let particle_refresh_node_tests = particle_step.map_or(0, |diagnostics| {
+            diagnostics.refreshed_distance_diagnostics.node_tests
+        });
+        let particle_refresh_leaf_tests = particle_step.map_or(0, |diagnostics| {
+            diagnostics.refreshed_distance_diagnostics.leaf_tests
+        });
+        let particle_refresh_triangle_tests = particle_step.map_or(0, |diagnostics| {
+            diagnostics.refreshed_distance_diagnostics.triangle_tests
+        });
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -728,10 +745,16 @@ impl QuestMakepadMatterSurfaceRuntime {
                 .particle_step
                 .as_ref()
                 .map_or(0, |diagnostics| diagnostics.particles.closest_samples),
+            particle_surface_node_tests,
+            particle_surface_leaf_tests,
+            particle_surface_triangle_tests,
             frame
                 .particle_step
                 .as_ref()
                 .map_or(0, |diagnostics| diagnostics.refreshed_distance_samples),
+            particle_refresh_node_tests,
+            particle_refresh_leaf_tests,
+            particle_refresh_triangle_tests,
             frame.particle_step.as_ref().map_or("none", |diagnostics| {
                 diagnostics.particles.execution.backend.marker_value()
             }),
@@ -1223,7 +1246,13 @@ mod tests {
         assert!(marker.contains("particleDroppedDeltaSeconds=0.000000"));
         assert!(marker.contains("particleSubsteps="));
         assert!(marker.contains("particleClosestSamples="));
+        assert!(marker.contains("particleSurfaceNodeTests="));
+        assert!(marker.contains("particleSurfaceLeafTests="));
+        assert!(marker.contains("particleSurfaceTriangleTests="));
         assert!(marker.contains("particleRefreshSamples=16"));
+        assert!(marker.contains("particleRefreshNodeTests="));
+        assert!(marker.contains("particleRefreshLeafTests="));
+        assert!(marker.contains("particleRefreshTriangleTests="));
         assert!(marker.contains("particleExecutionBackend=serial"));
         assert!(marker.contains("particleExecutionBatchSize=4"));
         assert!(marker.contains("particleExecutionChunks="));
