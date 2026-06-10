@@ -103,6 +103,17 @@ that worker and render the latest completed payload. Evidence should include
 renderThreadBlocking=false` plus the normal Matter runtime marker. Do not move
 the worker's high-rate frame payloads into settings/control JSON.
 
+For particle-density sweeps, keep the committed recorded-left-particles profile
+as the 64-particle visual smoke and patch only the generated effective settings
+or a local bundle copy. Safe density knobs are
+`makepad.particles.count`, `makepad.particles.render.draw_limit`,
+`makepad.particles.render.animation_mode=static-ring`, and
+`makepad.particles.render.size_scale=0.2`. The 2026-06-10 headset sweep at
+1024, 2048, and 4096 static small billboards showed light Makepad render/GPU
+cost and zero texture upload, while the serial Matter particle worker developed
+large backlog. Treat the next density step as Rayon/bounded-catchup measurement,
+not as a higher serial-count smoke.
+
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
 Hostess app-private path:

@@ -66,6 +66,16 @@ Runtime markers should show `renderThreadBlocking=false`,
 `particleDistanceRefreshPolicy=step-only` for this Quest visual profile. Use a
 separate profile/run when collision probe evidence is the measurement target.
 
+For density/performance experiments, keep the same effective-settings path and
+patch generated local artifacts rather than adding Hostess overrides. The
+camera-shell surface exposes `makepad.particles.render.animation_mode` and
+`makepad.particles.render.size_scale`; the 2026-06-10 headset sweep used
+`static-ring` plus `0.2` size scale at 1024, 2048, and 4096 particles to keep
+billboard render cost low while measuring Matter particle stepping. That sweep
+showed render/GPU/upload stayed light and the serial Matter worker became the
+bottleneck, so the next density slice should be a measured Rayon/bounded-catchup
+experiment rather than a higher serial count.
+
 `rusty-quest-makepad-camera-shell` is the app-facing adapter slice. It consumes
 the canonical effective-settings report for the published camera-shell surface
 and configures mesh replay, render scale, collision, SDF/ADF overlay, and

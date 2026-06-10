@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 4,
+  "version": 5,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -200,7 +200,7 @@
       "owner_module": "camera_shell.particle_render",
       "value_type": "number",
       "minimum": 0,
-      "maximum": 512,
+      "maximum": 8192,
       "default": 96,
       "hotload_policy": "frame_safe",
       "writer_policy": "profile_owned",
@@ -211,6 +211,42 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.render.draw_limit" }
       ],
       "readback_field": "particlesRenderDrawLimit"
+    },
+    {
+      "id": "makepad.particles.render.animation_mode",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.particle_render",
+      "value_type": "enum",
+      "enum_values": ["procedural-morph-ring", "static-ring"],
+      "default": "procedural-morph-ring",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-render-animation-mode" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_RENDER_ANIMATION_MODE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.render.animation_mode" }
+      ],
+      "readback_field": "particlesRenderAnimationMode"
+    },
+    {
+      "id": "makepad.particles.render.size_scale",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.particle_render",
+      "value_type": "number",
+      "unit": "x",
+      "minimum": 0.05,
+      "maximum": 4.0,
+      "default": 1.0,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-render-size-scale" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_RENDER_SIZE_SCALE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.render.size_scale" }
+      ],
+      "readback_field": "particlesRenderSizeScale"
     },
     {
       "id": "makepad.matter.surface_runtime.leaf_triangle_count",

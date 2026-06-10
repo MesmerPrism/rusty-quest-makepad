@@ -76,6 +76,19 @@ not refresh per-particle visual distances once before and once after every
 particle step; Matter's default native facade policy remains the exact
 surface-update-and-step refresh behavior.
 
+For density-only measurement, patch a generated effective-settings bundle
+instead of changing the committed visual smoke defaults. Use matching
+`makepad.particles.count` and `makepad.particles.render.draw_limit`, set
+`makepad.particles.render.animation_mode=static-ring`, and set
+`makepad.particles.render.size_scale=0.2`. The 2026-06-10 Quest sweep at 1024,
+2048, and 4096 static small billboards showed `xrEffectiveFrameRateHz=90`,
+`xrRepaintTextureUploadBytes=0`, and low GPU repaint time through 4096, while
+serial Matter `particleStepMs`/worker latency grew into hundreds of
+milliseconds. This indicates the current density bottleneck is Matter CPU
+stepping plus fixed-step backlog, not billboard rendering or CPU-GPU upload.
+The next density validation should compare Rayon worker caps and bounded
+catch-up/drop policy before considering a GPU compute backend.
+
 The profile validation runs through
 `tools\Build-QuestMakepadRuntimeBundle.ps1`, which also checks that each Quest
 property set operation references an effective setting and carries the same

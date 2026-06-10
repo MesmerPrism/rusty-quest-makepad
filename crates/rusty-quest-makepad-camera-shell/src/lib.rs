@@ -67,6 +67,10 @@ pub const SETTING_SDF_ADF_OVERLAY_MODE: &str = "makepad.sdf_adf.overlay_mode";
 pub const SETTING_PARTICLES_ENABLED: &str = "makepad.particles.enabled";
 /// Particle renderer draw-limit setting id.
 pub const SETTING_PARTICLE_RENDER_DRAW_LIMIT: &str = "makepad.particles.render.draw_limit";
+/// Particle renderer animation-mode setting id.
+pub const SETTING_PARTICLE_RENDER_ANIMATION_MODE: &str = "makepad.particles.render.animation_mode";
+/// Particle renderer size-scale setting id.
+pub const SETTING_PARTICLE_RENDER_SIZE_SCALE: &str = "makepad.particles.render.size_scale";
 /// Native Matter surface-runtime leaf triangle count setting id.
 pub const SETTING_MATTER_SURFACE_LEAF_TRIANGLE_COUNT: &str =
     "makepad.matter.surface_runtime.leaf_triangle_count";
@@ -88,8 +92,55 @@ pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_s
 pub const SETTING_MATTER_SDF_SLICE_MAX_CELLS: &str = "makepad.sdf.slice.max_cells";
 /// Default world-particle draw cap for current Quest Makepad billboard smoke.
 pub const DEFAULT_PARTICLE_RENDER_DRAW_LIMIT: usize = 96;
+/// Default particle renderer animation mode.
+pub const DEFAULT_PARTICLE_RENDER_ANIMATION_MODE: ParticleRenderAnimationMode =
+    ParticleRenderAnimationMode::ProceduralMorphRing;
+/// Default particle renderer size scale.
+pub const DEFAULT_PARTICLE_RENDER_SIZE_SCALE: f32 = 1.0;
 /// Default projection footprint sample grid for app-shell contract smoke tests.
 pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
+
+/// Render-side particle animation policy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ParticleRenderAnimationMode {
+    /// Use the current animated procedural ring visual.
+    ProceduralMorphRing,
+    /// Keep the ring static so density tests can reduce visual animation cost.
+    StaticRing,
+}
+
+impl ParticleRenderAnimationMode {
+    /// Parse a stable settings token.
+    #[must_use]
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "procedural-morph-ring" => Some(Self::ProceduralMorphRing),
+            "static-ring" => Some(Self::StaticRing),
+            _ => None,
+        }
+    }
+
+    /// Stable marker/settings token.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ProceduralMorphRing => "procedural-morph-ring",
+            Self::StaticRing => "static-ring",
+        }
+    }
+
+    /// Whether renderer time/frame animation should be active.
+    #[must_use]
+    pub const fn uses_frame_animation(self) -> bool {
+        matches!(self, Self::ProceduralMorphRing)
+    }
+}
+
+impl Default for ParticleRenderAnimationMode {
+    fn default() -> Self {
+        DEFAULT_PARTICLE_RENDER_ANIMATION_MODE
+    }
+}
 
 /// Complete camera-shell subset of the canonical effective-settings report.
 #[derive(Clone, Debug, PartialEq)]
@@ -108,6 +159,10 @@ pub struct CameraShellEffectiveConfig {
     pub particles_enabled: bool,
     /// Makepad-side particle render draw cap; does not change Matter truth.
     pub particle_render_draw_limit: usize,
+    /// Render-side particle animation mode; does not change Matter truth.
+    pub particle_render_animation_mode: ParticleRenderAnimationMode,
+    /// Render-side particle size scale; does not change Matter truth.
+    pub particle_render_size_scale: f32,
     /// Native Matter surface runtime config derived from effective settings.
     pub matter_surface: QuestMakepadMatterSurfaceConfig,
 }
@@ -132,6 +187,16 @@ impl CameraShellEffectiveConfig {
             SETTING_PARTICLE_RENDER_DRAW_LIMIT,
             DEFAULT_PARTICLE_RENDER_DRAW_LIMIT,
         )?;
+        let particle_render_animation_mode = parse_particle_render_animation_mode_or_default(
+            settings,
+            SETTING_PARTICLE_RENDER_ANIMATION_MODE,
+            DEFAULT_PARTICLE_RENDER_ANIMATION_MODE,
+        )?;
+        let particle_render_size_scale = parse_positive_f32_setting_or_default(
+            settings,
+            SETTING_PARTICLE_RENDER_SIZE_SCALE,
+            DEFAULT_PARTICLE_RENDER_SIZE_SCALE,
+        )?;
         let matter_surface = parse_matter_surface_config(
             settings,
             replay.enabled,
@@ -148,6 +213,8 @@ impl CameraShellEffectiveConfig {
             sdf_adf_overlay_mode,
             particles_enabled,
             particle_render_draw_limit,
+            particle_render_animation_mode,
+            particle_render_size_scale,
             matter_surface,
         })
     }
@@ -651,6 +718,20 @@ fn parse_particle_execution_backend(value: &str) -> Option<ParticleExecutionBack
     }
 }
 
+fn parse_particle_render_animation_mode_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: ParticleRenderAnimationMode,
+) -> Result<ParticleRenderAnimationMode, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_str()
+            .and_then(ParticleRenderAnimationMode::parse)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
 fn parse_f32_setting_or_default(
     settings: &[Value],
     setting_id: &'static str,
@@ -663,6 +744,19 @@ fn parse_f32_setting_or_default(
             .map(|number| number as f32)
             .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
         None => Ok(default),
+    }
+}
+
+fn parse_positive_f32_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: f32,
+) -> Result<f32, CameraShellConfigError> {
+    let value = parse_f32_setting_or_default(settings, setting_id, default)?;
+    if value > 0.0 {
+        Ok(value)
+    } else {
+        Err(CameraShellConfigError::InvalidSettingValue(setting_id))
     }
 }
 
@@ -760,6 +854,11 @@ mod tests {
         assert_eq!(config.sdf_adf_overlay_mode.as_str(), "sdf");
         assert!(config.particles_enabled);
         assert_eq!(config.particle_render_draw_limit, 192);
+        assert_eq!(
+            config.particle_render_animation_mode,
+            ParticleRenderAnimationMode::ProceduralMorphRing
+        );
+        assert_eq!(config.particle_render_size_scale, 1.0);
         assert!(config.matter_surface.enabled);
         assert!(config.matter_surface.sdf_slice_enabled);
         assert!(config.matter_surface.particles_enabled);
@@ -792,6 +891,11 @@ mod tests {
         );
         assert!(bundle.effective_config.particles_enabled);
         assert_eq!(bundle.effective_config.particle_render_draw_limit, 192);
+        assert_eq!(
+            bundle.effective_config.particle_render_animation_mode,
+            ParticleRenderAnimationMode::ProceduralMorphRing
+        );
+        assert_eq!(bundle.effective_config.particle_render_size_scale, 1.0);
         assert!(bundle.effective_config.matter_surface.enabled);
         assert_eq!(bundle.matter_surface_runtime.config().particle_count, 1_000);
         assert_eq!(

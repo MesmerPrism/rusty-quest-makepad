@@ -53,6 +53,14 @@
       "value": 192
     },
     {
+      "setting_id": "makepad.particles.render.animation_mode",
+      "value": "procedural-morph-ring"
+    },
+    {
+      "setting_id": "makepad.particles.render.size_scale",
+      "value": 1.0
+    },
+    {
       "setting_id": "makepad.matter.surface_runtime.leaf_triangle_count",
       "value": 8
     },
