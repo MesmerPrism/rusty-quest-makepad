@@ -89,10 +89,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRe
 That profile keeps camera streaming, collision probes, and SDF debug slices off
 and uses `makepad.particles.count=64` /
 `makepad.particles.render.draw_limit=64`. Headset simpleperf showed this slice
-is CPU-bound in Matter distance sampler rebuild/direct particle sampling while
-Matter still runs on the OpenXR render thread, so larger particle and collision
-budgets should be measured in separate runs until the nonblocking worker/latest
-snapshot boundary lands.
+was CPU-bound in Matter distance sampler rebuild/direct particle sampling before
+the worker/latest-snapshot and sampler-refit paths landed. Current evidence
+should show `renderThreadBlocking=false`, `distanceSamplerRefit=true` after
+the first matching-topology frame, and
+`particleDistanceRefreshPolicy=step-only` for the Quest visual profile. Larger
+particle and collision budgets should still be measured in separate runs.
 
 The nonblocking boundary lives in `rusty-quest-makepad-matter-surface` as
 `QuestMakepadMatterSurfaceWorker`. Headset apps submit source-frame requests to

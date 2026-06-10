@@ -13,10 +13,11 @@ use std::time::Instant;
 use rusty_matter_model::Vec3;
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
 use rusty_matter_surface_runtime::{
-    MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput, MatterSurfaceParticleSnapshot,
+    MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput,
+    MatterSurfaceParticleDistanceRefreshPolicy, MatterSurfaceParticleSnapshot,
     MatterSurfaceRuntime, MatterSurfaceRuntimeConfig, MatterSurfaceRuntimeError,
-    MatterSurfaceRuntimeStats, MatterSurfaceRuntimeUpdate, DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
-    DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
+    MatterSurfaceRuntimeStats, MatterSurfaceRuntimeUpdate, MatterSurfaceStepDiagnostics,
+    DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT, DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
 };
 use rusty_optics_mesh::SdfSliceVisual;
 use rusty_optics_model::OpticsError;
@@ -175,6 +176,8 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub particle_count: usize,
     /// Particle reset seed.
     pub particle_seed: u32,
+    /// Policy for extra per-particle snapshot distance refreshes.
+    pub particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy,
     /// Maximum triangles in a surface-distance leaf.
     pub leaf_triangle_count: usize,
     /// SDF slice voxel size when slice output is enabled.
@@ -194,6 +197,7 @@ impl Default for QuestMakepadMatterSurfaceConfig {
             particles_enabled: false,
             particle_count: DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
             particle_seed: DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::StepOnly,
             leaf_triangle_count: 8,
             sdf_voxel_size: 0.05,
             sdf_padding_voxels: 1,
@@ -210,6 +214,7 @@ impl QuestMakepadMatterSurfaceConfig {
         config.runtime_id = "quest.makepad.matter_surface".to_owned();
         config.distance_sampler.leaf_triangle_count = self.leaf_triangle_count;
         config.collider.enabled = self.collision_enabled;
+        config.particle_distance_refresh_policy = self.particle_distance_refresh_policy;
         config
     }
 
@@ -437,6 +442,8 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub sdf_slice_upload: Option<QuestMakepadDistanceSliceUpload>,
     /// Typed particle snapshot with latest surface distances.
     pub particle_snapshot: MatterSurfaceParticleSnapshot,
+    /// Matter-owned particle step diagnostics, if particles were stepped.
+    pub particle_step: Option<MatterSurfaceStepDiagnostics>,
     /// Optional renderer-neutral particle visual frame.
     pub particle_visual_frame: Option<ParticleVisualFrame>,
     /// Optional particle upload rows.
@@ -555,6 +562,7 @@ impl QuestMakepadMatterSurfaceRuntime {
         let matter_update = self.matter.update_frame(source_frame.frame)?;
         stage_timings.matter_update_ms = elapsed_ms(started_at);
 
+        let mut particle_step = None;
         if self.config.enabled && self.config.particles_enabled {
             if !self.particles_initialized
                 || self.matter.stats().particle_count != self.config.particle_count
@@ -572,12 +580,12 @@ impl QuestMakepadMatterSurfaceRuntime {
                 self.particles_initialized = true;
             }
             let started_at = Instant::now();
-            self.matter.step_particles(
+            particle_step = Some(self.matter.step_particles(
                 surface_radius,
                 center,
                 cloud_radius,
                 delta_seconds.max(0.0),
-            )?;
+            )?);
             stage_timings.particle_step_ms = elapsed_ms(started_at);
         }
 
@@ -641,6 +649,7 @@ impl QuestMakepadMatterSurfaceRuntime {
             sdf_slice,
             sdf_slice_upload,
             particle_snapshot,
+            particle_step,
             particle_visual_frame,
             particle_upload,
             stage_timings,
@@ -651,7 +660,7 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleSubsteps={} particleClosestSamples={} particleRefreshSamples={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -662,6 +671,20 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.matter_update.vertex_count,
             frame.matter_update.triangle_count,
             frame.stats.particle_count,
+            frame.stats.particle_distance_refresh_policy.marker_value(),
+            frame.stats.particle_distance_samples,
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0, |diagnostics| diagnostics.particles.substeps),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0, |diagnostics| diagnostics.particles.closest_samples),
+            frame
+                .particle_step
+                .as_ref()
+                .map_or(0, |diagnostics| diagnostics.refreshed_distance_samples),
             frame.collision_upload.rows.len(),
             frame
                 .particle_upload
@@ -1038,6 +1061,14 @@ mod tests {
             replay.sequence().triangle_count()
         );
         assert_eq!(frame.particle_snapshot.samples.len(), 16);
+        assert_eq!(
+            frame
+                .particle_step
+                .as_ref()
+                .unwrap()
+                .refreshed_distance_samples,
+            16
+        );
         assert_eq!(frame.particle_upload.as_ref().unwrap().rows.len(), 16);
         let world_batch = frame
             .world_particle_batch(
@@ -1066,6 +1097,11 @@ mod tests {
         assert!(marker.contains("proceduralParticleOverlayUsed=false"));
         assert!(marker.contains("dataPlane=makepad-compact-uniform-rows"));
         assert!(marker.contains("distanceSamplerRefit=false"));
+        assert!(marker.contains("particleDistanceRefreshPolicy=step-only"));
+        assert!(marker.contains("particleDistanceSamples=16"));
+        assert!(marker.contains("particleSubsteps="));
+        assert!(marker.contains("particleClosestSamples="));
+        assert!(marker.contains("particleRefreshSamples=16"));
         assert!(marker.contains("adapterTotalMs="));
         assert!(marker.contains("matterUpdateMs="));
         assert!(marker.contains("particleStepMs="));
@@ -1253,6 +1289,7 @@ mod tests {
         assert_eq!(frame.collision_upload.rows.len(), 0);
         assert!(frame.sdf_slice_upload.is_none());
         assert!(frame.particle_upload.is_none());
+        assert!(frame.particle_step.is_none());
         assert_eq!(frame.particle_snapshot.samples.len(), 0);
     }
 

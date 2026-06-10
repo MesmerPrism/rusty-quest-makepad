@@ -32,9 +32,12 @@ Hostess. Worker evidence in headset logs should include
 `RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_RUNTIME` markers from the completed
 Matter-backed frame. Runtime markers should include compact stage timings such
 as `adapterTotalMs`, `matterUpdateMs`, `particleStepMs`, `particleVisualMs`,
-and row-packing timings so performance runs can separate Matter CPU work,
-Optics conversion, Makepad-facing packing, upload pressure, and GPU repaint
-before considering cache or GPU-backend changes.
+and row-packing timings, plus `distanceSamplerRefit`,
+`particleDistanceRefreshPolicy`, `particleDistanceSamples`,
+`particleSubsteps`, `particleClosestSamples`, and `particleRefreshSamples`.
+Those fields let performance runs separate Matter CPU work, Optics conversion,
+Makepad-facing packing, upload pressure, and GPU repaint before considering
+cache or GPU-backend changes.
 
 Optional recorded full hand-mesh replay smoke:
 
@@ -67,7 +70,11 @@ and stage `mesh-replay-recorded-left-particles.bundle.json` into
 `local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles` instead.
 That profile is a visual-inspection profile, not a collision benchmark:
 camera streaming, collision probes, and SDF debug slices are off, and both the
-Matter particle count and drawn billboard limit are `64`.
+Matter particle count and drawn billboard limit are `64`. The Quest adapter
+uses `particleDistanceRefreshPolicy=step-only` for this visual path so it does
+not refresh per-particle visual distances once before and once after every
+particle step; Matter's default native facade policy remains the exact
+surface-update-and-step refresh behavior.
 
 The profile validation runs through
 `tools\Build-QuestMakepadRuntimeBundle.ps1`, which also checks that each Quest

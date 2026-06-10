@@ -59,10 +59,12 @@ recorded replay data into
 profile intentionally keeps camera streaming, collision probes, and SDF debug
 slices off, with `makepad.particles.count=64` and
 `makepad.particles.render.draw_limit=64`, because headset simpleperf showed the
-recorded full-mesh proof path is currently CPU-bound in Matter distance
-sampler rebuild and direct particle sampling when run on the render thread.
-Use a separate profile/run when collision probe evidence is the measurement
-target.
+recorded full-mesh proof path is CPU-bound in Matter update/direct particle
+sampling unless the worker/latest-snapshot and sampler-refit paths are active.
+Runtime markers should show `renderThreadBlocking=false`,
+`distanceSamplerRefit=true` after the first matching-topology frame, and
+`particleDistanceRefreshPolicy=step-only` for this Quest visual profile. Use a
+separate profile/run when collision probe evidence is the measurement target.
 
 `rusty-quest-makepad-camera-shell` is the app-facing adapter slice. It consumes
 the canonical effective-settings report for the published camera-shell surface
