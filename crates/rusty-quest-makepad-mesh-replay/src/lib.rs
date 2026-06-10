@@ -1,5 +1,7 @@
 //! Mesh replay parser and runtime for Quest Makepad app adapters.
 
+use rusty_matter_mesh::TriangleMeshSurface;
+use rusty_matter_model::Vec3;
 use serde_json::Value;
 
 /// Matter-owned source sequence schema consumed by the replay adapter.
@@ -144,6 +146,40 @@ impl MeshReplayRuntime {
             self.frame_markers_emitted = 0;
         }
         changed
+    }
+
+    /// Returns the parsed replay sequence.
+    #[must_use]
+    pub fn sequence(&self) -> &MeshReplaySequence {
+        &self.sequence
+    }
+
+    /// Returns the current runtime config.
+    #[must_use]
+    pub fn config(&self) -> &MeshReplayConfig {
+        &self.config
+    }
+
+    /// Returns the current replay frame index.
+    #[must_use]
+    pub fn current_frame_index(&self) -> usize {
+        self.current_frame_index
+    }
+
+    /// Returns the current playback time in seconds within the source loop.
+    #[must_use]
+    pub fn playback_seconds(&self) -> f32 {
+        self.playback_seconds as f32
+    }
+
+    /// Returns the current replay frame as a Matter triangle mesh surface.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MeshReplayError`] when the frame index is unavailable or a
+    /// replay triangle cannot be represented by the Matter surface contract.
+    pub fn current_surface(&self) -> Result<TriangleMeshSurface, MeshReplayError> {
+        self.sequence.surface_at_frame(self.current_frame_index)
     }
 
     /// Advance playback to `now_seconds`.
@@ -383,6 +419,104 @@ impl MeshReplaySequence {
         self.triangles.len()
     }
 
+    /// Stable sequence identifier.
+    #[must_use]
+    pub fn sequence_id(&self) -> &str {
+        &self.sequence_id
+    }
+
+    /// Source mesh name.
+    #[must_use]
+    pub fn mesh_name(&self) -> &str {
+        &self.mesh_name
+    }
+
+    /// Source animation name.
+    #[must_use]
+    pub fn animation_name(&self) -> &str {
+        &self.animation_name
+    }
+
+    /// Source animation duration in seconds.
+    #[must_use]
+    pub fn duration_seconds(&self) -> f32 {
+        self.duration_seconds
+    }
+
+    /// Sequence bounds minimum.
+    #[must_use]
+    pub fn bounds_min(&self) -> [f32; 3] {
+        self.bounds_min
+    }
+
+    /// Sequence bounds maximum.
+    #[must_use]
+    pub fn bounds_max(&self) -> [f32; 3] {
+        self.bounds_max
+    }
+
+    /// Sequence bounds center.
+    #[must_use]
+    pub fn bounds_center(&self) -> Vec3 {
+        Vec3::new(
+            (self.bounds_min[0] + self.bounds_max[0]) * 0.5,
+            (self.bounds_min[1] + self.bounds_max[1]) * 0.5,
+            (self.bounds_min[2] + self.bounds_max[2]) * 0.5,
+        )
+    }
+
+    /// Maximum half-extent of the sequence bounds.
+    #[must_use]
+    pub fn bounds_radius(&self) -> f32 {
+        let extent_x = self.bounds_max[0] - self.bounds_min[0];
+        let extent_y = self.bounds_max[1] - self.bounds_min[1];
+        let extent_z = self.bounds_max[2] - self.bounds_min[2];
+        extent_x.max(extent_y).max(extent_z).max(0.0) * 0.5
+    }
+
+    /// Builds one replay frame as a Matter triangle mesh surface.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MeshReplayError`] when the frame is unavailable or a triangle
+    /// index cannot be represented by the Matter surface contract.
+    pub fn surface_at_frame(
+        &self,
+        frame_index: usize,
+    ) -> Result<TriangleMeshSurface, MeshReplayError> {
+        let frame = self
+            .frames
+            .get(frame_index)
+            .ok_or(MeshReplayError::FrameIndexOutOfRange)?;
+        let positions = frame
+            .positions
+            .iter()
+            .copied()
+            .map(|position| Vec3::new(position[0], position[1], position[2]))
+            .collect::<Vec<_>>();
+        let triangles = self
+            .triangles
+            .iter()
+            .copied()
+            .map(|triangle| {
+                Ok([
+                    u32::try_from(triangle[0]).map_err(|_| MeshReplayError::IndexTooLarge)?,
+                    u32::try_from(triangle[1]).map_err(|_| MeshReplayError::IndexTooLarge)?,
+                    u32::try_from(triangle[2]).map_err(|_| MeshReplayError::IndexTooLarge)?,
+                ])
+            })
+            .collect::<Result<Vec<_>, MeshReplayError>>()?;
+        let surface = TriangleMeshSurface::new(
+            format!("{}.frame.{frame_index:04}", self.sequence_id),
+            positions,
+            triangles,
+        );
+        surface
+            .validate()
+            .map_err(|_| MeshReplayError::InvalidValue("surface"))?;
+        Ok(surface)
+    }
+
     /// Replay frame for a playback time.
     pub fn frame_index_at(&self, playback_seconds: f32) -> usize {
         if self.frames.len() <= 1 {
@@ -454,6 +588,10 @@ pub enum MeshReplayError {
     InvalidValue(&'static str),
     /// Triangle index references a missing vertex.
     IndexOutOfRange,
+    /// Requested frame index is not present in the replay sequence.
+    FrameIndexOutOfRange,
+    /// Triangle index cannot be represented by the Matter surface contract.
+    IndexTooLarge,
 }
 
 impl std::fmt::Display for MeshReplayError {
@@ -464,6 +602,8 @@ impl std::fmt::Display for MeshReplayError {
             Self::UnexpectedSchema => f.write_str("unexpected mesh replay schema"),
             Self::InvalidValue(field) => write!(f, "invalid value for {field}"),
             Self::IndexOutOfRange => f.write_str("mesh replay index out of range"),
+            Self::FrameIndexOutOfRange => f.write_str("mesh replay frame index out of range"),
+            Self::IndexTooLarge => f.write_str("mesh replay index is too large"),
         }
     }
 }
@@ -672,6 +812,34 @@ mod tests {
     }
 
     #[test]
+    fn bundled_sequence_exposes_matter_surface_frames() {
+        let sequence = MeshReplaySequence::from_json_str(DEFAULT_SEQUENCE_JSON).unwrap();
+        let surface = sequence.surface_at_frame(0).unwrap();
+
+        assert_eq!(
+            sequence.sequence_id(),
+            "fixture.makepad.synthetic_hand_mesh_replay.v1"
+        );
+        assert_eq!(sequence.mesh_name(), "public_synthetic_hand_mesh");
+        assert_eq!(sequence.animation_name(), "curl_open_loop");
+        assert_eq!(surface.schema_id, "rusty.matter.mesh.surface.v1");
+        assert_eq!(
+            surface.surface_id,
+            "fixture.makepad.synthetic_hand_mesh_replay.v1.frame.0000"
+        );
+        assert_eq!(surface.vertex_count(), 8);
+        assert_eq!(surface.triangle_count(), 6);
+        assert_eq!(surface.topology_key().triangle_count, 6);
+        assert!(sequence.bounds_radius() > 0.0);
+        assert_eq!(
+            sequence
+                .surface_at_frame(sequence.frame_count())
+                .unwrap_err(),
+            MeshReplayError::FrameIndexOutOfRange
+        );
+    }
+
+    #[test]
     fn runtime_advances_and_projects_visible_segments() {
         let mut runtime = MeshReplayRuntime::default();
         runtime.configure(MeshReplayConfig::normalized(
@@ -693,6 +861,14 @@ mod tests {
         assert_eq!(second.frame_index, 2);
         let second_uniforms = runtime.uniforms();
         assert_ne!(first_uniforms.segments, second_uniforms.segments);
+
+        assert_eq!(runtime.current_frame_index(), 2);
+        let surface = runtime.current_surface().unwrap();
+        assert_eq!(surface.vertex_count(), runtime.sequence().vertex_count());
+        assert_eq!(
+            surface.triangle_count(),
+            runtime.sequence().triangle_count()
+        );
     }
 
     #[test]

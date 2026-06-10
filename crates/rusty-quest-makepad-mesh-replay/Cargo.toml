@@ -7,8 +7,9 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+rusty-matter-mesh = { path = "../../../rusty-matter/crates/rusty-matter-mesh" }
+rusty-matter-model = { path = "../../../rusty-matter/crates/rusty-matter-model" }
 serde_json = "1"
 
 [lints]
 workspace = true
-

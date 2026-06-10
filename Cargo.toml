@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/rusty-quest-makepad-camera-shell",
+    "crates/rusty-quest-makepad-matter-surface",
     "crates/rusty-quest-makepad-mesh-replay",
     "crates/rusty-quest-makepad-profile",
 ]

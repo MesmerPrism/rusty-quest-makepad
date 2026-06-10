@@ -4,6 +4,17 @@ use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
 use rusty_optics_model::{
     ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
 };
+pub use rusty_quest_makepad_matter_surface::{
+    world_particle_batch_from_upload, MatterSurfaceContactProbe, QuestMakepadMatterSurfaceConfig,
+    QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceRuntime, QuestMakepadParticleRow,
+    QuestMakepadParticleUpload, QuestMakepadWorldParticleBatch, QuestMakepadWorldParticleInstance,
+    QuestMakepadWorldParticlePlacement, DEFAULT_WORLD_CONTENT_CENTER,
+    DEFAULT_WORLD_CONTENT_TARGET_RADIUS, QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE,
+    QUEST_MAKEPAD_CONTENT_LOCAL_SPACE, QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
+    QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID, QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE,
+    QUEST_MAKEPAD_WORLD_PARTICLE_BATCH_SCHEMA_ID,
+    QUEST_MAKEPAD_WORLD_PARTICLE_EVEN_SELECTION_POLICY, QUEST_MAKEPAD_WORLD_PARTICLE_MARKER_PREFIX,
+};
 use rusty_quest_makepad_mesh_replay::MeshReplayConfig;
 pub use rusty_quest_makepad_mesh_replay::{
     MeshReplayRuntime, MeshReplayUniforms, REPLAY_MARKER_PREFIX, REPLAY_SCHEMA_ID,
@@ -25,12 +36,25 @@ pub const SETTING_MESH_REPLAY_SPEED: &str = "makepad.mesh_replay.speed";
 pub const SETTING_MESH_REPLAY_OPACITY: &str = "makepad.mesh_replay.opacity";
 /// Render scale setting id.
 pub const SETTING_RENDER_SCALE: &str = "makepad.render.scale";
+/// Camera streaming enable setting id.
+pub const SETTING_CAMERA_STREAMING_ENABLED: &str = "makepad.camera.streaming.enabled";
 /// Collision enable setting id.
 pub const SETTING_COLLISION_ENABLED: &str = "makepad.collision.enabled";
 /// SDF/ADF overlay mode setting id.
 pub const SETTING_SDF_ADF_OVERLAY_MODE: &str = "makepad.sdf_adf.overlay_mode";
 /// Particle overlay enable setting id.
 pub const SETTING_PARTICLES_ENABLED: &str = "makepad.particles.enabled";
+/// Native Matter surface-runtime leaf triangle count setting id.
+pub const SETTING_MATTER_SURFACE_LEAF_TRIANGLE_COUNT: &str =
+    "makepad.matter.surface_runtime.leaf_triangle_count";
+/// Native Matter particle count setting id.
+pub const SETTING_MATTER_PARTICLE_COUNT: &str = "makepad.particles.count";
+/// Native Matter particle seed setting id.
+pub const SETTING_MATTER_PARTICLE_SEED: &str = "makepad.particles.seed";
+/// Native Matter SDF slice voxel-size setting id.
+pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
+/// Native Matter SDF slice max-cell setting id.
+pub const SETTING_MATTER_SDF_SLICE_MAX_CELLS: &str = "makepad.sdf.slice.max_cells";
 /// Default projection footprint sample grid for app-shell contract smoke tests.
 pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
 
@@ -41,12 +65,16 @@ pub struct CameraShellEffectiveConfig {
     pub replay: CameraShellReplayConfig,
     /// Render scale for the Makepad/XR runtime.
     pub render_scale: f32,
+    /// Whether the app shell should acquire direct or broker camera frames.
+    pub camera_streaming_enabled: bool,
     /// Whether collision behavior is enabled.
     pub collision_enabled: bool,
     /// SDF/ADF overlay mode.
     pub sdf_adf_overlay_mode: SdfAdfOverlayMode,
     /// Whether particle behavior is enabled.
     pub particles_enabled: bool,
+    /// Native Matter surface runtime config derived from effective settings.
+    pub matter_surface: QuestMakepadMatterSurfaceConfig,
 }
 
 impl CameraShellEffectiveConfig {
@@ -59,16 +87,27 @@ impl CameraShellEffectiveConfig {
         let settings = settings_array(&value)?;
         let replay = CameraShellReplayConfig::from_settings(settings)?;
         let render_scale = parse_f32_setting(settings, SETTING_RENDER_SCALE)?;
+        let camera_streaming_enabled =
+            parse_bool_setting(settings, SETTING_CAMERA_STREAMING_ENABLED)?;
         let collision_enabled = parse_bool_setting(settings, SETTING_COLLISION_ENABLED)?;
         let sdf_adf_overlay_mode = parse_sdf_adf_overlay_mode(settings)?;
         let particles_enabled = parse_bool_setting(settings, SETTING_PARTICLES_ENABLED)?;
+        let matter_surface = parse_matter_surface_config(
+            settings,
+            replay.enabled,
+            collision_enabled,
+            sdf_adf_overlay_mode,
+            particles_enabled,
+        )?;
 
         Ok(Self {
             replay,
             render_scale,
+            camera_streaming_enabled,
             collision_enabled,
             sdf_adf_overlay_mode,
             particles_enabled,
+            matter_surface,
         })
     }
 }
@@ -81,6 +120,8 @@ pub struct CameraShellRuntimeBundle {
     pub effective_config: CameraShellEffectiveConfig,
     /// Mesh replay runtime configured from the replay subset.
     pub mesh_replay_runtime: MeshReplayRuntime,
+    /// Native Matter surface runtime configured from the feature subset.
+    pub matter_surface_runtime: QuestMakepadMatterSurfaceRuntime,
 }
 
 /// Build the full app-facing runtime bundle from canonical effective settings
@@ -91,9 +132,13 @@ pub fn camera_shell_runtime_bundle_from_effective_settings_json(
     let effective_config = CameraShellEffectiveConfig::from_effective_settings_json(json)?;
     let mut mesh_replay_runtime = MeshReplayRuntime::default();
     mesh_replay_runtime.configure(effective_config.replay.clone().into_mesh_replay_config());
+    let matter_surface_runtime =
+        QuestMakepadMatterSurfaceRuntime::new(effective_config.matter_surface.clone())
+            .map_err(|error| CameraShellConfigError::MatterSurfaceRuntime(error.to_string()))?;
     Ok(CameraShellRuntimeBundle {
         effective_config,
         mesh_replay_runtime,
+        matter_surface_runtime,
     })
 }
 
@@ -129,6 +174,55 @@ impl SdfAdfOverlayMode {
             "adf" => Some(Self::Adf),
             "combined" => Some(Self::Combined),
             _ => None,
+        }
+    }
+}
+
+/// Runtime-gated Matter SDF/ADF mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SdfAdfRuntimeMode {
+    /// No Matter SDF output.
+    Off,
+    /// Matter-backed SDF output.
+    Sdf,
+    /// ADF was requested but no Matter ADF contract exists yet.
+    UnsupportedAdf,
+    /// Combined SDF/ADF was requested but ADF has no Matter contract yet.
+    UnsupportedCombined,
+}
+
+impl SdfAdfRuntimeMode {
+    /// Builds the runtime-gated mode from the user-facing setting.
+    #[must_use]
+    pub const fn from_overlay_mode(mode: SdfAdfOverlayMode) -> Self {
+        match mode {
+            SdfAdfOverlayMode::Off => Self::Off,
+            SdfAdfOverlayMode::Sdf => Self::Sdf,
+            SdfAdfOverlayMode::Adf => Self::UnsupportedAdf,
+            SdfAdfOverlayMode::Combined => Self::UnsupportedCombined,
+        }
+    }
+
+    /// Returns whether Matter-backed SDF slice output is allowed.
+    #[must_use]
+    pub const fn matter_sdf_enabled(self) -> bool {
+        matches!(self, Self::Sdf)
+    }
+
+    /// Returns whether this mode is an unsupported future ADF placeholder.
+    #[must_use]
+    pub const fn is_unsupported_adf_placeholder(self) -> bool {
+        matches!(self, Self::UnsupportedAdf | Self::UnsupportedCombined)
+    }
+
+    /// Stable marker status label.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Sdf => "sdf",
+            Self::UnsupportedAdf => "unsupported_adf",
+            Self::UnsupportedCombined => "unsupported_combined",
         }
     }
 }
@@ -288,6 +382,8 @@ pub enum CameraShellConfigError {
     InvalidDisplayViewSet(String),
     /// Optics projection report could not be built.
     ProjectionReport(String),
+    /// Native Matter surface runtime could not be built.
+    MatterSurfaceRuntime(String),
 }
 
 impl std::fmt::Display for CameraShellConfigError {
@@ -314,6 +410,9 @@ impl std::fmt::Display for CameraShellConfigError {
                 write!(f, "invalid display view set: {message}")
             }
             Self::ProjectionReport(message) => write!(f, "invalid projection report: {message}"),
+            Self::MatterSurfaceRuntime(message) => {
+                write!(f, "invalid Matter surface runtime: {message}")
+            }
         }
     }
 }
@@ -397,6 +496,100 @@ fn parse_sdf_adf_overlay_mode(
         ))
 }
 
+fn parse_matter_surface_config(
+    settings: &[Value],
+    replay_enabled: bool,
+    collision_enabled: bool,
+    overlay_mode: SdfAdfOverlayMode,
+    particles_enabled: bool,
+) -> Result<QuestMakepadMatterSurfaceConfig, CameraShellConfigError> {
+    let runtime_mode = SdfAdfRuntimeMode::from_overlay_mode(overlay_mode);
+    let mut config = QuestMakepadMatterSurfaceConfig::default();
+    config.collision_enabled = collision_enabled;
+    config.sdf_slice_enabled = runtime_mode.matter_sdf_enabled();
+    config.particles_enabled = particles_enabled;
+    config.enabled = replay_enabled
+        && (config.collision_enabled || config.sdf_slice_enabled || particles_enabled);
+    config.leaf_triangle_count = parse_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_SURFACE_LEAF_TRIANGLE_COUNT,
+        config.leaf_triangle_count,
+    )?;
+    config.particle_count = parse_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_COUNT,
+        config.particle_count,
+    )?;
+    config.particle_seed =
+        parse_u32_setting_or_default(settings, SETTING_MATTER_PARTICLE_SEED, config.particle_seed)?;
+    config.sdf_voxel_size = parse_f32_setting_or_default(
+        settings,
+        SETTING_MATTER_SDF_SLICE_VOXEL_SIZE,
+        config.sdf_voxel_size,
+    )?;
+    config.sdf_max_voxels = parse_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_SDF_SLICE_MAX_CELLS,
+        config.sdf_max_voxels,
+    )?;
+    Ok(config)
+}
+
+fn parse_f32_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: f32,
+) -> Result<f32, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_f64()
+            .filter(|number| number.is_finite())
+            .map(|number| number as f32)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
+fn parse_usize_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: usize,
+) -> Result<usize, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_u64()
+            .and_then(|number| usize::try_from(number).ok())
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
+fn parse_u32_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: u32,
+) -> Result<u32, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_u64()
+            .and_then(|number| u32::try_from(number).ok())
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
+fn optional_setting_value<'a>(settings: &'a [Value], setting_id: &str) -> Option<&'a Value> {
+    settings
+        .iter()
+        .find(|setting| {
+            setting
+                .get("setting_id")
+                .and_then(Value::as_str)
+                .is_some_and(|candidate| candidate == setting_id)
+        })
+        .and_then(|setting| setting.get("value"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,10 +629,16 @@ mod tests {
         assert!(config.replay.enabled);
         assert_eq!(config.replay.speed, 1.5);
         assert_eq!(config.render_scale, 0.9);
-        assert!(!config.collision_enabled);
-        assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Off);
-        assert_eq!(config.sdf_adf_overlay_mode.as_str(), "off");
-        assert!(!config.particles_enabled);
+        assert!(config.camera_streaming_enabled);
+        assert!(config.collision_enabled);
+        assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Sdf);
+        assert_eq!(config.sdf_adf_overlay_mode.as_str(), "sdf");
+        assert!(config.particles_enabled);
+        assert!(config.matter_surface.enabled);
+        assert!(config.matter_surface.sdf_slice_enabled);
+        assert!(config.matter_surface.particles_enabled);
+        assert_eq!(config.matter_surface.leaf_triangle_count, 8);
+        assert_eq!(config.matter_surface.particle_count, 1_000);
     }
 
     #[test]
@@ -450,12 +649,15 @@ mod tests {
 
         assert!(bundle.effective_config.replay.enabled);
         assert_eq!(bundle.effective_config.render_scale, 0.9);
-        assert!(!bundle.effective_config.collision_enabled);
+        assert!(bundle.effective_config.camera_streaming_enabled);
+        assert!(bundle.effective_config.collision_enabled);
         assert_eq!(
             bundle.effective_config.sdf_adf_overlay_mode,
-            SdfAdfOverlayMode::Off
+            SdfAdfOverlayMode::Sdf
         );
-        assert!(!bundle.effective_config.particles_enabled);
+        assert!(bundle.effective_config.particles_enabled);
+        assert!(bundle.effective_config.matter_surface.enabled);
+        assert_eq!(bundle.matter_surface_runtime.config().particle_count, 1_000);
 
         let step = bundle.mesh_replay_runtime.step(0.0);
         assert!(step.enabled);
@@ -511,15 +713,35 @@ mod tests {
     #[test]
     fn parses_non_default_sdf_adf_overlay_mode() {
         let combined =
-            EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"off\"", "\"value\": \"combined\"");
+            EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"sdf\"", "\"value\": \"combined\"");
         let config = CameraShellEffectiveConfig::from_effective_settings_json(&combined).unwrap();
         assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Combined);
+        let runtime_mode = SdfAdfRuntimeMode::from_overlay_mode(config.sdf_adf_overlay_mode);
+        assert_eq!(runtime_mode, SdfAdfRuntimeMode::UnsupportedCombined);
+        assert!(runtime_mode.is_unsupported_adf_placeholder());
+        assert!(!config.matter_surface.sdf_slice_enabled);
+    }
+
+    #[test]
+    fn sdf_mode_enables_matter_surface_sdf_without_adf() {
+        let config =
+            CameraShellEffectiveConfig::from_effective_settings_json(EFFECTIVE_SETTINGS_FIXTURE)
+                .unwrap();
+
+        assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Sdf);
+        assert_eq!(
+            SdfAdfRuntimeMode::from_overlay_mode(config.sdf_adf_overlay_mode),
+            SdfAdfRuntimeMode::Sdf
+        );
+        assert!(config.matter_surface.enabled);
+        assert!(config.matter_surface.sdf_slice_enabled);
+        assert!(config.matter_surface.particles_enabled);
     }
 
     #[test]
     fn rejects_invalid_sdf_adf_overlay_mode() {
         let invalid =
-            EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"off\"", "\"value\": \"private\"");
+            EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"sdf\"", "\"value\": \"private\"");
         assert_eq!(
             CameraShellEffectiveConfig::from_effective_settings_json(&invalid).unwrap_err(),
             CameraShellConfigError::InvalidSettingValue(SETTING_SDF_ADF_OVERLAY_MODE)

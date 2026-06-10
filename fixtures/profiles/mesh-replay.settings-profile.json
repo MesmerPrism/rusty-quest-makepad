@@ -25,16 +25,48 @@
       "value": 0.9
     },
     {
+      "setting_id": "makepad.camera.streaming.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "makepad.projection.depth_meters",
+      "value": 0.5
+    },
+    {
+      "setting_id": "makepad.projection.runtime_resolution.enabled",
+      "value": true
+    },
+    {
       "setting_id": "makepad.collision.enabled",
-      "value": false
+      "value": true
     },
     {
       "setting_id": "makepad.sdf_adf.overlay_mode",
-      "value": "off"
+      "value": "sdf"
     },
     {
       "setting_id": "makepad.particles.enabled",
-      "value": false
+      "value": true
+    },
+    {
+      "setting_id": "makepad.matter.surface_runtime.leaf_triangle_count",
+      "value": 8
+    },
+    {
+      "setting_id": "makepad.particles.count",
+      "value": 1000
+    },
+    {
+      "setting_id": "makepad.particles.seed",
+      "value": 23
+    },
+    {
+      "setting_id": "makepad.sdf.slice.voxel_size",
+      "value": 0.05
+    },
+    {
+      "setting_id": "makepad.sdf.slice.max_cells",
+      "value": 65536
     }
   ]
 }

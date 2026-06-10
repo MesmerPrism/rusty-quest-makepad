@@ -18,7 +18,14 @@ matching Quest property write plan, and writes one provenance report under
 `local-artifacts\quest-makepad-runtime-bundle`.
 
 It also contains `rusty-quest-makepad-mesh-replay`, a reusable parser/runtime
-for Matter-owned recorded mesh surface sequences.
+for Matter-owned recorded mesh surface sequences. Replay frames can be exposed
+as native Matter `TriangleMeshSurface` values for downstream adapters.
+
+`rusty-quest-makepad-matter-surface` is the native Matter runtime adapter for
+the Quest Makepad surface slice. It consumes mesh replay frames, steps
+`rusty-matter-surface-runtime`, packages bounded Makepad-facing rows for
+distance slices, collision contacts, and particles, and uses Optics crates for
+renderer-neutral visuals. It is not simulation authority.
 
 `rusty-quest-makepad-camera-shell` is the app-facing adapter slice. It consumes
 the canonical effective-settings report for the published camera-shell surface

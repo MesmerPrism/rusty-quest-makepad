@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 1,
+  "version": 2,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -94,6 +94,58 @@
       "readback_field": "renderScale"
     },
     {
+      "id": "makepad.camera.streaming.enabled",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.camera_streaming",
+      "value_type": "boolean",
+      "default": true,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-streaming-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_STREAMING_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.streaming.enabled" },
+        { "kind": "ui_control", "name": "control.quest_makepad.camera.streaming.enabled" }
+      ],
+      "readback_field": "cameraStreamingEnabled"
+    },
+    {
+      "id": "makepad.projection.depth_meters",
+      "owner_repo": "rusty-makepad",
+      "owner_module": "projection.runtime",
+      "value_type": "number",
+      "unit": "m",
+      "minimum": 0.05,
+      "maximum": 10.0,
+      "default": 1.434085,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "projection-depth-meters" },
+        { "kind": "environment_variable", "name": "RUSTY_MAKEPAD_PROJECTION_DEPTH_METERS" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.projection.depth.meters" }
+      ],
+      "readback_field": "projectionDepthMeters"
+    },
+    {
+      "id": "makepad.projection.runtime_resolution.enabled",
+      "owner_repo": "rusty-makepad",
+      "owner_module": "projection.runtime",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "projection-runtime-resolution-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_MAKEPAD_PROJECTION_RUNTIME_RESOLUTION_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.projection.runtime.resolution.enabled" }
+      ],
+      "readback_field": "projectionRuntimeResolutionEnabled"
+    },
+    {
       "id": "makepad.collision.enabled",
       "owner_repo": "rusty-quest-makepad",
       "owner_module": "camera_shell.collision",
@@ -141,6 +193,96 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.enabled" }
       ],
       "readback_field": "particlesEnabled"
+    },
+    {
+      "id": "makepad.matter.surface_runtime.leaf_triangle_count",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 1,
+      "maximum": 64,
+      "default": 8,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "matter-surface-leaf-triangle-count" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_LEAF_TRIANGLE_COUNT" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.matter.surface.leaf_triangle_count" }
+      ],
+      "readback_field": "matterSurfaceLeafTriangleCount"
+    },
+    {
+      "id": "makepad.particles.count",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0,
+      "maximum": 32768,
+      "default": 1000,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-count" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_COUNT" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.count" }
+      ],
+      "readback_field": "particlesCount"
+    },
+    {
+      "id": "makepad.particles.seed",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0,
+      "maximum": 4294967295,
+      "default": 23,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-seed" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_SEED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.seed" }
+      ],
+      "readback_field": "particlesSeed"
+    },
+    {
+      "id": "makepad.sdf.slice.voxel_size",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0.01,
+      "maximum": 1.0,
+      "default": 0.05,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "sdf-slice-voxel-size" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_SDF_SLICE_VOXEL_SIZE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.sdf.slice.voxel_size" }
+      ],
+      "readback_field": "sdfSliceVoxelSize"
+    },
+    {
+      "id": "makepad.sdf.slice.max_cells",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 1,
+      "maximum": 1000000,
+      "default": 65536,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "sdf-slice-max-cells" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_SDF_SLICE_MAX_CELLS" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.sdf.slice.max_cells" }
+      ],
+      "readback_field": "sdfSliceMaxCells"
     }
   ]
 }

@@ -1,0 +1,19 @@
+[package]
+name = "rusty-quest-makepad-matter-surface"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rusty-matter-model = { path = "../../../rusty-matter/crates/rusty-matter-model" }
+rusty-matter-sdf = { path = "../../../rusty-matter/crates/rusty-matter-sdf" }
+rusty-matter-surface-runtime = { path = "../../../rusty-matter/crates/rusty-matter-surface-runtime" }
+rusty-optics-mesh = { path = "../../../rusty-optics/crates/rusty-optics-mesh" }
+rusty-optics-model = { path = "../../../rusty-optics/crates/rusty-optics-model" }
+rusty-optics-particles = { path = "../../../rusty-optics/crates/rusty-optics-particles" }
+rusty-quest-makepad-mesh-replay = { path = "../rusty-quest-makepad-mesh-replay" }
+
+[lints]
+workspace = true
