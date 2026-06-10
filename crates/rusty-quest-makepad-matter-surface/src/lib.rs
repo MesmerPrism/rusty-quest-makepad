@@ -651,7 +651,7 @@ impl QuestMakepadMatterSurfaceRuntime {
     #[must_use]
     pub fn marker_line(&self, phase: &str, frame: &QuestMakepadMatterSurfaceFrame) -> String {
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} collisionRows={} particleRows={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -676,6 +676,7 @@ impl QuestMakepadMatterSurfaceRuntime {
                 .distance_sampler
                 .as_ref()
                 .map_or(0, |stats| stats.leaf_triangle_count),
+            frame.matter_update.distance_sampler_refit,
             frame.stage_timings.total_ms,
             frame.stage_timings.matter_update_ms,
             frame.stage_timings.particle_reset_ms,
@@ -1064,6 +1065,7 @@ mod tests {
         assert!(marker.contains("shaderScaffoldUsed=false"));
         assert!(marker.contains("proceduralParticleOverlayUsed=false"));
         assert!(marker.contains("dataPlane=makepad-compact-uniform-rows"));
+        assert!(marker.contains("distanceSamplerRefit=false"));
         assert!(marker.contains("adapterTotalMs="));
         assert!(marker.contains("matterUpdateMs="));
         assert!(marker.contains("particleStepMs="));
