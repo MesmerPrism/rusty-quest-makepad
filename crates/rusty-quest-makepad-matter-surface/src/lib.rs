@@ -52,6 +52,17 @@ pub const QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE: &str = "makepad-xr-start-head-lo
 pub const QUEST_MAKEPAD_CONTENT_LOCAL_SPACE: &str = "makepad-xr-content-local";
 /// Initial world-particle render mode.
 pub const QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE: &str = "center-projected-billboard";
+/// Current Quest Makepad world-particle renderer identity.
+pub const QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_RENDERER_ID: &str =
+    "makepad-xr-procedural-ring-billboard";
+/// Current Quest Makepad world-particle animation mode.
+pub const QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_MODE: &str = "procedural-morph-ring";
+/// Renderer-neutral Optics frame source used by the billboard animation.
+pub const QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_SOURCE: &str =
+    "rusty-optics-particle-visual-frame";
+/// Reference visual direction borrowed for the current smoke renderer.
+pub const QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_REFERENCE: &str =
+    "rusty-viscereality-billboard-ring";
 /// Selection policy used when the source particle upload is larger than the
 /// current world-object proof renderer can draw.
 pub const QUEST_MAKEPAD_WORLD_PARTICLE_EVEN_SELECTION_POLICY: &str = "evenly-spaced-source-rows";
@@ -876,6 +887,30 @@ mod tests {
         assert!(world_marker.contains("contentCenterDistanceMeters=0.500"));
         assert!(!world_marker.contains("rusty.xr"));
         assert!(!world_marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn world_particle_billboard_renderer_identity_is_morphospace_scoped() {
+        let values = [
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_RENDERER_ID,
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_MODE,
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_SOURCE,
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_REFERENCE,
+        ];
+
+        for value in values {
+            assert!(!value.contains("rusty.xr"));
+            assert!(!value.contains("rustyxr"));
+            assert!(!value.contains("RUSTY_XR"));
+        }
+        assert_eq!(
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_RENDERER_ID,
+            "makepad-xr-procedural-ring-billboard"
+        );
+        assert_eq!(
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_SOURCE,
+            "rusty-optics-particle-visual-frame"
+        );
     }
 
     #[test]
