@@ -289,6 +289,8 @@ impl QuestMakepadMatterSurfaceConfig {
         config.particle_force_source = self.particle_force_source;
         config.particle_force_update_interval_frames = self.particle_force_update_interval_frames;
         config.particle_force_compare_probe_count = self.particle_force_compare_probe_count;
+        config.particle_force_sdf = self.sdf_config();
+        config.particle_force_adf = self.adf_debug_config.to_matter_config();
         config.particles.execution = ParticleExecutionConfig {
             backend: self.particle_execution_backend,
             batch_size: self.particle_execution_batch_size,
@@ -1780,7 +1782,7 @@ mod tests {
     }
 
     #[test]
-    fn adapter_marks_future_field_particle_force_as_unsupported_without_mesh_fallback() {
+    fn adapter_marks_sdf_particle_force_as_matter_field_without_mesh_fallback() {
         let replay = enabled_replay();
         let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
             enabled: true,
@@ -1806,20 +1808,80 @@ mod tests {
             diagnostics.particle_force_source,
             MatterSurfaceParticleForceSource::SdfField
         );
-        assert_eq!(diagnostics.particles.closest_samples, 0);
+        assert_eq!(
+            diagnostics.particle_force_source_status,
+            MatterSurfaceParticleForceSourceStatus::Ready
+        );
+        assert_eq!(
+            diagnostics.particle_force_refresh,
+            MatterSurfaceParticleForceRefresh::Fresh
+        );
+        assert!(diagnostics.particles.closest_samples > 0);
+        assert_eq!(diagnostics.particles.surface_triangle_tests, 0);
         assert_eq!(diagnostics.refreshed_distance_samples, 0);
         assert_eq!(frame.stats.particle_distance_samples, 0);
 
         let marker = runtime.marker_line("unit-test-force-sdf", &frame);
         assert!(marker.contains("particleForceSource=sdf-field"));
-        assert!(marker.contains("particleForceSourceStatus=unsupported-future"));
-        assert!(marker.contains("particleForceRefresh=unsupported-future"));
+        assert!(marker.contains("particleForceSourceStatus=ready"));
+        assert!(marker.contains("particleForceRefresh=fresh"));
         assert!(marker.contains("particleForceCompareProbeCount=3"));
-        assert!(marker.contains("particleSamplingAuthority=unsupported-sdf-field-sampler"));
-        assert!(marker.contains("particleFieldSource=sdf-field-unavailable"));
+        assert!(marker.contains("particleSamplingAuthority=matter-sdf-field-sampler"));
+        assert!(marker.contains("particleFieldSource=current-sdf-field"));
         assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
-        assert!(marker.contains("particleClosestSamples=0"));
+        assert!(marker.contains("particleClosestSamples="));
+        assert!(marker.contains("particleSurfaceTriangleTests=0"));
         assert!(marker.contains("particleRefreshSamples=0"));
+    }
+
+    #[test]
+    fn adapter_marks_adf_particle_force_as_matter_field_without_debug_payload_authority() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::AdfField,
+            particle_force_compare_probe_count: 3,
+            particle_distance_refresh_policy:
+                MatterSurfaceParticleDistanceRefreshPolicy::SurfaceUpdateAndStep,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 90.0, &[])
+            .expect("adapter frame builds");
+        let diagnostics = frame
+            .particle_step
+            .as_ref()
+            .expect("particles step when enabled");
+
+        assert_eq!(
+            diagnostics.particle_force_source,
+            MatterSurfaceParticleForceSource::AdfField
+        );
+        assert_eq!(
+            diagnostics.particle_force_source_status,
+            MatterSurfaceParticleForceSourceStatus::Ready
+        );
+        assert_eq!(
+            diagnostics.particle_force_refresh,
+            MatterSurfaceParticleForceRefresh::Fresh
+        );
+        assert!(diagnostics.particles.closest_samples > 0);
+        assert_eq!(diagnostics.particles.surface_triangle_tests, 0);
+        assert!(!diagnostics.sdf_adf_debug_particle_authority);
+
+        let marker = runtime.marker_line("unit-test-force-adf", &frame);
+        assert!(marker.contains("particleForceSource=adf-field"));
+        assert!(marker.contains("particleForceSourceStatus=ready"));
+        assert!(marker.contains("particleForceRefresh=fresh"));
+        assert!(marker.contains("particleSamplingAuthority=matter-adf-field-sampler"));
+        assert!(marker.contains("particleFieldSource=current-adf-field"));
+        assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
+        assert!(marker.contains("particleClosestSamples="));
+        assert!(marker.contains("particleSurfaceTriangleTests=0"));
     }
 
     #[test]

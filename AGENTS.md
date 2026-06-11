@@ -186,25 +186,29 @@ runtime receipts for those values. SDF/ADF debug-field cadence is controlled by
 `sdfAdfDebugSource`, `sdfAdfDebugFrameInterval`, and
 `sdfAdfDebugSourceFrameIndex`; values above `1` reuse only the debug payload
 between rebuilds and must not be treated as Matter simulation cadence.
-Current particle stepping still samples Matter's animated mesh surface directly
-through the mesh-distance/surface-sampler path. Evidence should include
+Particle stepping can use Matter's animated mesh surface directly through the
+mesh-distance/surface-sampler path or Matter-owned CPU reference fields through
+`sdf-field` / `adf-field`. Evidence should include
 `particleSamplingAuthority=matter-mesh-distance-sampler`,
-`particleFieldSource=current-mesh-distance`, and
-`sdfAdfDebugParticleAuthority=false`. Do not treat SDF/ADF debug visuals as
-particle authority until a separate Matter-owned field-backed particle sampler
-contract and CPU reference exist.
+`matter-sdf-field-sampler`, or `matter-adf-field-sampler` and
+`particleFieldSource=current-mesh-distance`, `current-sdf-field`, or
+`current-adf-field`. `sdfAdfDebugParticleAuthority=false` must remain true for
+field-force modes because particles sample Matter-owned runtime fields, not
+Quest-Makepad ADF/SDF debug visual payloads.
 Particle integration/render cadence, selected force-source refresh cadence,
 hand-surface update cadence, and SDF/ADF field-build cadence are separate
 clocks. The low-rate settings are
 `makepad.particles.force.source`,
 `makepad.particles.force.update_interval_frames`, and
 `makepad.particles.force.compare_probe_count`. Normal profiles select exactly
-one force authority: `mesh-distance`, `none`, future `sdf-field`, or future
-`adf-field`. The future field values must report
-`particleForceSourceStatus=unsupported-future` and must not fall back to
-mesh-distance or claim `sdfAdfDebugParticleAuthority=true`. Use nonzero
-`compare_probe_count` only for bounded diagnostics that intentionally compare
-representations.
+one force authority: `mesh-distance`, `none`, `sdf-field`, or `adf-field`.
+Field values must report `particleForceSourceStatus=ready` when
+their Matter CPU reference field builds, must not fall back to mesh-distance,
+and must not claim `sdfAdfDebugParticleAuthority=true`. `adf-field` currently
+uses the selected ADF leaf-cell distance and cell-center direction as a first
+CPU reference force; treat higher-quality ADF gradients as follow-up work. Use
+nonzero `compare_probe_count` only for bounded diagnostics that intentionally
+compare representations.
 For Makepad ADF debug rendering, consume
 `QuestMakepadMatterSurfaceFrame::world_adf_debug_batch` or
 `world_adf_debug_batch_from_frame`. Evidence should include
