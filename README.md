@@ -105,6 +105,15 @@ surface updates, collisions, distance sampling, and particle stepping still use
 the current source frame. `combined` remains a gated future mode until a
 dedicated slice supports simultaneous SDF slice plus ADF debug output.
 
+Current particles do not yet sample the dense SDF/ADF debug field. Runtime
+markers identify the particle path as
+`particleSamplingAuthority=matter-mesh-distance-sampler`,
+`particleFieldSource=current-mesh-distance`, and
+`sdfAdfDebugParticleAuthority=false`. A future field-backed SDF/ADF particle
+path must change those markers only after Matter owns the deterministic CPU
+reference contract and the Quest adapter consumes that contract instead of the
+debug visual payload.
+
 ## Validation
 
 ```powershell

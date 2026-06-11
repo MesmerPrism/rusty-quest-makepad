@@ -58,6 +58,10 @@ pub const QUEST_MAKEPAD_COLLISION_UPLOAD_SCHEMA_ID: &str =
 /// Quest Makepad Matter particle upload schema.
 pub const QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID: &str =
     "rusty.quest.makepad.matter_particle_upload.v1";
+/// Current particle simulation authority used by the Quest Makepad adapter.
+pub const QUEST_MAKEPAD_PARTICLE_SAMPLING_AUTHORITY: &str = "matter-mesh-distance-sampler";
+/// Current field source used by particle simulation before field-backed SDF/ADF sampling exists.
+pub const QUEST_MAKEPAD_PARTICLE_FIELD_SOURCE: &str = "current-mesh-distance";
 /// Quest Makepad world-particle batch schema.
 pub const QUEST_MAKEPAD_WORLD_PARTICLE_BATCH_SCHEMA_ID: &str =
     "rusty.quest.makepad.world_particle_batch.v1";
@@ -798,7 +802,7 @@ impl QuestMakepadMatterSurfaceRuntime {
             (true, true) => "reused",
         };
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} sdfAdfDebugSource={} sdfAdfDebugFrameInterval={} sdfAdfDebugSourceFrameIndex={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} sdfAdfDebugSource={} sdfAdfDebugFrameInterval={} sdfAdfDebugSourceFrameIndex={} particleCount={} particleSamplingAuthority={} particleFieldSource={} sdfAdfDebugParticleAuthority=false particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -812,6 +816,8 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.sdf_adf_debug_update_interval_frames,
             optional_usize_marker_token(frame.sdf_adf_debug_source_frame_index),
             frame.stats.particle_count,
+            QUEST_MAKEPAD_PARTICLE_SAMPLING_AUTHORITY,
+            QUEST_MAKEPAD_PARTICLE_FIELD_SOURCE,
             frame.stats.particle_distance_refresh_policy.marker_value(),
             frame.stats.particle_distance_samples,
             frame
@@ -1395,6 +1401,9 @@ mod tests {
         assert!(marker.contains("proceduralParticleOverlayUsed=false"));
         assert!(marker.contains("dataPlane=makepad-compact-uniform-rows"));
         assert!(marker.contains("distanceSamplerRefit=false"));
+        assert!(marker.contains("particleSamplingAuthority=matter-mesh-distance-sampler"));
+        assert!(marker.contains("particleFieldSource=current-mesh-distance"));
+        assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
         assert!(marker.contains("particleDistanceRefreshPolicy=step-only"));
         assert!(marker.contains("particleDistanceSamples=16"));
         assert!(marker.contains("particleInputDeltaSeconds=0.033333"));
@@ -1545,6 +1554,7 @@ mod tests {
         assert!(marker.contains("sdfAdfDebugSource=reused"));
         assert!(marker.contains("sdfAdfDebugFrameInterval=2"));
         assert!(marker.contains("sdfAdfDebugSourceFrameIndex="));
+        assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
 
         replay.step(1.0 / 60.0);
         let third = runtime

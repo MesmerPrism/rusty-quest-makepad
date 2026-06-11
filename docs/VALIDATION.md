@@ -37,8 +37,14 @@ and row-packing timings, plus `distanceSamplerRefit`,
 `particleSubsteps`, `particleClosestSamples`, `particleSurfaceNodeTests`,
 `particleSurfaceLeafTests`, `particleSurfaceTriangleTests`,
 `particleRefreshSamples`, `particleRefreshNodeTests`,
-`particleRefreshLeafTests`, and `particleRefreshTriangleTests`. ADF-enabled
-runs should also show `adfDebugEnabled=true`, `adfStatus=ready`,
+`particleRefreshLeafTests`, and `particleRefreshTriangleTests`. Current
+particle runs should also identify the authority boundary with
+`particleSamplingAuthority=matter-mesh-distance-sampler`,
+`particleFieldSource=current-mesh-distance`, and
+`sdfAdfDebugParticleAuthority=false`; this proves particles are using Matter's
+direct animated mesh surface query path rather than sampling the SDF/ADF debug
+visual payload. ADF-enabled runs should also show `adfDebugEnabled=true`,
+`adfStatus=ready`,
 `adfSchema=rusty.quest.makepad.matter_adf_debug.v1`,
 `adfVisualSchema=rusty.optics.adf.debug.visual.v1`, `adfCells`,
 `adfSourceSamples`, `adfSplitCount`, `adfMaxLevel`, `adfBuildMs`, and

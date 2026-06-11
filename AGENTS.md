@@ -186,6 +186,13 @@ runtime receipts for those values. SDF/ADF debug-field cadence is controlled by
 `sdfAdfDebugSource`, `sdfAdfDebugFrameInterval`, and
 `sdfAdfDebugSourceFrameIndex`; values above `1` reuse only the debug payload
 between rebuilds and must not be treated as Matter simulation cadence.
+Current particle stepping still samples Matter's animated mesh surface directly
+through the mesh-distance/surface-sampler path. Evidence should include
+`particleSamplingAuthority=matter-mesh-distance-sampler`,
+`particleFieldSource=current-mesh-distance`, and
+`sdfAdfDebugParticleAuthority=false`. Do not treat SDF/ADF debug visuals as
+particle authority until a separate Matter-owned field-backed particle sampler
+contract and CPU reference exist.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
