@@ -1,5 +1,5 @@
 use super::*;
-use rusty_matter_mesh::HandSkinningMatrixSample;
+use rusty_matter_mesh::{HandSkinningMatrixSample, HandSkinningMeshBufferOracle};
 use rusty_matter_model::Vec3;
 use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplayRuntime, MeshReplaySequence};
 use std::num::NonZeroUsize;
@@ -1417,6 +1417,106 @@ fn gpu_skinning_probe_marker_preserves_recorded_hand_cpu_oracle_boundary() {
     assert!(marker.contains("prototypeComputeKernel=false"));
     assert!(marker.contains("weightedDeltaSkinningKernel=false"));
     assert!(marker.contains("jointMatrixSkinningKernel=true"));
+    assert!(marker.contains("meshToSdfKernel=false"));
+    assert!(marker.contains("computeKernel=true"));
+    assert!(marker.contains("gpuComputeReady=false"));
+    assert!(marker.contains("highRateJsonPayload=false"));
+}
+
+#[test]
+fn gpu_skinning_mesh_probe_marker_preserves_full_recorded_hand_buffer_boundary() {
+    let oracle = HandSkinningMeshBufferOracle {
+        vertices: vec![
+            HandSkinningMatrixSample {
+                vertex_index: 0,
+                bind_position: [0.0, 0.0, 0.0, 1.0],
+                joint_indices: [0, 0, 0, 0],
+                joint_weights: [1.0, 0.0, 0.0, 0.0],
+                joint_matrices: identity_matrix_samples(),
+                expected_position: [0.0, 0.0, 0.0, 1.0],
+            },
+            HandSkinningMatrixSample {
+                vertex_index: 1,
+                bind_position: [1.0, 0.0, -0.5, 1.0],
+                joint_indices: [1, 0, 0, 0],
+                joint_weights: [1.0, 0.0, 0.0, 0.0],
+                joint_matrices: translated_matrix_samples(0.5),
+                expected_position: [1.0, 0.0, 0.0, 1.0],
+            },
+            HandSkinningMatrixSample {
+                vertex_index: 2,
+                bind_position: [1.0, 1.0, -0.5, 1.0],
+                joint_indices: [2, 0, 0, 0],
+                joint_weights: [1.0, 0.0, 0.0, 0.0],
+                joint_matrices: translated_matrix_samples(0.25),
+                expected_position: [1.0, 1.0, -0.25, 1.0],
+            },
+        ],
+        triangles: vec![[0, 1, 2]],
+    };
+    let input = QuestMakepadGpuSkinningMeshProbeInput::from_matter_oracle(
+        "recorded-hand-synthetic",
+        7,
+        &oracle,
+    )
+    .expect("full skinning mesh probe input builds");
+    let probe = QuestMakepadGpuSkinningMeshProbe::from_input(
+        &input,
+        QuestMakepadGpuSkinningMeshProbeReadback {
+            vertex_count: 3,
+            triangle_count: 1,
+            index_count: 3,
+            checked_position_components: 9,
+            mismatched_position_components: 0,
+            mismatched_triangle_indices: 0,
+            max_abs_error: 0.000_001,
+            tolerance: QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_DEFAULT_TOLERANCE,
+            sample_count: 3,
+            sample_vertex_indices: input.sample_vertex_indices,
+            queue_submit_serial: 11,
+            fence_serial: 11,
+            resource_generation: 1,
+            pending_retire_count: 1,
+            retained_resource_count: 1,
+            retired_after_fence_count: 0,
+            queue_wait_idle_performed: true,
+            elapsed_ms: 1.2,
+        },
+    );
+
+    let marker = probe.marker_line("unit-test");
+    assert!(marker.contains("schema=rusty.quest.makepad.gpu_skinning_mesh_residency.v1"));
+    assert!(marker.contains("status=ready"));
+    assert!(marker.contains("proofKind=full-recorded-hand-skinning-mesh-residency"));
+    assert!(marker.contains("computeStage=hand-skinning-full-vertex-buffer"));
+    assert!(marker.contains("sourceId=recorded-hand-synthetic"));
+    assert!(marker.contains("sourceFrameIndex=7"));
+    assert!(marker.contains("topologyVertexCount=3"));
+    assert!(marker.contains("topologyTriangleCount=1"));
+    assert!(marker.contains("topologyIndexCount=3"));
+    assert!(marker.contains("cpuOracle=matter-recorded-hand-skinning"));
+    assert!(marker.contains("cpuOraclePreserved=true"));
+    assert!(marker.contains("recordedInputEquivalent=true"));
+    assert!(marker.contains("validationInputShape=bind-mesh-plus-compact-joint-frame"));
+    assert!(marker.contains("resourcePlane=vulkan-compute-storage-buffer-readback"));
+    assert!(
+        marker.contains("computeProbeBackend=makepad-vulkan-compute-full-f32-skinning-mesh-probe")
+    );
+    assert!(marker.contains("oraclePayload=full-recorded-hand-skinning-mesh-buffer"));
+    assert!(marker.contains("vertexCount=3"));
+    assert!(marker.contains("triangleCount=1"));
+    assert!(marker.contains("indexCount=3"));
+    assert!(marker.contains("sampleCount=3"));
+    assert!(marker.contains("checkedPositionComponents=9"));
+    assert!(marker.contains("mismatchedPositionComponents=0"));
+    assert!(marker.contains("mismatchedTriangleIndices=0"));
+    assert!(marker.contains("readbackMatched=true"));
+    assert!(marker.contains("fullVertexBufferResident=true"));
+    assert!(marker.contains("fullIndexBufferResident=true"));
+    assert!(marker.contains("skinnedVertexBufferResident=true"));
+    assert!(marker.contains("indexBufferConsumedByGpu=true"));
+    assert!(marker.contains("fullBufferGpuResidency=true"));
+    assert!(marker.contains("boundedSampleOnly=false"));
     assert!(marker.contains("meshToSdfKernel=false"));
     assert!(marker.contains("computeKernel=true"));
     assert!(marker.contains("gpuComputeReady=false"));

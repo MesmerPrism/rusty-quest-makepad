@@ -10,6 +10,7 @@ mod marker;
 mod oracle_probe;
 mod preflight;
 mod render;
+mod skinning_mesh_probe;
 mod skinning_probe;
 mod storage_probe;
 
@@ -21,6 +22,12 @@ pub use oracle_probe::{
 };
 pub use preflight::{QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind};
 pub use render::{QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof};
+pub use skinning_mesh_probe::{
+    QuestMakepadGpuSkinningMeshProbe, QuestMakepadGpuSkinningMeshProbeInput,
+    QuestMakepadGpuSkinningMeshProbeReadback, QuestMakepadGpuSkinningMeshVertex,
+    QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_DEFAULT_TOLERANCE,
+    QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_SAMPLES,
+};
 pub use skinning_probe::{
     QuestMakepadGpuSkinningProbe, QuestMakepadGpuSkinningProbeInput,
     QuestMakepadGpuSkinningProbeReadback, QuestMakepadGpuSkinningProbeSample,
@@ -130,3 +137,18 @@ pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_MEASUREMENT_SOURCE: &str =
     "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
 /// Marker payload type for the current bounded recorded-hand skinning probe.
 pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_PAYLOAD: &str = "bounded-recorded-hand-skinning-probes";
+/// Quest Makepad full recorded-hand skinning mesh residency schema.
+pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_SCHEMA_ID: &str =
+    "rusty.quest.makepad.gpu_skinning_mesh_residency.v1";
+/// Quest Makepad full recorded-hand skinning mesh residency marker prefix.
+pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_MARKER_PREFIX: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_MESH_RESIDENCY";
+/// Backend used by the full recorded-hand skinning mesh residency probe.
+pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_BACKEND: &str =
+    "makepad-vulkan-compute-full-f32-skinning-mesh-probe";
+/// Measurement companion for the full recorded-hand skinning mesh residency probe.
+pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_MEASUREMENT_SOURCE: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_MESH_RESIDENCY.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
+/// Marker payload type for the full recorded-hand skinning mesh residency probe.
+pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_PAYLOAD: &str =
+    "full-recorded-hand-skinning-mesh-buffer";

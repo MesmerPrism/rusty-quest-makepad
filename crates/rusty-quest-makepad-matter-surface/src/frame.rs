@@ -8,9 +8,9 @@ use rusty_optics_particles::ParticleVisualFrame;
 use crate::{
     world_adf_debug_batch_from_frame, world_particle_batch_from_upload, QuestMakepadAdfDebugFrame,
     QuestMakepadCollisionUpload, QuestMakepadDistanceSliceUpload,
-    QuestMakepadGpuSkinningProbeInput, QuestMakepadParticleUpload, QuestMakepadWorldAdfDebugBatch,
-    QuestMakepadWorldAdfDebugPlacement, QuestMakepadWorldParticleBatch,
-    QuestMakepadWorldParticlePlacement,
+    QuestMakepadGpuSkinningMeshProbeInput, QuestMakepadGpuSkinningProbeInput,
+    QuestMakepadParticleUpload, QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldAdfDebugPlacement,
+    QuestMakepadWorldParticleBatch, QuestMakepadWorldParticlePlacement,
 };
 
 /// Adapter-stage timings for one Matter-backed surface frame.
@@ -85,6 +85,8 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub particle_upload: Option<QuestMakepadParticleUpload>,
     /// Optional bounded recorded-hand GPU skinning probe input.
     pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
+    /// Optional full recorded-hand GPU skinning mesh residency probe input.
+    pub gpu_skinning_mesh_probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
     /// Adapter timing evidence for this frame.
     pub stage_timings: QuestMakepadMatterSurfaceStageTimings,
 }

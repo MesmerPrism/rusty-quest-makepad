@@ -3,7 +3,8 @@ use rusty_matter_surface_runtime::MatterSurfaceFrameInput;
 use rusty_quest_makepad_mesh_replay::MeshReplayRuntime;
 
 use crate::{
-    bounds_max_half_extent, QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
+    bounds_max_half_extent, QuestMakepadGpuSkinningMeshProbeInput,
+    QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
 };
 
 /// One animated hand/surface source frame ready for the native Matter runtime.
@@ -21,6 +22,8 @@ pub struct QuestMakepadMatterSurfaceSourceFrame {
     pub bounds_radius: f32,
     /// Optional bounded recorded-hand GPU skinning probe input.
     pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
+    /// Optional full recorded-hand GPU skinning mesh residency probe input.
+    pub gpu_skinning_mesh_probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
 }
 
 impl QuestMakepadMatterSurfaceSourceFrame {
@@ -39,6 +42,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_max,
             bounds_radius: bounds_max_half_extent(bounds_min, bounds_max),
             gpu_skinning_probe: None,
+            gpu_skinning_mesh_probe: None,
         }
     }
 
@@ -66,6 +70,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_max: sequence.bounds_max(),
             bounds_radius: sequence.bounds_radius(),
             gpu_skinning_probe: None,
+            gpu_skinning_mesh_probe: None,
         })
     }
 
@@ -76,6 +81,16 @@ impl QuestMakepadMatterSurfaceSourceFrame {
         probe: Option<QuestMakepadGpuSkinningProbeInput>,
     ) -> Self {
         self.gpu_skinning_probe = probe;
+        self
+    }
+
+    /// Attaches full-mesh diagnostic GPU skinning residency input to this source frame.
+    #[must_use]
+    pub fn with_gpu_skinning_mesh_probe(
+        mut self,
+        probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
+    ) -> Self {
+        self.gpu_skinning_mesh_probe = probe;
         self
     }
 
