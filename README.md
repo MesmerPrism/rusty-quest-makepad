@@ -92,8 +92,11 @@ For the current ADF slice, `makepad.sdf_adf.overlay_mode=adf` enables a
 Matter-backed ADF build from the current Matter SDF grid and resolves the
 Optics `rusty.optics.adf.debug.visual.v1` payload. Runtime markers report
 `adfDebugEnabled`, `adfStatus`, ADF schema IDs, cell/source counts, and
-ADF-specific timings. `combined` remains a gated future mode until a dedicated
-slice supports simultaneous SDF slice plus ADF debug output.
+ADF-specific timings. ADF debug build policy is controlled by the same
+canonical effective-settings path with `makepad.adf.debug.max_depth`,
+`makepad.adf.debug.max_cells`, and
+`makepad.adf.debug.error_tolerance`. `combined` remains a gated future mode
+until a dedicated slice supports simultaneous SDF slice plus ADF debug output.
 
 ## Validation
 

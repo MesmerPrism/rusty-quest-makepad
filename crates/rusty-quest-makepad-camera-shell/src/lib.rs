@@ -98,6 +98,12 @@ pub const SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY: &str =
 pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
 /// Native Matter SDF slice max-cell setting id.
 pub const SETTING_MATTER_SDF_SLICE_MAX_CELLS: &str = "makepad.sdf.slice.max_cells";
+/// Native Matter ADF debug maximum subdivision depth setting id.
+pub const SETTING_MATTER_ADF_DEBUG_MAX_DEPTH: &str = "makepad.adf.debug.max_depth";
+/// Native Matter ADF debug maximum leaf-cell setting id.
+pub const SETTING_MATTER_ADF_DEBUG_MAX_CELLS: &str = "makepad.adf.debug.max_cells";
+/// Native Matter ADF debug distance-range tolerance setting id.
+pub const SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE: &str = "makepad.adf.debug.error_tolerance";
 /// Default world-particle draw cap for current Quest Makepad billboard smoke.
 pub const DEFAULT_PARTICLE_RENDER_DRAW_LIMIT: usize = 96;
 /// Default particle renderer animation mode.
@@ -732,6 +738,21 @@ fn parse_matter_surface_config(
         SETTING_MATTER_SDF_SLICE_MAX_CELLS,
         config.sdf_max_voxels,
     )?;
+    config.adf_debug_config.max_depth = parse_u32_setting_or_default(
+        settings,
+        SETTING_MATTER_ADF_DEBUG_MAX_DEPTH,
+        config.adf_debug_config.max_depth,
+    )?;
+    config.adf_debug_config.max_cells = parse_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_ADF_DEBUG_MAX_CELLS,
+        config.adf_debug_config.max_cells,
+    )?;
+    config.adf_debug_config.error_tolerance = parse_positive_f32_setting_or_default(
+        settings,
+        SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE,
+        config.adf_debug_config.error_tolerance,
+    )?;
     Ok(config)
 }
 
@@ -960,6 +981,9 @@ mod tests {
         assert_eq!(config.matter_surface.particle_execution_max_threads, None);
         assert_eq!(config.matter_surface.particle_max_frame_delta_seconds, None);
         assert_eq!(config.matter_surface.particle_visual_row_limit, Some(192));
+        assert_eq!(config.matter_surface.adf_debug_config.max_depth, 4);
+        assert_eq!(config.matter_surface.adf_debug_config.max_cells, 4096);
+        assert!((config.matter_surface.adf_debug_config.error_tolerance - 0.025).abs() < 0.000_001);
     }
 
     #[test]
@@ -1100,6 +1124,31 @@ mod tests {
     }
 
     #[test]
+    fn parses_adf_debug_settings() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_ADF_DEBUG_MAX_DEPTH,
+            serde_json::json!(2),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_ADF_DEBUG_MAX_CELLS,
+            serde_json::json!(128),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE,
+            serde_json::json!(0.05),
+        );
+
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(config.matter_surface.adf_debug_config.max_depth, 2);
+        assert_eq!(config.matter_surface.adf_debug_config.max_cells, 128);
+        assert!((config.matter_surface.adf_debug_config.error_tolerance - 0.05).abs() < 0.000_001);
+    }
+
+    #[test]
     fn rejects_invalid_sdf_adf_overlay_mode() {
         let invalid =
             EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"sdf\"", "\"value\": \"private\"");
@@ -1226,6 +1275,17 @@ mod tests {
             CameraShellConfigError::InvalidSettingValue(
                 SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY
             )
+        );
+
+        let invalid_adf_tolerance = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE,
+            serde_json::json!(0.0),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_adf_tolerance)
+                .unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE)
         );
     }
 

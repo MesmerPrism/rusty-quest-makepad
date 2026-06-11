@@ -179,6 +179,60 @@
       "readback_field": "sdfAdfOverlayMode"
     },
     {
+      "id": "makepad.adf.debug.max_depth",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0,
+      "maximum": 12,
+      "default": 4,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "adf-debug-max-depth" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_ADF_DEBUG_MAX_DEPTH" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.adf.debug.max_depth" }
+      ],
+      "readback_field": "adfDebugMaxDepth"
+    },
+    {
+      "id": "makepad.adf.debug.max_cells",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 1,
+      "maximum": 1000000,
+      "default": 4096,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "adf-debug-max-cells" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_ADF_DEBUG_MAX_CELLS" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.adf.debug.max_cells" }
+      ],
+      "readback_field": "adfDebugMaxCells"
+    },
+    {
+      "id": "makepad.adf.debug.error_tolerance",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0.000001,
+      "maximum": 10.0,
+      "default": 0.025,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "adf-debug-error-tolerance" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_ADF_DEBUG_ERROR_TOLERANCE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.adf.debug.error_tolerance" }
+      ],
+      "readback_field": "adfDebugErrorTolerance"
+    },
+    {
       "id": "makepad.particles.enabled",
       "owner_repo": "rusty-quest-makepad",
       "owner_module": "camera_shell.particles",

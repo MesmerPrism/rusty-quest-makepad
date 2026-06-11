@@ -45,6 +45,18 @@
       "value": "off"
     },
     {
+      "setting_id": "makepad.adf.debug.max_depth",
+      "value": 4
+    },
+    {
+      "setting_id": "makepad.adf.debug.max_cells",
+      "value": 4096
+    },
+    {
+      "setting_id": "makepad.adf.debug.error_tolerance",
+      "value": 0.025
+    },
+    {
       "setting_id": "makepad.particles.enabled",
       "value": true
     },

@@ -13,6 +13,9 @@
     "debug.rustyquest.makepad.projection.runtime.resolution.enabled",
     "debug.rustyquest.makepad.collision.enabled",
     "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+    "debug.rustyquest.makepad.adf.debug.max_depth",
+    "debug.rustyquest.makepad.adf.debug.max_cells",
+    "debug.rustyquest.makepad.adf.debug.error_tolerance",
     "debug.rustyquest.makepad.particles.enabled",
     "debug.rustyquest.makepad.particles.render.draw_limit",
     "debug.rustyquest.makepad.particles.render.animation_mode",
@@ -78,6 +81,21 @@
       "name": "debug.rustyquest.makepad.sdf_adf.overlay_mode",
       "value": "off",
       "source_setting_id": "makepad.sdf_adf.overlay_mode"
+    },
+    {
+      "name": "debug.rustyquest.makepad.adf.debug.max_depth",
+      "value": "4",
+      "source_setting_id": "makepad.adf.debug.max_depth"
+    },
+    {
+      "name": "debug.rustyquest.makepad.adf.debug.max_cells",
+      "value": "4096",
+      "source_setting_id": "makepad.adf.debug.max_cells"
+    },
+    {
+      "name": "debug.rustyquest.makepad.adf.debug.error_tolerance",
+      "value": "0.025",
+      "source_setting_id": "makepad.adf.debug.error_tolerance"
     },
     {
       "name": "debug.rustyquest.makepad.particles.enabled",

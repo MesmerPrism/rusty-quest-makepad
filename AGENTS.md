@@ -178,6 +178,10 @@ marker fields such as `adfDebugEnabled=true`, `adfStatus=ready`,
 `adfVisualSchema=rusty.optics.adf.debug.visual.v1`, `adfCells`,
 `adfSourceSamples`, `adfBuildMs`, and `adfVisualMs`. Do not copy ADF leaf-cell
 arrays into settings, runtime profiles, Android properties, or command JSON.
+ADF debug config sweeps should use the canonical low-rate settings
+`makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
+`makepad.adf.debug.error_tolerance`; do not patch adapter code or Hostess
+runtime receipts for those values.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the

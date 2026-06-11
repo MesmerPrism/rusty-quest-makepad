@@ -45,6 +45,10 @@ runs should also show `adfDebugEnabled=true`, `adfStatus=ready`,
 `adfVisualMs`. Those fields let performance runs separate Matter CPU query
 shape, Optics conversion, Makepad-facing packing, upload pressure, ADF build
 pressure, and GPU repaint before considering cache or GPU-backend changes.
+ADF profile/config sweeps should patch only generated/local effective settings
+for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
+`makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected
+values as `adfMaxDepth`, `adfMaxCells`, and `adfErrorTolerance`.
 
 Focused ADF adapter checks:
 
