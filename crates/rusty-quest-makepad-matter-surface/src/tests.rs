@@ -1,6 +1,7 @@
 use super::*;
 use rusty_matter_model::Vec3;
-use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplaySequence};
+use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplayRuntime, MeshReplaySequence};
+use std::num::NonZeroUsize;
 
 fn enabled_replay() -> MeshReplayRuntime {
     let mut replay = MeshReplayRuntime::default();

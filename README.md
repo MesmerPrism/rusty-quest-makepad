@@ -29,6 +29,12 @@ distance slices, ADF debug visuals, collision contacts, and particles, and
 uses Optics crates for renderer-neutral visuals. It is not simulation
 authority.
 
+The matter-surface crate root is intentionally a facade. Runtime stepping,
+source-frame adaptation, upload rows, ADF debug adaptation, worker execution,
+and GPU residency/readback markers live in named modules; see
+`docs/ARCHITECTURE.md` before adding new GPU hand-skinning or mesh-to-SDF
+adapter code.
+
 The adapter also exposes `QuestMakepadMatterSurfaceWorker`, a nonblocking
 latest-wins execution wrapper for headset apps. Hostess and other OpenXR
 render loops should submit source-frame/config deltas to this worker and render

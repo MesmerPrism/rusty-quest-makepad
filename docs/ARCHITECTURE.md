@@ -72,17 +72,26 @@ renderer/debug cadence policy only. It is not a simulation authority and does
 not change the current-frame Matter surface used for collisions, distance
 sampling, or particles.
 
-The matter-surface crate root is now a facade plus the core runtime type. Keep
-new adapter behavior in ownership modules instead of growing `src/lib.rs`:
-`recorded_hand_source.rs` owns recorded live-equivalent hand source-frame
-conversion, `uploads.rs` owns bounded Makepad-facing row schemas and world
-particle packing, `geometry.rs` owns small shared geometry/marker helpers,
-`adf.rs` and `adf_world.rs` own ADF debug adaptation, `gpu_residency.rs` owns
-GPU proof/preflight/readback marker contracts, `worker.rs` owns latest-wins
-execution, and `tests.rs` owns the broad crate-level validation suite. The
-related PowerShell scripts remain thin operator wrappers over bundle
-generation, Matter extraction, and Cargo smoke tests; they are not runtime
-authorities and did not need a structural split in this checkpoint.
+The matter-surface crate root is now a facade only. Keep new adapter behavior
+in ownership modules instead of growing `src/lib.rs`: `source.rs` owns the
+generic Matter source-frame shape, `recorded_hand_source.rs` owns recorded
+live-equivalent hand source-frame conversion, `config.rs` maps app adapter
+config into Matter runtime config, `frame.rs` owns frame DTOs and world-batch
+helpers, `runtime.rs` owns Matter stepping and runtime evidence markers,
+`uploads.rs` owns bounded Makepad-facing row schemas and world-particle
+packing, `geometry.rs` and `markers.rs` own small shared helpers, `adf.rs` and
+`adf_world.rs` own ADF debug adaptation, `worker.rs` owns latest-wins
+execution, and `tests.rs` owns the broad crate-level validation suite. GPU
+marker contracts are also split under `gpu_residency/`: `render.rs` for
+render-plane residency, `preflight.rs` for CPU-oracle compute eligibility,
+`storage_probe.rs` for storage-buffer command/readback evidence,
+`oracle_probe.rs` for bounded u32 compute readback, `field_force_probe.rs` for
+bounded f32 force-arithmetic readback, and `marker.rs` for compact marker
+format helpers. Future hand-skinning, mesh-to-SDF, dense-SDF, or ADF GPU
+proofs should add sibling modules there instead of expanding `lib.rs` or the
+GPU facade. The related PowerShell scripts remain thin operator wrappers over
+bundle generation, Matter extraction, and Cargo smoke tests; they are not
+runtime authorities and did not need a structural split in this checkpoint.
 
 ADF world debug rows follow the same adapter rule. The
 `QuestMakepadWorldAdfDebugBatch` boundary converts the existing
