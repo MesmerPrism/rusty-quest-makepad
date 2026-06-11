@@ -60,6 +60,13 @@ renderer/debug cadence policy only. It is not a simulation authority and does
 not change the current-frame Matter surface used for collisions, distance
 sampling, or particles.
 
+ADF world debug rows follow the same adapter rule. The
+`QuestMakepadWorldAdfDebugBatch` boundary converts the existing
+`QuestMakepadAdfDebugFrame` / Optics ADF debug visual into bounded cell rows
+and compact evidence markers for Makepad shells. It preserves source schema,
+field, and grid identity, applies only coordinate/row-limit adaptation, and
+does not move ADF cells into the control plane.
+
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
 reports. Runtime adapters still own platform event loops and camera homography

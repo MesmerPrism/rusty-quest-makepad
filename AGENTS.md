@@ -193,6 +193,14 @@ through the mesh-distance/surface-sampler path. Evidence should include
 `sdfAdfDebugParticleAuthority=false`. Do not treat SDF/ADF debug visuals as
 particle authority until a separate Matter-owned field-backed particle sampler
 contract and CPU reference exist.
+For Makepad ADF debug rendering, consume
+`QuestMakepadMatterSurfaceFrame::world_adf_debug_batch` or
+`world_adf_debug_batch_from_frame`. Evidence should include
+`RUSTY_QUEST_MAKEPAD_WORLD_ADF_DEBUG` with
+`schema=rusty.quest.makepad.world_adf_debug_batch.v1` and
+`dataPlane=makepad-world-adf-debug-cells`. Hostess may draw those rows, but it
+must not create its own ADF cell interpretation or move ADF cells into
+settings/control JSON.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the

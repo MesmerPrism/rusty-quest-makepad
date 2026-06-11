@@ -105,6 +105,14 @@ surface updates, collisions, distance sampling, and particle stepping still use
 the current source frame. `combined` remains a gated future mode until a
 dedicated slice supports simultaneous SDF slice plus ADF debug output.
 
+The adapter can also project an ADF debug frame into bounded Makepad-facing
+world-cell rows with `world_adf_debug_batch_from_frame` or
+`QuestMakepadMatterSurfaceFrame::world_adf_debug_batch`. Those rows use
+`rusty.quest.makepad.world_adf_debug_batch.v1`, preserve source Optics/Matter
+schema IDs, and emit `RUSTY_QUEST_MAKEPAD_WORLD_ADF_DEBUG` markers. They are a
+render/data-plane adapter surface for Hostess and other shells, not a new ADF
+truth source and not settings JSON.
+
 Current particles do not yet sample the dense SDF/ADF debug field. Runtime
 markers identify the particle path as
 `particleSamplingAuthority=matter-mesh-distance-sampler`,

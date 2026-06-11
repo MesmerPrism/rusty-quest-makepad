@@ -51,6 +51,14 @@ visual payload. ADF-enabled runs should also show `adfDebugEnabled=true`,
 `adfVisualMs`. Those fields let performance runs separate Matter CPU query
 shape, Optics conversion, Makepad-facing packing, upload pressure, ADF build
 pressure, and GPU repaint before considering cache or GPU-backend changes.
+When the ADF debug frame is adapted for world-object rendering, evidence
+should also include `RUSTY_QUEST_MAKEPAD_WORLD_ADF_DEBUG` with
+`schema=rusty.quest.makepad.world_adf_debug_batch.v1`,
+`renderMode=adf-debug-cell-boxes`,
+`sourceSchema=rusty.quest.makepad.matter_adf_debug.v1`,
+`sourceVisualSchema=rusty.optics.adf.debug.visual.v1`, `cellRows`,
+`droppedCells`, and `dataPlane=makepad-world-adf-debug-cells`. These rows are
+bounded renderer/data-plane payloads and are not ADF authority.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

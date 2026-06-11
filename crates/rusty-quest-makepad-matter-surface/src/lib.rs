@@ -6,6 +6,7 @@
 //! Makepad backend resources.
 
 mod adf;
+mod adf_world;
 mod worker;
 
 use core::fmt;
@@ -32,6 +33,13 @@ use rusty_quest_makepad_mesh_replay::{MeshReplayError, MeshReplayRuntime};
 pub use adf::{
     QuestMakepadAdfDebugConfig, QuestMakepadAdfDebugError, QuestMakepadAdfDebugFrame,
     QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID, QUEST_MAKEPAD_ADF_DEBUG_VISUAL_ID,
+};
+pub use adf_world::{
+    world_adf_debug_batch_from_frame, QuestMakepadWorldAdfDebugBatch,
+    QuestMakepadWorldAdfDebugCell, QuestMakepadWorldAdfDebugPlacement,
+    QUEST_MAKEPAD_WORLD_ADF_DEBUG_BATCH_SCHEMA_ID,
+    QUEST_MAKEPAD_WORLD_ADF_DEBUG_EVEN_SELECTION_POLICY,
+    QUEST_MAKEPAD_WORLD_ADF_DEBUG_MARKER_PREFIX, QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE,
 };
 pub use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
@@ -542,6 +550,19 @@ impl QuestMakepadMatterSurfaceFrame {
             bounds_max,
             placement,
             max_instances,
+        ))
+    }
+
+    /// Builds a world-object ADF debug batch from this frame's ADF visual.
+    #[must_use]
+    pub fn world_adf_debug_batch(
+        &self,
+        placement: QuestMakepadWorldAdfDebugPlacement,
+        max_cells: usize,
+    ) -> Option<QuestMakepadWorldAdfDebugBatch> {
+        let adf_debug = self.adf_debug.as_ref()?;
+        Some(world_adf_debug_batch_from_frame(
+            adf_debug, placement, max_cells,
         ))
     }
 }
@@ -1249,7 +1270,7 @@ fn instance_spread_token(instances: &[QuestMakepadWorldParticleInstance]) -> Str
     ])
 }
 
-fn vec3_length(value: [f32; 3]) -> f32 {
+pub(crate) fn vec3_length(value: [f32; 3]) -> f32 {
     (value[0] * value[0] + value[1] * value[1] + value[2] * value[2]).sqrt()
 }
 
@@ -1282,7 +1303,7 @@ fn bounds_radius(minimum: [f32; 3], maximum: [f32; 3]) -> f32 {
     (dx.mul_add(dx, dy.mul_add(dy, dz * dz))).sqrt()
 }
 
-fn sanitize_marker_value(value: &str) -> String {
+pub(crate) fn sanitize_marker_value(value: &str) -> String {
     value
         .chars()
         .map(|character| {
@@ -1299,7 +1320,7 @@ fn elapsed_ms(started_at: Instant) -> f32 {
     started_at.elapsed().as_secs_f32() * 1000.0
 }
 
-fn vec3_marker_token(value: [f32; 3]) -> String {
+pub(crate) fn vec3_marker_token(value: [f32; 3]) -> String {
     format!("{:.6},{:.6},{:.6}", value[0], value[1], value[2])
 }
 
@@ -1481,6 +1502,47 @@ mod tests {
             adf_debug.visual.cell_count
         );
         assert!(adf_debug.diagnostics.source_sample_count > 0);
+        let world_adf = frame
+            .world_adf_debug_batch(QuestMakepadWorldAdfDebugPlacement::default(), 8)
+            .expect("ADF world debug batch builds");
+        assert_eq!(
+            world_adf.schema_id,
+            QUEST_MAKEPAD_WORLD_ADF_DEBUG_BATCH_SCHEMA_ID
+        );
+        assert_eq!(
+            world_adf.source_schema_id,
+            QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID
+        );
+        assert_eq!(
+            world_adf.source_visual_schema_id,
+            "rusty.optics.adf.debug.visual.v1"
+        );
+        assert_eq!(world_adf.source_cells, adf_debug.visual.cell_count);
+        assert_eq!(world_adf.cells.len(), adf_debug.visual.cell_count.min(8));
+        assert_eq!(
+            world_adf.dropped_cells,
+            adf_debug
+                .visual
+                .cell_count
+                .saturating_sub(world_adf.cells.len())
+        );
+        assert_eq!(world_adf.content_center, DEFAULT_WORLD_CONTENT_CENTER);
+        assert_eq!(
+            world_adf.coordinate_space,
+            QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE
+        );
+        assert!(world_adf
+            .cells
+            .iter()
+            .all(|cell| cell.center_extent[3] > 0.0));
+        assert!(world_adf
+            .cells
+            .iter()
+            .all(|cell| (0.0..=1.0).contains(&cell.distance[3])));
+        assert!(world_adf
+            .cells
+            .iter()
+            .all(|cell| (0.0..=1.0).contains(&cell.meta[1])));
 
         let marker = runtime.marker_line("unit-test-adf", &frame);
         assert!(marker.contains("nativeMatterRuntime=true"));
@@ -1494,6 +1556,18 @@ mod tests {
         assert!(marker.contains("adfVisualMs="));
         assert!(!marker.contains("rusty.xr"));
         assert!(!marker.contains("RUSTY_XR"));
+
+        let world_marker = world_adf.marker_line("unit-test-adf");
+        assert!(world_marker.contains(QUEST_MAKEPAD_WORLD_ADF_DEBUG_MARKER_PREFIX));
+        assert!(world_marker.contains("schema=rusty.quest.makepad.world_adf_debug_batch.v1"));
+        assert!(world_marker.contains("renderMode=adf-debug-cell-boxes"));
+        assert!(world_marker.contains("sourceSchema=rusty.quest.makepad.matter_adf_debug.v1"));
+        assert!(world_marker.contains("sourceVisualSchema=rusty.optics.adf.debug.visual.v1"));
+        assert!(world_marker.contains("selectionPolicy=evenly-spaced-source-cells"));
+        assert!(world_marker.contains("contentCenterDistanceMeters=0.500"));
+        assert!(world_marker.contains("dataPlane=makepad-world-adf-debug-cells"));
+        assert!(!world_marker.contains("rusty.xr"));
+        assert!(!world_marker.contains("RUSTY_XR"));
     }
 
     #[test]
@@ -1956,6 +2030,39 @@ mod tests {
             source_rows: 0,
             dropped_rows: 0,
             instances: Vec::new(),
+        };
+        assert!(batch
+            .marker_line("unit-test")
+            .contains("contentCenterDistanceMeters=0.620"));
+    }
+
+    #[test]
+    fn world_adf_debug_placement_can_target_makepad_content_local_space() {
+        let placement = QuestMakepadWorldAdfDebugPlacement::content_local(
+            [0.0, 0.58, -0.22],
+            DEFAULT_WORLD_CONTENT_TARGET_RADIUS,
+        );
+
+        assert_eq!(
+            placement.coordinate_space,
+            QUEST_MAKEPAD_CONTENT_LOCAL_SPACE
+        );
+        assert_eq!(placement.center, [0.0, 0.58, -0.22]);
+
+        let batch = QuestMakepadWorldAdfDebugBatch {
+            schema_id: QUEST_MAKEPAD_WORLD_ADF_DEBUG_BATCH_SCHEMA_ID.to_owned(),
+            source_schema_id: QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID.to_owned(),
+            source_visual_schema_id: "rusty.optics.adf.debug.visual.v1".to_owned(),
+            source_field_id: "adf.test".to_owned(),
+            source_grid_id: "sdf.test".to_owned(),
+            coordinate_space: placement.coordinate_space.to_owned(),
+            render_mode: QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE.to_owned(),
+            content_center: placement.center,
+            content_radius: placement.target_radius,
+            source_to_world_scale: 1.0,
+            source_cells: 0,
+            dropped_cells: 0,
+            cells: Vec::new(),
         };
         assert!(batch
             .marker_line("unit-test")
