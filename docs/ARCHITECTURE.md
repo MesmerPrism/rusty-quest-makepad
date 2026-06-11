@@ -90,9 +90,11 @@ bounded f32 force-arithmetic readback, `skinning_probe.rs` for bounded
 recorded-hand skinning readback, and `marker.rs` for compact marker format
 helpers. Future mesh-to-SDF, dense-SDF, or ADF GPU proofs should add sibling
 modules there instead of expanding `lib.rs` or the GPU facade. The related
-PowerShell scripts remain thin operator wrappers over bundle generation,
-Matter extraction, and Cargo smoke tests; they are not runtime authorities and
-did not need a structural split in this checkpoint.
+camera-shell crate keeps the public Matter-surface facade in
+`rusty-quest-makepad-camera-shell/src/matter_surface_exports.rs` instead of
+growing its `src/lib.rs`. PowerShell scripts remain thin operator wrappers
+over bundle generation, Matter extraction, local recorded-capture asset
+staging, and Cargo smoke tests; they are not runtime authorities.
 
 ADF world debug rows follow the same adapter rule. The
 `QuestMakepadWorldAdfDebugBatch` boundary converts the existing

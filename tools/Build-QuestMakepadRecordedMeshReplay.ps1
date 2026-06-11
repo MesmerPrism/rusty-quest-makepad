@@ -7,6 +7,7 @@ param(
     [int]$PrimitiveIndex = 0,
     [int]$AnimationIndex = 0,
     [int]$FrameCount = 120,
+    [string]$CaptureDir = "",
     [switch]$SkipAdapterSmoke
 )
 
@@ -33,6 +34,42 @@ function Invoke-Checked {
     }
 }
 
+function Copy-RecordedHandCapturePayload {
+    param(
+        [string]$CaptureDir,
+        [Parameter(Mandatory=$true)]
+        [string]$OutDir
+    )
+
+    $Result = [ordered]@{
+        ResolvedCaptureDir = $null
+        CopiedCaptureFiles = @()
+    }
+    if ([string]::IsNullOrWhiteSpace($CaptureDir)) {
+        return [pscustomobject]$Result
+    }
+
+    $ResolvedCaptureDir = (Resolve-Path $CaptureDir).Path
+    $CopiedCaptureFiles = @()
+    foreach ($CaptureFileName in @(
+        "left.rig.json",
+        "left.clip.jsonl",
+        "right.rig.json",
+        "right.clip.jsonl"
+    )) {
+        $CaptureSource = Join-Path $ResolvedCaptureDir $CaptureFileName
+        if (-not (Test-Path -LiteralPath $CaptureSource -PathType Leaf)) {
+            throw "Missing recorded hand capture file: $CaptureSource"
+        }
+        Copy-Item -LiteralPath $CaptureSource -Destination (Join-Path $OutDir $CaptureFileName) -Force
+        $CopiedCaptureFiles += $CaptureFileName
+    }
+
+    $Result.ResolvedCaptureDir = $ResolvedCaptureDir
+    $Result.CopiedCaptureFiles = $CopiedCaptureFiles
+    [pscustomobject]$Result
+}
+
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ResolvedMatterRoot = if ([string]::IsNullOrWhiteSpace($MatterRoot)) {
     (Resolve-Path (Join-Path $RepoRoot "..\rusty-matter")).Path
@@ -52,6 +89,9 @@ New-Item -ItemType Directory -Path $SequenceDir -Force | Out-Null
 $SequenceDir = (Resolve-Path $SequenceDir).Path
 
 $ReportOut = Join-Path $ResolvedOutDir "recorded-meta-quest-hand-sequence-report.json"
+$CapturePayload = Copy-RecordedHandCapturePayload -CaptureDir $CaptureDir -OutDir $ResolvedOutDir
+$ResolvedCaptureDir = $CapturePayload.ResolvedCaptureDir
+$CopiedCaptureFiles = @($CapturePayload.CopiedCaptureFiles)
 
 $SequenceReports = @()
 foreach ($CurrentMeshIndex in $MeshIndex) {
@@ -121,6 +161,8 @@ $Report = [ordered]@{
     matter_root = $ResolvedMatterRoot
     output_dir = $ResolvedOutDir
     sequence_dir = $SequenceDir
+    capture_dir = $ResolvedCaptureDir
+    copied_capture_files = $CopiedCaptureFiles
     requested_frame_count = $FrameCount
     mesh_indices = @($MeshIndex)
     primitive_index = $PrimitiveIndex
@@ -130,6 +172,11 @@ $Report = [ordered]@{
     boundary = [ordered]@{
         settings_payload = "source selection only"
         high_rate_frame_payload_location = "local-artifacts"
+        recorded_hand_capture_payload_location = if ($CopiedCaptureFiles.Count -gt 0) {
+            "local-artifacts"
+        } else {
+            "not-staged"
+        }
         matter_authority = $true
         wasm_runtime_used = $false
         committed_capture_asset = $false

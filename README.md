@@ -34,6 +34,9 @@ source-frame adaptation, upload rows, ADF debug adaptation, worker execution,
 and GPU residency/readback markers live in named modules; see
 `docs/ARCHITECTURE.md` before adding new GPU hand-skinning or mesh-to-SDF
 adapter code.
+The camera-shell crate also keeps the Matter-surface facade in
+`src/matter_surface_exports.rs` so future adapter symbols do not expand
+`src/lib.rs`.
 
 The adapter also exposes `QuestMakepadMatterSurfaceWorker`, a nonblocking
 latest-wins execution wrapper for headset apps. Hostess and other OpenXR
@@ -58,6 +61,10 @@ indices `0,1` by default, so the recorded hand pair is represented as two
 single-surface replay sequences until Matter owns a multi-surface contract.
 Hostess resolves the selected recorded source from a sibling `mesh-replay`
 directory beside the effective-settings file.
+Pass `-CaptureDir <recorded-hand-capture-dir>` when validating the recorded
+bind-rig plus compact joint-frame source shape; the tool copies
+`left/right.rig.json` and `left/right.clip.jsonl` beside the effective settings
+as local data-plane assets and records that staging in the build report.
 
 For headset visual inspection with billboard particles, use the sibling
 `mesh-replay-recorded-left-particles.bundle.json` bundle and generate the same

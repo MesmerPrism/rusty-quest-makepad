@@ -76,7 +76,12 @@ builder sets `RUSTY_QUEST_MAKEPAD_RECORDED_SEQUENCE_JSON` only for the adapter
 smoke test and proves each generated hand sequence enters the same Matter
 source-frame boundary as the bundled replay. It extracts mesh indices `0,1` by
 default for the recorded left/right GLB. Do not commit the generated sequences
-or put high-rate recorded frames into settings/control JSON.
+or put high-rate recorded frames into settings/control JSON. For live-input
+equivalent recorded-hand source-frame validation, pass
+`-CaptureDir <recorded-hand-capture-dir>` to
+`Build-QuestMakepadRecordedMeshReplay.ps1`; the script copies
+`left/right.rig.json` and `left/right.clip.jsonl` beside the effective settings
+as local data-plane assets and records the staging in its report.
 
 For the current recorded replay plus billboard-particle headset inspection
 profile, use the sibling bundle/output path:
