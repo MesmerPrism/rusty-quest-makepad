@@ -72,6 +72,18 @@ renderer/debug cadence policy only. It is not a simulation authority and does
 not change the current-frame Matter surface used for collisions, distance
 sampling, or particles.
 
+The matter-surface crate root is now a facade plus the core runtime type. Keep
+new adapter behavior in ownership modules instead of growing `src/lib.rs`:
+`recorded_hand_source.rs` owns recorded live-equivalent hand source-frame
+conversion, `uploads.rs` owns bounded Makepad-facing row schemas and world
+particle packing, `geometry.rs` owns small shared geometry/marker helpers,
+`adf.rs` and `adf_world.rs` own ADF debug adaptation, `gpu_residency.rs` owns
+GPU proof/preflight/readback marker contracts, `worker.rs` owns latest-wins
+execution, and `tests.rs` owns the broad crate-level validation suite. The
+related PowerShell scripts remain thin operator wrappers over bundle
+generation, Matter extraction, and Cargo smoke tests; they are not runtime
+authorities and did not need a structural split in this checkpoint.
+
 ADF world debug rows follow the same adapter rule. The
 `QuestMakepadWorldAdfDebugBatch` boundary converts the existing
 `QuestMakepadAdfDebugFrame` / Optics ADF debug visual into bounded cell rows

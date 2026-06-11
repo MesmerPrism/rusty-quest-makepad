@@ -39,6 +39,20 @@ runs Matter CPU skinning, and compares the result against the recorded
 validation mesh. It is intentionally not part of the default suite because the
 full hand capture remains a local high-rate data-plane artifact.
 
+The Matter-surface crate has a companion ignored external-data test that proves
+the same recorded capture can enter the native source-frame boundary used by
+the runtime and future GPU adapter work:
+
+```powershell
+$env:RUSTY_QUEST_MAKEPAD_RECORDED_HAND_CAPTURE_DIR = "<capture-dir>"
+cargo test -p rusty-quest-makepad-matter-surface external_recorded_hand_capture_steps_through_source_frame_when_configured -- --ignored --nocapture
+```
+
+This test skins one recorded compact hand frame through Matter's CPU oracle,
+builds `QuestMakepadMatterSurfaceSourceFrame`, and steps the native Matter
+runtime without routing rig, mesh, or joint-frame payloads through settings
+JSON.
+
 The Matter-surface adapter tests also cover
 `QuestMakepadMatterSurfaceWorker`, the nonblocking latest-wins wrapper used by
 Hostess. Worker evidence in headset logs should include
