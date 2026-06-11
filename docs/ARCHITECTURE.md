@@ -67,6 +67,17 @@ and compact evidence markers for Makepad shells. It preserves source schema,
 field, and grid identity, applies only coordinate/row-limit adaptation, and
 does not move ADF cells into the control plane.
 
+GPU residency proofs follow the same ownership rule. The
+`QuestMakepadGpuResidencyProof` boundary describes a bounded render-plane
+payload that a Hostess or app-shell renderer is submitting to Makepad instanced
+draw buffers. It records source schema, renderer id, row counts, dropped rows,
+adapter payload bytes, and the selected Makepad instanced-draw backend. It is
+not a compute contract, does not introduce renderer resources into Matter, and
+does not move particle, SDF, ADF, mesh, or GPU buffers into settings/runtime
+profiles/Android properties/command JSON. Quest-side measurement comes from
+the app cadence markers that report repaint geometry uploads, instance counts,
+and GPU repaint timing.
+
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
 reports. Runtime adapters still own platform event loops and camera homography

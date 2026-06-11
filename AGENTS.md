@@ -210,6 +210,17 @@ the slow leaf-cell scan remains a Matter test oracle rather than the runtime
 hot path. Use nonzero `compare_probe_count` only for bounded diagnostics that
 intentionally compare representations.
 
+The first GPU-backed residency checkpoint is render-plane only:
+`QuestMakepadGpuResidencyProof` / `RUSTY_QUEST_MAKEPAD_GPU_RESIDENCY` records
+bounded world-particle and ADF debug batches that Hostess submits through
+Makepad instanced draw buffers. It must report `computeKernel=false`,
+`matterCpuReferencePreserved=true`, and `highRateJsonPayload=false`. Treat
+`RUSTY_MAKEPAD_CADENCE` fields such as
+`xrRepaintGeometryUploadBytes`, `xrRepaintInstances`, and `xrRepaintGpuMs` as
+the headset measurement companion. Do not treat this proof as GPU simulation or
+as permission to move particle rows, ADF cells, mesh frames, or future GPU
+buffers into settings/control JSON.
+
 The 2026-06-11 indexed ADF pre-GPU sweep at
 `S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the
 current force-mode evidence baseline. At 1024 Matter particles / 1024 visual

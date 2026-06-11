@@ -7,6 +7,7 @@
 
 mod adf;
 mod adf_world;
+mod gpu_residency;
 mod worker;
 
 use core::fmt;
@@ -40,6 +41,14 @@ pub use adf_world::{
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_BATCH_SCHEMA_ID,
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_EVEN_SELECTION_POLICY,
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_MARKER_PREFIX, QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE,
+};
+pub use gpu_residency::{
+    QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof,
+    QUEST_MAKEPAD_ADF_DEBUG_GPU_RESIDENCY_ROW_STRIDE_BYTES,
+    QUEST_MAKEPAD_GPU_RESIDENCY_BACKEND_MAKEPAD_INSTANCED_DRAW,
+    QUEST_MAKEPAD_GPU_RESIDENCY_MARKER_PREFIX, QUEST_MAKEPAD_GPU_RESIDENCY_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_RESIDENCY_PROOF_SCHEMA_ID, QUEST_MAKEPAD_GPU_RESIDENCY_RESOURCE_PLANE,
+    QUEST_MAKEPAD_PARTICLE_GPU_RESIDENCY_ROW_STRIDE_BYTES,
 };
 pub use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy,
@@ -2249,6 +2258,52 @@ mod tests {
     }
 
     #[test]
+    fn gpu_residency_proof_preserves_particle_cpu_authority_boundary() {
+        let upload = QuestMakepadParticleUpload {
+            schema_id: QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID.to_owned(),
+            source_rows: 10,
+            rows: (0..10)
+                .map(|index| QuestMakepadParticleRow {
+                    position_radius: [index as f32, 0.0, 0.0, 0.02],
+                    color: [0.2, 0.8, 1.0, 1.0],
+                    normal_frame: [0.0, 0.0, 1.0, 0.5],
+                    aux: [0.0, 0.0, 0.0, 0.0],
+                })
+                .collect(),
+        };
+        let batch = world_particle_batch_from_upload(
+            &upload,
+            [0.0, 0.0, -1.0],
+            [9.0, 1.0, 1.0],
+            QuestMakepadWorldParticlePlacement::default(),
+            4,
+        );
+
+        let proof = QuestMakepadGpuResidencyProof::from_world_particle_batch(
+            &batch,
+            4,
+            QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_RENDERER_ID,
+        );
+
+        assert_eq!(
+            proof.payload_kind,
+            QuestMakepadGpuResidencyPayloadKind::WorldParticles
+        );
+        assert_eq!(proof.resident_rows, 4);
+        assert_eq!(proof.adapter_row_stride_bytes, 64);
+        assert_eq!(proof.adapter_payload_bytes, 256);
+        let marker = proof.marker_line("unit-test");
+        assert!(marker.contains("schema=rusty.quest.makepad.gpu_residency_proof.v1"));
+        assert!(marker.contains("payloadKind=world-particles"));
+        assert!(marker.contains("residencyBackend=makepad-xr-instanced-draw-buffer"));
+        assert!(marker.contains("computeKernel=false"));
+        assert!(marker.contains("matterCpuReferencePreserved=true"));
+        assert!(marker.contains("highRateJsonPayload=false"));
+        assert!(!marker.contains("rusty.xr"));
+        assert!(!marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
     fn world_particle_placement_can_target_makepad_content_local_space() {
         let placement = QuestMakepadWorldParticlePlacement::content_local(
             [0.0, 0.58, -0.22],
@@ -2309,5 +2364,53 @@ mod tests {
         assert!(batch
             .marker_line("unit-test")
             .contains("contentCenterDistanceMeters=0.620"));
+    }
+
+    #[test]
+    fn gpu_residency_proof_covers_adf_debug_cells_without_adf_authority() {
+        let batch = QuestMakepadWorldAdfDebugBatch {
+            schema_id: QUEST_MAKEPAD_WORLD_ADF_DEBUG_BATCH_SCHEMA_ID.to_owned(),
+            source_schema_id: QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID.to_owned(),
+            source_visual_schema_id: "rusty.optics.adf.debug.visual.v1".to_owned(),
+            source_field_id: "adf.test".to_owned(),
+            source_grid_id: "sdf.test".to_owned(),
+            coordinate_space: QUEST_MAKEPAD_CONTENT_LOCAL_SPACE.to_owned(),
+            render_mode: QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE.to_owned(),
+            content_center: [0.0, 0.58, -0.22],
+            content_radius: DEFAULT_WORLD_CONTENT_TARGET_RADIUS,
+            source_to_world_scale: 1.0,
+            source_cells: 32,
+            dropped_cells: 28,
+            cells: vec![
+                QuestMakepadWorldAdfDebugCell {
+                    center_extent: [0.0, 0.0, -0.2, 0.02],
+                    distance: [0.1, -0.1, 0.2, 0.5],
+                    meta: [1.0, 0.4, 8.0, 0.0],
+                };
+                4
+            ],
+        };
+
+        let proof = QuestMakepadGpuResidencyProof::from_world_adf_debug_batch(
+            &batch,
+            4,
+            "hostess-makepad-adf-debug-cell-boxes",
+        );
+
+        assert_eq!(
+            proof.payload_kind,
+            QuestMakepadGpuResidencyPayloadKind::WorldAdfDebugCells
+        );
+        assert_eq!(proof.source_rows, 32);
+        assert_eq!(proof.resident_rows, 4);
+        assert_eq!(proof.adapter_row_stride_bytes, 48);
+        let marker = proof.marker_line("unit-test");
+        assert!(marker.contains("payloadKind=world-adf-debug-cells"));
+        assert!(marker.contains("resourcePlane=render-gpu-instance-buffer"));
+        assert!(marker.contains("residentRows=4"));
+        assert!(marker.contains("adapterPayloadBytes=192"));
+        assert!(marker.contains("computeKernel=false"));
+        assert!(marker.contains("matterCpuReferencePreserved=true"));
+        assert!(marker.contains("highRateJsonPayload=false"));
     }
 }

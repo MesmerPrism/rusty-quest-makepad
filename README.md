@@ -113,6 +113,15 @@ schema IDs, and emit `RUSTY_QUEST_MAKEPAD_WORLD_ADF_DEBUG` markers. They are a
 render/data-plane adapter surface for Hostess and other shells, not a new ADF
 truth source and not settings JSON.
 
+The first GPU-backed residency slice is render-plane only. Quest-Makepad now
+exposes `QuestMakepadGpuResidencyProof` with schema
+`rusty.quest.makepad.gpu_residency_proof.v1` for bounded world-particle and ADF
+debug batches that are ready for Makepad instanced draw buffers. The proof
+preserves Matter's CPU reference behavior, keeps compute kernels out of scope,
+keeps high-rate rows out of settings/control JSON, and points Quest evidence to
+`RUSTY_MAKEPAD_CADENCE` fields such as
+`xrRepaintGeometryUploadBytes`, `xrRepaintInstances`, and `xrRepaintGpuMs`.
+
 Current particles do not yet sample the dense SDF/ADF debug field. Runtime
 markers identify the particle path as
 `particleSamplingAuthority=matter-mesh-distance-sampler`,

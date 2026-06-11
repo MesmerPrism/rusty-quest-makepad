@@ -59,6 +59,16 @@ should also include `RUSTY_QUEST_MAKEPAD_WORLD_ADF_DEBUG` with
 `sourceVisualSchema=rusty.optics.adf.debug.visual.v1`, `cellRows`,
 `droppedCells`, and `dataPlane=makepad-world-adf-debug-cells`. These rows are
 bounded renderer/data-plane payloads and are not ADF authority.
+For the first GPU-backed residency proof, Hostess or another Makepad app shell
+should also emit `RUSTY_QUEST_MAKEPAD_GPU_RESIDENCY` with
+`schema=rusty.quest.makepad.gpu_residency_proof.v1`,
+`resourcePlane=render-gpu-instance-buffer`,
+`residencyBackend=makepad-xr-instanced-draw-buffer`,
+`computeKernel=false`, `matterCpuReferencePreserved=true`, and
+`highRateJsonPayload=false`. Treat this as render-plane GPU adoption evidence;
+line it up with cadence markers for `xrRepaintGeometryUploadBytes`,
+`xrRepaintInstances`, and `xrRepaintGpuMs` before claiming GPU behavior on
+Quest.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected
