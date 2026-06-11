@@ -204,11 +204,24 @@ clocks. The low-rate settings are
 one force authority: `mesh-distance`, `none`, `sdf-field`, or `adf-field`.
 Field values must report `particleForceSourceStatus=ready` when
 their Matter CPU reference field builds, must not fall back to mesh-distance,
-and must not claim `sdfAdfDebugParticleAuthority=true`. `adf-field` currently
-uses the selected ADF leaf-cell distance and cell-center direction as a first
-CPU reference force; treat higher-quality ADF gradients as follow-up work. Use
-nonzero `compare_probe_count` only for bounded diagnostics that intentionally
-compare representations.
+and must not claim `sdfAdfDebugParticleAuthority=true`. `adf-field` now uses
+Matter's indexed ADF sampler with finite-difference gradients over ADF samples;
+the slow leaf-cell scan remains a Matter test oracle rather than the runtime
+hot path. Use nonzero `compare_probe_count` only for bounded diagnostics that
+intentionally compare representations.
+
+The 2026-06-11 indexed ADF pre-GPU sweep at
+`S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the
+current force-mode evidence baseline. At 1024 Matter particles / 1024 visual
+rows on the recorded Meta Quest hand mesh, `sdf-field` averaged `5.466 ms`
+overall and `2.181 ms` on reused cached-field steps; indexed `adf-field`
+averaged `6.922 ms` overall and `4.141 ms` reused, improving the prior ADF
+reused mean by about `12.5%` while remaining slower than SDF. XR-activity
+captures held `xrEffectiveFrameRateHz=89.99`, `xrRepaintTextureUploadBytes=0`,
+and GPU repaint around `0.42 ms`. Treat this as the stop point for default CPU
+ADF micro-tuning before GPU-backed residency work unless a correctness or
+evidence marker bug appears.
+
 For Makepad ADF debug rendering, consume
 `QuestMakepadMatterSurfaceFrame::world_adf_debug_batch` or
 `world_adf_debug_batch_from_frame`. Evidence should include
@@ -229,6 +242,12 @@ $package = 'io.github.mesmerprism.rustyhostess.makepad'
 & $adb shell "run-as $package sh -c 'mkdir -p files/hostess-t/settings && cp /data/local/tmp/makepad-effective-settings.json files/hostess-t/settings/makepad-effective-settings.json'"
 & $adb shell am start -W -n "$package/.MakepadAppXr"
 ```
+
+Launch headset evidence through the generated Quest/XR activity
+`$package/.MakepadAppXr`. `$package/.MakepadApp` is the Android launcher
+activity and may work as a fallback, but it is not the canonical Quest evidence
+launch. Do not use legacy `dev.makepad.android.MakepadApp` for this generated
+Morphospace package.
 
 Do not interpret an unstaged or `not_configured` Hostess receipt as an adapter
 runtime failure until this app-private settings file has been staged.
