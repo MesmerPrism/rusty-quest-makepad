@@ -25,8 +25,9 @@ as native Matter `TriangleMeshSurface` values for downstream adapters.
 the Quest Makepad surface slice. It consumes source frames from smoke replay,
 recorded replay, and future realtime hand providers, steps
 `rusty-matter-surface-runtime`, packages bounded Makepad-facing rows for
-distance slices, collision contacts, and particles, and uses Optics crates for
-renderer-neutral visuals. It is not simulation authority.
+distance slices, ADF debug visuals, collision contacts, and particles, and
+uses Optics crates for renderer-neutral visuals. It is not simulation
+authority.
 
 The adapter also exposes `QuestMakepadMatterSurfaceWorker`, a nonblocking
 latest-wins execution wrapper for headset apps. Hostess and other OpenXR
@@ -86,6 +87,13 @@ the canonical effective-settings report for the published camera-shell surface
 and configures mesh replay, render scale, collision, SDF/ADF overlay, and
 particle toggles without depending on the previous source repo or hand-authored
 launch values.
+
+For the current ADF slice, `makepad.sdf_adf.overlay_mode=adf` enables a
+Matter-backed ADF build from the current Matter SDF grid and resolves the
+Optics `rusty.optics.adf.debug.visual.v1` payload. Runtime markers report
+`adfDebugEnabled`, `adfStatus`, ADF schema IDs, cell/source counts, and
+ADF-specific timings. `combined` remains a gated future mode until a dedicated
+slice supports simultaneous SDF slice plus ADF debug output.
 
 ## Validation
 

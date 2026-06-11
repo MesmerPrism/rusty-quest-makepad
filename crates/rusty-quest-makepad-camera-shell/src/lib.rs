@@ -11,6 +11,7 @@ use rusty_optics_model::{
 pub use rusty_quest_makepad_matter_surface::{
     world_particle_batch_from_upload, MatterSurfaceContactProbe,
     MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
+    QuestMakepadAdfDebugConfig, QuestMakepadAdfDebugError, QuestMakepadAdfDebugFrame,
     QuestMakepadMatterSurfaceConfig, QuestMakepadMatterSurfaceFrame,
     QuestMakepadMatterSurfaceRuntime, QuestMakepadMatterSurfaceStageTimings,
     QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerFrame,
@@ -18,9 +19,9 @@ pub use rusty_quest_makepad_matter_surface::{
     QuestMakepadWorldParticleBatch, QuestMakepadWorldParticleInstance,
     QuestMakepadWorldParticlePlacement, DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE,
     DEFAULT_WORLD_CONTENT_CENTER, DEFAULT_WORLD_CONTENT_TARGET_RADIUS,
-    QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE, QUEST_MAKEPAD_CONTENT_LOCAL_SPACE,
-    QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX, QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
-    QUEST_MAKEPAD_MATTER_SURFACE_WORKER_MARKER_PREFIX,
+    QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID, QUEST_MAKEPAD_CENTER_PROJECTED_BILLBOARD_MODE,
+    QUEST_MAKEPAD_CONTENT_LOCAL_SPACE, QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
+    QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID, QUEST_MAKEPAD_MATTER_SURFACE_WORKER_MARKER_PREFIX,
     QUEST_MAKEPAD_MATTER_SURFACE_WORKER_SCHEMA_ID, QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE,
     QUEST_MAKEPAD_WORLD_PARTICLE_BATCH_SCHEMA_ID,
     QUEST_MAKEPAD_WORLD_PARTICLE_BILLBOARD_ANIMATION_MODE,
@@ -318,9 +319,9 @@ pub enum SdfAdfRuntimeMode {
     Off,
     /// Matter-backed SDF output.
     Sdf,
-    /// ADF was requested but no Matter ADF contract exists yet.
-    UnsupportedAdf,
-    /// Combined SDF/ADF was requested but ADF has no Matter contract yet.
+    /// Matter-backed ADF debug output.
+    Adf,
+    /// Combined SDF/ADF was requested but simultaneous output is not wired yet.
     UnsupportedCombined,
 }
 
@@ -331,7 +332,7 @@ impl SdfAdfRuntimeMode {
         match mode {
             SdfAdfOverlayMode::Off => Self::Off,
             SdfAdfOverlayMode::Sdf => Self::Sdf,
-            SdfAdfOverlayMode::Adf => Self::UnsupportedAdf,
+            SdfAdfOverlayMode::Adf => Self::Adf,
             SdfAdfOverlayMode::Combined => Self::UnsupportedCombined,
         }
     }
@@ -342,10 +343,16 @@ impl SdfAdfRuntimeMode {
         matches!(self, Self::Sdf)
     }
 
+    /// Returns whether Matter-backed ADF debug output is allowed.
+    #[must_use]
+    pub const fn matter_adf_enabled(self) -> bool {
+        matches!(self, Self::Adf)
+    }
+
     /// Returns whether this mode is an unsupported future ADF placeholder.
     #[must_use]
     pub const fn is_unsupported_adf_placeholder(self) -> bool {
-        matches!(self, Self::UnsupportedAdf | Self::UnsupportedCombined)
+        matches!(self, Self::UnsupportedCombined)
     }
 
     /// Stable marker status label.
@@ -354,7 +361,7 @@ impl SdfAdfRuntimeMode {
         match self {
             Self::Off => "off",
             Self::Sdf => "sdf",
-            Self::UnsupportedAdf => "unsupported_adf",
+            Self::Adf => "adf",
             Self::UnsupportedCombined => "unsupported_combined",
         }
     }
@@ -657,10 +664,14 @@ fn parse_matter_surface_config(
     let mut config = QuestMakepadMatterSurfaceConfig::default();
     config.collision_enabled = collision_enabled;
     config.sdf_slice_enabled = runtime_mode.matter_sdf_enabled();
+    config.adf_debug_enabled = runtime_mode.matter_adf_enabled();
     config.particles_enabled = particles_enabled;
     config.particle_visual_row_limit = Some(particle_render_draw_limit);
     config.enabled = replay_enabled
-        && (config.collision_enabled || config.sdf_slice_enabled || particles_enabled);
+        && (config.collision_enabled
+            || config.sdf_slice_enabled
+            || config.adf_debug_enabled
+            || particles_enabled);
     config.leaf_triangle_count = parse_usize_setting_or_default(
         settings,
         SETTING_MATTER_SURFACE_LEAF_TRIANGLE_COUNT,
@@ -930,6 +941,7 @@ mod tests {
         assert_eq!(config.particle_render_size_scale, 1.0);
         assert!(config.matter_surface.enabled);
         assert!(config.matter_surface.sdf_slice_enabled);
+        assert!(!config.matter_surface.adf_debug_enabled);
         assert!(config.matter_surface.particles_enabled);
         assert_eq!(config.matter_surface.leaf_triangle_count, 8);
         assert_eq!(config.matter_surface.particle_count, 1_000);
@@ -972,6 +984,7 @@ mod tests {
         );
         assert_eq!(bundle.effective_config.particle_render_size_scale, 1.0);
         assert!(bundle.effective_config.matter_surface.enabled);
+        assert!(!bundle.effective_config.matter_surface.adf_debug_enabled);
         assert_eq!(bundle.matter_surface_runtime.config().particle_count, 1_000);
         assert_eq!(
             bundle
@@ -1050,6 +1063,7 @@ mod tests {
         assert_eq!(runtime_mode, SdfAdfRuntimeMode::UnsupportedCombined);
         assert!(runtime_mode.is_unsupported_adf_placeholder());
         assert!(!config.matter_surface.sdf_slice_enabled);
+        assert!(!config.matter_surface.adf_debug_enabled);
     }
 
     #[test]
@@ -1065,6 +1079,23 @@ mod tests {
         );
         assert!(config.matter_surface.enabled);
         assert!(config.matter_surface.sdf_slice_enabled);
+        assert!(!config.matter_surface.adf_debug_enabled);
+        assert!(config.matter_surface.particles_enabled);
+    }
+
+    #[test]
+    fn adf_mode_enables_matter_surface_adf_debug_without_sdf() {
+        let adf = EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"sdf\"", "\"value\": \"adf\"");
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&adf).unwrap();
+
+        assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Adf);
+        assert_eq!(
+            SdfAdfRuntimeMode::from_overlay_mode(config.sdf_adf_overlay_mode),
+            SdfAdfRuntimeMode::Adf
+        );
+        assert!(config.matter_surface.enabled);
+        assert!(!config.matter_surface.sdf_slice_enabled);
+        assert!(config.matter_surface.adf_debug_enabled);
         assert!(config.matter_surface.particles_enabled);
     }
 

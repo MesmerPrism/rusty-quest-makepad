@@ -168,6 +168,17 @@ A follow-up Matter hot-path allocation cleanup, validated in
 reduced the same `32768`/`8192` profile's `particleStepMs` mean from
 `433.741` to `404.871` without changing particle truth or visual cap markers.
 
+The first Quest-Makepad ADF adapter slice is source-validated. The existing
+`makepad.sdf_adf.overlay_mode` setting now has these runtime meanings:
+`sdf` enables the Matter-backed SDF slice path, `adf` builds a Matter ADF from
+the current Matter SDF grid and resolves the Optics ADF debug visual, and
+`combined` remains a gated future mode. Evidence for `adf` should be compact
+marker fields such as `adfDebugEnabled=true`, `adfStatus=ready`,
+`adfSchema=rusty.quest.makepad.matter_adf_debug.v1`,
+`adfVisualSchema=rusty.optics.adf.debug.visual.v1`, `adfCells`,
+`adfSourceSamples`, `adfBuildMs`, and `adfVisualMs`. Do not copy ADF leaf-cell
+arrays into settings, runtime profiles, Android properties, or command JSON.
+
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the
 Hostess app-private path:

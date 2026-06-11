@@ -37,10 +37,21 @@ and row-packing timings, plus `distanceSamplerRefit`,
 `particleSubsteps`, `particleClosestSamples`, `particleSurfaceNodeTests`,
 `particleSurfaceLeafTests`, `particleSurfaceTriangleTests`,
 `particleRefreshSamples`, `particleRefreshNodeTests`,
-`particleRefreshLeafTests`, and `particleRefreshTriangleTests`. Those fields
-let performance runs separate Matter CPU query shape, Optics conversion,
-Makepad-facing packing, upload pressure, and GPU repaint before considering
-cache, ADF, or GPU-backend changes.
+`particleRefreshLeafTests`, and `particleRefreshTriangleTests`. ADF-enabled
+runs should also show `adfDebugEnabled=true`, `adfStatus=ready`,
+`adfSchema=rusty.quest.makepad.matter_adf_debug.v1`,
+`adfVisualSchema=rusty.optics.adf.debug.visual.v1`, `adfCells`,
+`adfSourceSamples`, `adfSplitCount`, `adfMaxLevel`, `adfBuildMs`, and
+`adfVisualMs`. Those fields let performance runs separate Matter CPU query
+shape, Optics conversion, Makepad-facing packing, upload pressure, ADF build
+pressure, and GPU repaint before considering cache or GPU-backend changes.
+
+Focused ADF adapter checks:
+
+```powershell
+cargo test -p rusty-quest-makepad-matter-surface adf -- --nocapture
+cargo test -p rusty-quest-makepad-camera-shell adf -- --nocapture
+```
 
 Optional recorded full hand-mesh replay smoke:
 

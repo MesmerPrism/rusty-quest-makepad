@@ -5,11 +5,13 @@
 //! simulation truth, settings resolution, Android property transport, or
 //! Makepad backend resources.
 
+mod adf;
 mod worker;
 
 use core::fmt;
 use std::{num::NonZeroUsize, time::Instant};
 
+use adf::{adf_debug_frame_from_report, build_adf_report};
 use rusty_matter_model::Vec3;
 use rusty_matter_particles::{ParticleRenderPayload, ParticleSet};
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
@@ -27,6 +29,10 @@ use rusty_optics_particles::{
 };
 use rusty_quest_makepad_mesh_replay::{MeshReplayError, MeshReplayRuntime};
 
+pub use adf::{
+    QuestMakepadAdfDebugConfig, QuestMakepadAdfDebugError, QuestMakepadAdfDebugFrame,
+    QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID, QUEST_MAKEPAD_ADF_DEBUG_VISUAL_ID,
+};
 pub use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
 };
@@ -175,6 +181,10 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub collision_enabled: bool,
     /// Whether SDF slice rows should be emitted.
     pub sdf_slice_enabled: bool,
+    /// Whether a Matter-backed ADF debug visual should be emitted.
+    pub adf_debug_enabled: bool,
+    /// ADF debug build configuration.
+    pub adf_debug_config: QuestMakepadAdfDebugConfig,
     /// Whether particles should be stepped and emitted.
     pub particles_enabled: bool,
     /// Particle count for deterministic resets.
@@ -212,6 +222,8 @@ impl Default for QuestMakepadMatterSurfaceConfig {
             enabled: false,
             collision_enabled: false,
             sdf_slice_enabled: false,
+            adf_debug_enabled: false,
+            adf_debug_config: QuestMakepadAdfDebugConfig::default(),
             particles_enabled: false,
             particle_count: DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
             particle_seed: DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
@@ -445,6 +457,10 @@ pub struct QuestMakepadMatterSurfaceStageTimings {
     pub sdf_build_ms: f32,
     /// SDF row packing time.
     pub sdf_upload_ms: f32,
+    /// ADF build time after the source SDF grid exists.
+    pub adf_build_ms: f32,
+    /// Optics ADF debug visual conversion time.
+    pub adf_visual_ms: f32,
     /// Particle snapshot readout time.
     pub particle_snapshot_ms: f32,
     /// Matter particle render payload build time.
@@ -472,6 +488,8 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub sdf_slice: Option<SdfSliceVisual>,
     /// Optional SDF slice upload rows.
     pub sdf_slice_upload: Option<QuestMakepadDistanceSliceUpload>,
+    /// Optional Matter-backed Optics ADF debug visual.
+    pub adf_debug: Option<QuestMakepadAdfDebugFrame>,
     /// Typed particle snapshot with latest surface distances.
     pub particle_snapshot: MatterSurfaceParticleSnapshot,
     /// Matter-owned particle step diagnostics, if particles were stepped.
@@ -632,18 +650,35 @@ impl QuestMakepadMatterSurfaceRuntime {
         let collision_upload = collision_upload_from_batch(&collision);
         stage_timings.collision_upload_ms = elapsed_ms(started_at);
 
-        let (sdf_slice, sdf_slice_upload) = if self.config.enabled && self.config.sdf_slice_enabled
-        {
+        let needs_sdf_grid =
+            self.config.enabled && (self.config.sdf_slice_enabled || self.config.adf_debug_enabled);
+        let (sdf_slice, sdf_slice_upload, adf_debug) = if needs_sdf_grid {
             let started_at = Instant::now();
             let grid = self.matter.build_sdf_grid(self.config.sdf_config())?;
-            let slice = SdfSliceVisual::middle_z("quest.makepad.sdf_slice.middle_z", &grid)?;
             stage_timings.sdf_build_ms = elapsed_ms(started_at);
-            let started_at = Instant::now();
-            let upload = distance_slice_upload_from_visual(&slice);
-            stage_timings.sdf_upload_ms = elapsed_ms(started_at);
-            (Some(slice), Some(upload))
+            let (sdf_slice, sdf_slice_upload) = if self.config.sdf_slice_enabled {
+                let slice = SdfSliceVisual::middle_z("quest.makepad.sdf_slice.middle_z", &grid)?;
+                let started_at = Instant::now();
+                let upload = distance_slice_upload_from_visual(&slice);
+                stage_timings.sdf_upload_ms = elapsed_ms(started_at);
+                (Some(slice), Some(upload))
+            } else {
+                (None, None)
+            };
+            let adf_debug = if self.config.adf_debug_enabled {
+                let started_at = Instant::now();
+                let report = build_adf_report(&grid, self.config.adf_debug_config)?;
+                stage_timings.adf_build_ms = elapsed_ms(started_at);
+                let started_at = Instant::now();
+                let frame = adf_debug_frame_from_report(report)?;
+                stage_timings.adf_visual_ms = elapsed_ms(started_at);
+                Some(frame)
+            } else {
+                None
+            };
+            (sdf_slice, sdf_slice_upload, adf_debug)
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         let started_at = Instant::now();
@@ -683,6 +718,7 @@ impl QuestMakepadMatterSurfaceRuntime {
             collision_upload,
             sdf_slice,
             sdf_slice_upload,
+            adf_debug,
             particle_snapshot,
             particle_step,
             particle_visual_frame,
@@ -711,8 +747,14 @@ impl QuestMakepadMatterSurfaceRuntime {
         let particle_refresh_triangle_tests = particle_step.map_or(0, |diagnostics| {
             diagnostics.refreshed_distance_diagnostics.triangle_tests
         });
+        let adf_debug = frame.adf_debug.as_ref();
+        let adf_status = match (self.config.adf_debug_enabled, adf_debug.is_some()) {
+            (false, _) => "disabled",
+            (true, true) => "ready",
+            (true, false) => "empty",
+        };
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -787,6 +829,17 @@ impl QuestMakepadMatterSurfaceRuntime {
                 .sdf_slice_upload
                 .as_ref()
                 .map_or(0, |upload| upload.rows.len()),
+            self.config.adf_debug_enabled,
+            adf_status,
+            adf_debug.map_or("none", |frame| frame.schema_id.as_str()),
+            adf_debug.map_or("none", |frame| frame.visual_schema_id.as_str()),
+            adf_debug.map_or(0, |frame| frame.visual.cell_count),
+            adf_debug.map_or(0, |frame| frame.diagnostics.source_sample_count),
+            adf_debug.map_or(0, |frame| frame.diagnostics.split_count),
+            adf_debug.map_or(0, |frame| frame.diagnostics.max_level),
+            self.config.adf_debug_config.max_depth,
+            self.config.adf_debug_config.max_cells,
+            self.config.adf_debug_config.error_tolerance,
             frame
                 .stats
                 .distance_sampler
@@ -801,6 +854,8 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.stage_timings.collision_upload_ms,
             frame.stage_timings.sdf_build_ms,
             frame.stage_timings.sdf_upload_ms,
+            frame.stage_timings.adf_build_ms,
+            frame.stage_timings.adf_visual_ms,
             frame.stage_timings.particle_snapshot_ms,
             frame.stage_timings.particle_payload_ms,
             frame.stage_timings.particle_visual_ms,
@@ -822,6 +877,8 @@ pub enum QuestMakepadMatterSurfaceError {
     MeshReplay(MeshReplayError),
     /// Matter runtime failed.
     Matter(MatterSurfaceRuntimeError),
+    /// ADF debug payload failed.
+    Adf(QuestMakepadAdfDebugError),
     /// Optics visual payload failed.
     Optics(OpticsError),
 }
@@ -831,6 +888,7 @@ impl fmt::Display for QuestMakepadMatterSurfaceError {
         match self {
             Self::MeshReplay(error) => write!(formatter, "{error}"),
             Self::Matter(error) => write!(formatter, "{error}"),
+            Self::Adf(error) => write!(formatter, "{error}"),
             Self::Optics(error) => write!(formatter, "{error}"),
         }
     }
@@ -847,6 +905,12 @@ impl From<MeshReplayError> for QuestMakepadMatterSurfaceError {
 impl From<MatterSurfaceRuntimeError> for QuestMakepadMatterSurfaceError {
     fn from(value: MatterSurfaceRuntimeError) -> Self {
         Self::Matter(value)
+    }
+}
+
+impl From<QuestMakepadAdfDebugError> for QuestMakepadMatterSurfaceError {
+    fn from(value: QuestMakepadAdfDebugError) -> Self {
+        Self::Adf(value)
     }
 }
 
@@ -1228,6 +1292,7 @@ mod tests {
             world_batch.coordinate_space,
             QUEST_MAKEPAD_START_HEAD_LOCAL_SPACE
         );
+        assert!(frame.adf_debug.is_none());
         assert!(!frame.collision_upload.rows.is_empty());
         assert!(frame.sdf_slice_upload.as_ref().unwrap().rows.len() > 1);
 
@@ -1261,6 +1326,9 @@ mod tests {
         assert!(marker.contains("particleSourceRows=16"));
         assert!(marker.contains("particleRows=16"));
         assert!(marker.contains("particleVisualRowLimit=none"));
+        assert!(marker.contains("adfDebugEnabled=false"));
+        assert!(marker.contains("adfStatus=disabled"));
+        assert!(marker.contains("adfCells=0"));
         assert!(marker.contains("adapterTotalMs="));
         assert!(marker.contains("matterUpdateMs="));
         assert!(marker.contains("particleStepMs="));
@@ -1277,6 +1345,55 @@ mod tests {
         assert!(world_marker.contains("contentCenterDistanceMeters=0.500"));
         assert!(!world_marker.contains("rusty.xr"));
         assert!(!world_marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn adapter_builds_matter_adf_debug_visual_when_enabled() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            adf_debug_enabled: true,
+            particles_enabled: false,
+            collision_enabled: false,
+            sdf_slice_enabled: false,
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 0.0, &[])
+            .expect("adapter frame builds");
+
+        assert!(frame.sdf_slice.is_none());
+        assert!(frame.sdf_slice_upload.is_none());
+        let adf_debug = frame.adf_debug.as_ref().expect("ADF debug frame");
+        assert_eq!(adf_debug.schema_id, QUEST_MAKEPAD_ADF_DEBUG_SCHEMA_ID);
+        assert_eq!(
+            adf_debug.visual.visual_id,
+            QUEST_MAKEPAD_ADF_DEBUG_VISUAL_ID
+        );
+        assert_eq!(adf_debug.visual.cell_count, adf_debug.visual.cells.len());
+        assert!(adf_debug.visual.cell_count > 0);
+        assert_eq!(
+            adf_debug.diagnostics.cell_count,
+            adf_debug.visual.cell_count
+        );
+        assert!(adf_debug.diagnostics.source_sample_count > 0);
+
+        let marker = runtime.marker_line("unit-test-adf", &frame);
+        assert!(marker.contains("nativeMatterRuntime=true"));
+        assert!(marker.contains("adfDebugEnabled=true"));
+        assert!(marker.contains("adfStatus=ready"));
+        assert!(marker.contains("adfSchema=rusty.quest.makepad.matter_adf_debug.v1"));
+        assert!(marker.contains("adfVisualSchema=rusty.optics.adf.debug.visual.v1"));
+        assert!(marker.contains("adfCells="));
+        assert!(marker.contains("adfSourceSamples="));
+        assert!(marker.contains("adfBuildMs="));
+        assert!(marker.contains("adfVisualMs="));
+        assert!(!marker.contains("rusty.xr"));
+        assert!(!marker.contains("RUSTY_XR"));
     }
 
     #[test]

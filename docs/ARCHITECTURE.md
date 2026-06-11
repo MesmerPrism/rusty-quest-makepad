@@ -28,7 +28,8 @@ The current replay slice is:
    app-local markers.
 5. `rusty-quest-makepad-matter-surface` can convert replay frames to native
    Matter surfaces, step the Matter-owned distance/collider/particle runtime,
-   and package bounded Makepad-facing upload rows plus Optics visuals.
+   build optional Matter ADF debug payloads, and package bounded
+   Makepad-facing upload rows plus Optics visuals.
 
 `tools\Build-QuestMakepadRuntimeBundle.ps1` is the cohesive operator entry
 point for that path. It accepts a Quest Makepad profile bundle, delegates
@@ -46,12 +47,13 @@ constants as the app-facing boundary. Hostess and other active Makepad shells
 should consume that adapter surface instead of depending on the lower replay
 crate directly or reparsing replay settings locally.
 
-The Matter-surface adapter consumes `rusty-matter-surface-runtime` and Optics
-visual crates. It may create app-facing row buffers for Makepad upload, but it
-must not duplicate Matter distance, collision, SDF, or particle truth. High-rate
-particle rows and slice cells stay on the data/render plane and do not enter
-settings, runtime profiles, Android property values, or future Manifold command
-JSON.
+The Matter-surface adapter consumes `rusty-matter-surface-runtime`,
+`rusty-matter-adf`, and Optics visual crates. It may create app-facing row
+buffers and debug payloads for Makepad consumption, but it must not duplicate
+Matter distance, collision, SDF, ADF, or particle truth. High-rate particle
+rows, SDF slice cells, and ADF leaf-cell data stay on the data/render plane and
+do not enter settings, runtime profiles, Android property values, or future
+Manifold command JSON.
 
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
