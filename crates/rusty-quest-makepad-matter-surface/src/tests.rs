@@ -1524,6 +1524,111 @@ fn gpu_skinning_mesh_probe_marker_preserves_full_recorded_hand_buffer_boundary()
 }
 
 #[test]
+fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
+    let oracle = HandSkinningMeshBufferOracle {
+        vertices: vec![
+            HandSkinningMatrixSample {
+                vertex_index: 0,
+                bind_position: [0.0, 0.0, 0.0, 1.0],
+                joint_indices: [0, 0, 0, 0],
+                joint_weights: [1.0, 0.0, 0.0, 0.0],
+                joint_matrices: identity_matrix_samples(),
+                expected_position: [0.0, 0.0, 0.0, 1.0],
+            },
+            HandSkinningMatrixSample {
+                vertex_index: 1,
+                bind_position: [1.0, 0.0, -0.5, 1.0],
+                joint_indices: [1, 0, 0, 0],
+                joint_weights: [1.0, 0.0, 0.0, 0.0],
+                joint_matrices: translated_matrix_samples(0.5),
+                expected_position: [1.0, 0.0, 0.0, 1.0],
+            },
+            HandSkinningMatrixSample {
+                vertex_index: 2,
+                bind_position: [1.0, 1.0, -0.5, 1.0],
+                joint_indices: [2, 0, 0, 0],
+                joint_weights: [1.0, 0.0, 0.0, 0.0],
+                joint_matrices: translated_matrix_samples(0.25),
+                expected_position: [1.0, 1.0, -0.25, 1.0],
+            },
+        ],
+        triangles: vec![[0, 1, 2]],
+    };
+    let skinning_input = QuestMakepadGpuSkinningMeshProbeInput::from_matter_oracle(
+        "recorded-hand-synthetic",
+        7,
+        &oracle,
+    )
+    .expect("full skinning mesh probe input builds");
+    let input = QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input(&skinning_input)
+        .expect("tiny mesh SDF probe input builds");
+    let mut sample_linear_indices = [0; QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES];
+    let mut expected_distances = [0.0; QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES];
+    for index in 0..input.sample_count {
+        sample_linear_indices[index] = input.samples[index].linear_index;
+        expected_distances[index] = input.samples[index].expected_distance;
+    }
+    let probe = QuestMakepadGpuMeshSdfProbe::from_input(
+        &input,
+        QuestMakepadGpuMeshSdfProbeReadback {
+            vertex_count: 3,
+            triangle_count: 1,
+            index_count: 3,
+            voxel_count: input.grid.voxel_count,
+            sample_count: input.sample_count,
+            checked_sample_count: input.sample_count,
+            mismatched_samples: 0,
+            max_abs_error: 0.0,
+            tolerance: QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_DEFAULT_TOLERANCE,
+            sample_linear_indices,
+            output_distances: expected_distances,
+            expected_distances,
+            queue_submit_serial: 12,
+            fence_serial: 12,
+            resource_generation: 1,
+            pending_retire_count: 1,
+            retained_resource_count: 1,
+            retired_after_fence_count: 0,
+            queue_wait_idle_performed: true,
+            elapsed_ms: 1.5,
+        },
+    );
+
+    let marker = probe.marker_line("unit-test");
+    assert!(marker.contains("schema=rusty.quest.makepad.gpu_mesh_sdf_probe.v1"));
+    assert!(marker.contains("status=ready"));
+    assert!(marker.contains("proofKind=tiny-recorded-hand-mesh-to-dense-sdf"));
+    assert!(marker.contains("computeStage=hand-skinning-to-dense-sdf"));
+    assert!(marker.contains("sourceId=recorded-hand-synthetic"));
+    assert!(marker.contains("sourceFrameIndex=7"));
+    assert!(marker.contains("cpuOracle=matter-mesh-to-sdf"));
+    assert!(marker.contains("cpuOraclePreserved=true"));
+    assert!(marker.contains("recordedInputEquivalent=true"));
+    assert!(marker.contains("validationInputShape=bind-mesh-plus-compact-joint-frame"));
+    assert!(marker
+        .contains("computeProbeBackend=makepad-vulkan-compute-skinned-mesh-to-dense-sdf-probe"));
+    assert!(marker.contains("oraclePayload=tiny-dense-sdf-from-recorded-hand-skinned-mesh"));
+    assert!(marker.contains("vertexCount=3"));
+    assert!(marker.contains("triangleCount=1"));
+    assert!(marker.contains("indexCount=3"));
+    assert!(marker.contains("sampleCount=4"));
+    assert!(marker.contains("checkedSampleCount=4"));
+    assert!(marker.contains("mismatchedSamples=0"));
+    assert!(marker.contains("readbackMatched=true"));
+    assert!(marker.contains("skinnedVertexBufferResident=true"));
+    assert!(marker.contains("denseSdfVoxelBufferResident=true"));
+    assert!(marker.contains("denseSdfConstructedOnGpu=true"));
+    assert!(marker.contains("indexBufferConsumedByGpu=true"));
+    assert!(marker.contains("fullSourceMeshConsumedByGpu=true"));
+    assert!(marker.contains("jointMatrixSkinningKernel=true"));
+    assert!(marker.contains("meshToSdfKernel=true"));
+    assert!(marker.contains("fieldSamplingKernel=false"));
+    assert!(marker.contains("fieldParticleKernel=false"));
+    assert!(marker.contains("gpuComputeReady=false"));
+    assert!(marker.contains("highRateJsonPayload=false"));
+}
+
+#[test]
 fn gpu_compute_preflight_identifies_adf_field_cpu_oracle() {
     let replay = enabled_replay();
     let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {

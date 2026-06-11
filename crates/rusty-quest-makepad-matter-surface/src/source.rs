@@ -3,8 +3,9 @@ use rusty_matter_surface_runtime::MatterSurfaceFrameInput;
 use rusty_quest_makepad_mesh_replay::MeshReplayRuntime;
 
 use crate::{
-    bounds_max_half_extent, QuestMakepadGpuSkinningMeshProbeInput,
-    QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
+    bounds_max_half_extent, QuestMakepadGpuMeshSdfProbeInput,
+    QuestMakepadGpuSkinningMeshProbeInput, QuestMakepadGpuSkinningProbeInput,
+    QuestMakepadMatterSurfaceError,
 };
 
 /// One animated hand/surface source frame ready for the native Matter runtime.
@@ -24,6 +25,8 @@ pub struct QuestMakepadMatterSurfaceSourceFrame {
     pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
     /// Optional full recorded-hand GPU skinning mesh residency probe input.
     pub gpu_skinning_mesh_probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
+    /// Optional tiny GPU mesh-to-dense-SDF probe input.
+    pub gpu_mesh_sdf_probe: Option<QuestMakepadGpuMeshSdfProbeInput>,
 }
 
 impl QuestMakepadMatterSurfaceSourceFrame {
@@ -43,6 +46,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_radius: bounds_max_half_extent(bounds_min, bounds_max),
             gpu_skinning_probe: None,
             gpu_skinning_mesh_probe: None,
+            gpu_mesh_sdf_probe: None,
         }
     }
 
@@ -71,6 +75,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_radius: sequence.bounds_radius(),
             gpu_skinning_probe: None,
             gpu_skinning_mesh_probe: None,
+            gpu_mesh_sdf_probe: None,
         })
     }
 
@@ -91,6 +96,16 @@ impl QuestMakepadMatterSurfaceSourceFrame {
         probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
     ) -> Self {
         self.gpu_skinning_mesh_probe = probe;
+        self
+    }
+
+    /// Attaches tiny diagnostic GPU mesh-to-dense-SDF input to this source frame.
+    #[must_use]
+    pub fn with_gpu_mesh_sdf_probe(
+        mut self,
+        probe: Option<QuestMakepadGpuMeshSdfProbeInput>,
+    ) -> Self {
+        self.gpu_mesh_sdf_probe = probe;
         self
     }
 

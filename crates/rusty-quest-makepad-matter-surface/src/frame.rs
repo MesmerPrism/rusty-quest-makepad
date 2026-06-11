@@ -7,7 +7,7 @@ use rusty_optics_particles::ParticleVisualFrame;
 
 use crate::{
     world_adf_debug_batch_from_frame, world_particle_batch_from_upload, QuestMakepadAdfDebugFrame,
-    QuestMakepadCollisionUpload, QuestMakepadDistanceSliceUpload,
+    QuestMakepadCollisionUpload, QuestMakepadDistanceSliceUpload, QuestMakepadGpuMeshSdfProbeInput,
     QuestMakepadGpuSkinningMeshProbeInput, QuestMakepadGpuSkinningProbeInput,
     QuestMakepadParticleUpload, QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldAdfDebugPlacement,
     QuestMakepadWorldParticleBatch, QuestMakepadWorldParticlePlacement,
@@ -87,6 +87,8 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
     /// Optional full recorded-hand GPU skinning mesh residency probe input.
     pub gpu_skinning_mesh_probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
+    /// Optional tiny GPU mesh-to-dense-SDF probe input.
+    pub gpu_mesh_sdf_probe: Option<QuestMakepadGpuMeshSdfProbeInput>,
     /// Adapter timing evidence for this frame.
     pub stage_timings: QuestMakepadMatterSurfaceStageTimings,
 }

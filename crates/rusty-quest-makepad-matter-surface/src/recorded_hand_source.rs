@@ -5,7 +5,7 @@ use rusty_quest_makepad_mesh_replay::{
 };
 
 use crate::{
-    sanitize_marker_value, QuestMakepadGpuSkinningMeshProbeInput,
+    sanitize_marker_value, QuestMakepadGpuMeshSdfProbeInput, QuestMakepadGpuSkinningMeshProbeInput,
     QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
     QuestMakepadMatterSurfaceSourceFrame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
 };
@@ -64,6 +64,9 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             compact_frame.frame_index,
             &skinning_mesh_oracle,
         );
+        let gpu_mesh_sdf_probe = gpu_skinning_mesh_probe
+            .as_ref()
+            .and_then(QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input);
         let (bounds_min, bounds_max) = bounds_from_positions(&validation_frame.surface.positions)?;
         Ok(Self::new(
             source_id,
@@ -76,7 +79,8 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_max,
         )
         .with_gpu_skinning_probe(gpu_skinning_probe)
-        .with_gpu_skinning_mesh_probe(gpu_skinning_mesh_probe))
+        .with_gpu_skinning_mesh_probe(gpu_skinning_mesh_probe)
+        .with_gpu_mesh_sdf_probe(gpu_mesh_sdf_probe))
     }
 }
 
@@ -165,6 +169,21 @@ mod tests {
             mesh_probe.vertices[2].expected_position,
             [1.0, 1.0, -0.25, 1.0]
         );
+        let mesh_sdf_probe = source_frame
+            .gpu_mesh_sdf_probe
+            .as_ref()
+            .expect("recorded hand source carries tiny GPU mesh SDF probe");
+        assert_eq!(mesh_sdf_probe.source_id, "recorded-hand-synthetic");
+        assert_eq!(mesh_sdf_probe.source_frame_index, 7);
+        assert_eq!(mesh_sdf_probe.topology_vertex_count, 3);
+        assert_eq!(mesh_sdf_probe.topology_triangle_count, 1);
+        assert!(mesh_sdf_probe.grid.voxel_count > 0);
+        assert!(mesh_sdf_probe.grid.voxel_count <= 64);
+        assert!(mesh_sdf_probe.grid.voxel_size > 0.0);
+        assert_eq!(mesh_sdf_probe.sample_count, 4);
+        assert!(mesh_sdf_probe.samples[..mesh_sdf_probe.sample_count]
+            .iter()
+            .all(|sample| sample.expected_distance.is_finite()));
     }
 
     #[test]
@@ -198,6 +217,7 @@ mod tests {
         assert_eq!(frame.collision_upload.rows.len(), 1);
         assert!(frame.gpu_skinning_probe.is_some());
         assert!(frame.gpu_skinning_mesh_probe.is_some());
+        assert!(frame.gpu_mesh_sdf_probe.is_some());
 
         let marker = runtime.marker_line("unit-test", &frame);
         assert!(marker.contains("sourceId=recorded-hand-synthetic"));
