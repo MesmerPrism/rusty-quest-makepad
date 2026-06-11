@@ -44,6 +44,7 @@ pub use adf_world::{
 };
 pub use gpu_residency::{
     QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind,
+    QuestMakepadGpuFieldForceProbe, QuestMakepadGpuFieldForceProbeReadback,
     QuestMakepadGpuOracleComputeProbe, QuestMakepadGpuOracleComputeProbeReadback,
     QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof,
     QuestMakepadGpuStorageProbe, QuestMakepadGpuStorageProbeReadback,
@@ -54,7 +55,11 @@ pub use gpu_residency::{
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MEASUREMENT_SOURCE,
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_READBACK_POLICY,
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_RESOURCE_PLANE,
-    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID, QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_BACKEND,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID, QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_BACKEND,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_PAYLOAD, QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_SCHEMA_ID,
+    QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_BACKEND,
     QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MARKER_PREFIX,
     QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MEASUREMENT_SOURCE,
     QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_PAYLOAD,
@@ -2621,6 +2626,93 @@ mod tests {
         assert!(marker.contains("resourceGeneration=1"));
         assert!(marker.contains("pendingRetireCount=1"));
         assert!(marker.contains("retainedResourceCount=1"));
+        assert!(marker.contains("retiredAfterFenceCount=0"));
+        assert!(marker.contains("queueWaitIdlePerformed=true"));
+        assert!(marker.contains("retirementPolicy=retained-until-vulkan-drop"));
+        assert!(marker.contains("hwbAcquiredCount=0"));
+        assert!(marker.contains("hwbReleasedAfterFenceCount=0"));
+        assert!(marker.contains("kgslFaultsBeforeMarker=unavailable"));
+        assert!(marker.contains("kgslFaultsAfterMarker=unavailable"));
+    }
+
+    #[test]
+    fn gpu_field_force_probe_marker_preserves_cpu_oracle_boundary() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::SdfField,
+            particle_force_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            particle_force_compare_probe_count: 4,
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("SDF field frame builds");
+        let particle_force_probe = frame
+            .particle_step
+            .as_ref()
+            .and_then(|diagnostics| diagnostics.particle_force_probe.as_ref())
+            .expect("Matter CPU force probe is available");
+        assert_eq!(particle_force_probe.sampled_count, 4);
+        assert!(particle_force_probe.attraction_strength.is_finite());
+
+        let preflight =
+            QuestMakepadGpuComputePreflight::from_frame(&frame, particle_force_probe.sampled_count)
+                .expect("SDF field frame is compute preflight eligible");
+        let probe = QuestMakepadGpuFieldForceProbe::from_preflight(
+            &preflight,
+            QuestMakepadGpuFieldForceProbeReadback {
+                sample_count: 4,
+                component_count: 12,
+                mismatched_components: 0,
+                max_abs_error: 0.000_001,
+                tolerance: 0.000_1,
+                queue_submit_serial: 9,
+                fence_serial: 9,
+                resource_generation: 2,
+                pending_retire_count: 2,
+                retained_resource_count: 2,
+                retired_after_fence_count: 0,
+                queue_wait_idle_performed: true,
+                elapsed_ms: 0.75,
+            },
+        );
+
+        let marker = probe.marker_line("unit-test");
+        assert!(marker.contains("schema=rusty.quest.makepad.gpu_field_force_probe.v1"));
+        assert!(marker.contains("status=ready"));
+        assert!(marker.contains("proofKind=f32-field-force-arithmetic"));
+        assert!(marker.contains("computeStage=field-particle-force-prototype"));
+        assert!(marker.contains("resourcePlane=vulkan-compute-storage-buffer-readback"));
+        assert!(marker.contains("computeProbeBackend=makepad-vulkan-compute-f32-force-probe"));
+        assert!(marker.contains("resourceKind=sdf-particle-forces"));
+        assert!(marker.contains("particleForceSource=sdf-field"));
+        assert!(marker.contains("cpuOraclePreserved=true"));
+        assert!(marker.contains("oraclePayload=bounded-matter-particle-force-probes"));
+        assert!(marker.contains("sampleCount=4"));
+        assert!(marker.contains("componentCount=12"));
+        assert!(marker.contains("mismatchedComponents=0"));
+        assert!(marker.contains("maxAbsError=0.000001"));
+        assert!(marker.contains("tolerance=0.000100"));
+        assert!(marker.contains("readbackMatched=true"));
+        assert!(marker.contains("forceArithmeticKernel=true"));
+        assert!(marker.contains("fieldSamplingKernel=false"));
+        assert!(marker.contains("fieldParticleKernel=false"));
+        assert!(marker.contains("computeKernel=true"));
+        assert!(marker.contains("gpuComputeReady=false"));
+        assert!(marker.contains("highRateJsonPayload=false"));
+        assert!(marker.contains("queueSubmitSerial=9"));
+        assert!(marker.contains("fenceSerial=9"));
+        assert!(marker.contains("resourceGeneration=2"));
+        assert!(marker.contains("pendingRetireCount=2"));
+        assert!(marker.contains("retainedResourceCount=2"));
         assert!(marker.contains("retiredAfterFenceCount=0"));
         assert!(marker.contains("queueWaitIdlePerformed=true"));
         assert!(marker.contains("retirementPolicy=retained-until-vulkan-drop"));
