@@ -10,9 +10,10 @@ use rusty_optics_model::{
 };
 pub use rusty_quest_makepad_matter_surface::{
     world_adf_debug_batch_from_frame, world_particle_batch_from_upload, MatterSurfaceContactProbe,
-    MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
-    QuestMakepadAdfDebugConfig, QuestMakepadAdfDebugError, QuestMakepadAdfDebugFrame,
-    QuestMakepadMatterSurfaceConfig, QuestMakepadMatterSurfaceFrame,
+    MatterSurfaceParticleDistanceRefreshPolicy, MatterSurfaceParticleForceRefresh,
+    MatterSurfaceParticleForceSource, MatterSurfaceParticleForceSourceStatus,
+    ParticleExecutionBackend, QuestMakepadAdfDebugConfig, QuestMakepadAdfDebugError,
+    QuestMakepadAdfDebugFrame, QuestMakepadMatterSurfaceConfig, QuestMakepadMatterSurfaceFrame,
     QuestMakepadMatterSurfaceRuntime, QuestMakepadMatterSurfaceStageTimings,
     QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerFrame,
     QuestMakepadMatterSurfaceWorkerOutput, QuestMakepadParticleRow, QuestMakepadParticleUpload,
@@ -99,6 +100,14 @@ pub const SETTING_MATTER_PARTICLE_MAX_FRAME_DELTA_SECONDS: &str =
 /// Native Matter particle snapshot-distance refresh policy setting id.
 pub const SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY: &str =
     "makepad.particles.distance_refresh_policy";
+/// Native Matter particle force-source setting id.
+pub const SETTING_MATTER_PARTICLE_FORCE_SOURCE: &str = "makepad.particles.force.source";
+/// Native Matter particle force-source refresh interval setting id.
+pub const SETTING_MATTER_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES: &str =
+    "makepad.particles.force.update_interval_frames";
+/// Native Matter particle bounded compare-probe count setting id.
+pub const SETTING_MATTER_PARTICLE_FORCE_COMPARE_PROBE_COUNT: &str =
+    "makepad.particles.force.compare_probe_count";
 /// Native Matter SDF slice voxel-size setting id.
 pub const SETTING_MATTER_SDF_SLICE_VOXEL_SIZE: &str = "makepad.sdf.slice.voxel_size";
 /// Native Matter SDF slice max-cell setting id.
@@ -704,6 +713,21 @@ fn parse_matter_surface_config(
             SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY,
             config.particle_distance_refresh_policy,
         )?;
+    config.particle_force_source = parse_particle_force_source_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_FORCE_SOURCE,
+        config.particle_force_source,
+    )?;
+    config.particle_force_update_interval_frames = parse_nonzero_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES,
+        config.particle_force_update_interval_frames,
+    )?;
+    config.particle_force_compare_probe_count = parse_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_PARTICLE_FORCE_COMPARE_PROBE_COUNT,
+        config.particle_force_compare_probe_count,
+    )?;
     config.particle_execution_backend = parse_particle_execution_backend_setting_or_default(
         settings,
         SETTING_MATTER_PARTICLE_EXECUTION_BACKEND,
@@ -815,6 +839,30 @@ fn parse_particle_distance_refresh_policy(
         }
         "step-only" => Some(MatterSurfaceParticleDistanceRefreshPolicy::StepOnly),
         "disabled" => Some(MatterSurfaceParticleDistanceRefreshPolicy::Disabled),
+        _ => None,
+    }
+}
+
+fn parse_particle_force_source_setting_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: MatterSurfaceParticleForceSource,
+) -> Result<MatterSurfaceParticleForceSource, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_str()
+            .and_then(parse_particle_force_source)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
+fn parse_particle_force_source(value: &str) -> Option<MatterSurfaceParticleForceSource> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "mesh-distance" => Some(MatterSurfaceParticleForceSource::MeshDistance),
+        "none" => Some(MatterSurfaceParticleForceSource::None),
+        "sdf-field" => Some(MatterSurfaceParticleForceSource::SdfField),
+        "adf-field" => Some(MatterSurfaceParticleForceSource::AdfField),
         _ => None,
     }
 }
@@ -983,6 +1031,18 @@ mod tests {
             config.matter_surface.particle_distance_refresh_policy,
             MatterSurfaceParticleDistanceRefreshPolicy::StepOnly
         );
+        assert_eq!(
+            config.matter_surface.particle_force_source,
+            MatterSurfaceParticleForceSource::MeshDistance
+        );
+        assert_eq!(
+            config
+                .matter_surface
+                .particle_force_update_interval_frames
+                .get(),
+            1
+        );
+        assert_eq!(config.matter_surface.particle_force_compare_probe_count, 0);
         assert_eq!(
             config.matter_surface.particle_execution_backend,
             ParticleExecutionBackend::Serial
@@ -1236,6 +1296,50 @@ mod tests {
         );
     }
 
+    #[test]
+    fn parses_particle_force_settings() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_FORCE_SOURCE,
+            serde_json::json!("none"),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES,
+            serde_json::json!(3),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_FORCE_COMPARE_PROBE_COUNT,
+            serde_json::json!(5),
+        );
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(
+            config.matter_surface.particle_force_source,
+            MatterSurfaceParticleForceSource::None
+        );
+        assert_eq!(
+            config
+                .matter_surface
+                .particle_force_update_interval_frames
+                .get(),
+            3
+        );
+        assert_eq!(config.matter_surface.particle_force_compare_probe_count, 5);
+
+        let adf = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_FORCE_SOURCE,
+            serde_json::json!("adf-field"),
+        );
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&adf).unwrap();
+        assert_eq!(
+            config.matter_surface.particle_force_source,
+            MatterSurfaceParticleForceSource::AdfField
+        );
+    }
+
     #[cfg(feature = "parallel")]
     #[test]
     fn parses_parallel_particle_execution_backend_when_feature_enabled() {
@@ -1306,6 +1410,30 @@ mod tests {
             CameraShellEffectiveConfig::from_effective_settings_json(&invalid_policy).unwrap_err(),
             CameraShellConfigError::InvalidSettingValue(
                 SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY
+            )
+        );
+
+        let invalid_force_source = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_FORCE_SOURCE,
+            serde_json::json!("private"),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_force_source)
+                .unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(SETTING_MATTER_PARTICLE_FORCE_SOURCE)
+        );
+
+        let invalid_force_interval = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES,
+            serde_json::json!(0),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid_force_interval)
+                .unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(
+                SETTING_MATTER_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES
             )
         );
 

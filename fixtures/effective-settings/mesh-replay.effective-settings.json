@@ -2,9 +2,9 @@
   "schema": "rusty.gui.makepad.effective_settings.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
   "surface_schema": "rusty.gui.makepad.app_settings_surface.v1",
-  "surface_version": 7,
+  "surface_version": 8,
   "revision": 1,
-  "generated_at": "SystemTime { intervals: 134256202982635205 }",
+  "generated_at": "SystemTime { intervals: 134256485002635980 }",
   "settings": [
     {
       "setting_id": "makepad.mesh_replay.enabled",
@@ -379,6 +379,57 @@
       "hotload_policy": "scene_rebuild",
       "writer_policy": "session_hotload",
       "readback_field": "particlesDistanceRefreshPolicy"
+    },
+    {
+      "setting_id": "makepad.particles.force.source",
+      "value": "mesh-distance",
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": "mesh-distance",
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "readback_field": "particlesForceSource"
+    },
+    {
+      "setting_id": "makepad.particles.force.update_interval_frames",
+      "value": 1,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 1,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "readback_field": "particlesForceUpdateIntervalFrames"
+    },
+    {
+      "setting_id": "makepad.particles.force.compare_probe_count",
+      "value": 0,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 0,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "readback_field": "particlesForceCompareProbeCount"
     },
     {
       "setting_id": "makepad.particles.execution.backend",

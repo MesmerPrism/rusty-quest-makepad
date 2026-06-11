@@ -20,8 +20,8 @@ use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbeBatch, MatterSurfaceFrameInput, MatterSurfaceParticleSnapshot,
     MatterSurfaceRuntime, MatterSurfaceRuntimeConfig, MatterSurfaceRuntimeError,
     MatterSurfaceRuntimeStats, MatterSurfaceRuntimeUpdate, MatterSurfaceStepDiagnostics,
-    ParticleExecutionConfig, DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
-    DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
+    ParticleExecutionConfig, DEFAULT_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES,
+    DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT, DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
 };
 use rusty_optics_mesh::SdfSliceVisual;
 use rusty_optics_model::OpticsError;
@@ -42,7 +42,9 @@ pub use adf_world::{
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_MARKER_PREFIX, QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE,
 };
 pub use rusty_matter_surface_runtime::{
-    MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy, ParticleExecutionBackend,
+    MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy,
+    MatterSurfaceParticleForceRefresh, MatterSurfaceParticleForceSource,
+    MatterSurfaceParticleForceSourceStatus, ParticleExecutionBackend,
 };
 pub use worker::{
     QuestMakepadMatterSurfaceWorker, QuestMakepadMatterSurfaceWorkerError,
@@ -66,10 +68,6 @@ pub const QUEST_MAKEPAD_COLLISION_UPLOAD_SCHEMA_ID: &str =
 /// Quest Makepad Matter particle upload schema.
 pub const QUEST_MAKEPAD_PARTICLE_UPLOAD_SCHEMA_ID: &str =
     "rusty.quest.makepad.matter_particle_upload.v1";
-/// Current particle simulation authority used by the Quest Makepad adapter.
-pub const QUEST_MAKEPAD_PARTICLE_SAMPLING_AUTHORITY: &str = "matter-mesh-distance-sampler";
-/// Current field source used by particle simulation before field-backed SDF/ADF sampling exists.
-pub const QUEST_MAKEPAD_PARTICLE_FIELD_SOURCE: &str = "current-mesh-distance";
 /// Quest Makepad world-particle batch schema.
 pub const QUEST_MAKEPAD_WORLD_PARTICLE_BATCH_SCHEMA_ID: &str =
     "rusty.quest.makepad.world_particle_batch.v1";
@@ -214,6 +212,12 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub particle_seed: u32,
     /// Policy for extra per-particle snapshot distance refreshes.
     pub particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy,
+    /// Selected particle force source.
+    pub particle_force_source: MatterSurfaceParticleForceSource,
+    /// Frame interval for refreshing the selected particle force source.
+    pub particle_force_update_interval_frames: NonZeroUsize,
+    /// Bounded compare-probe count for future mesh/field diagnostics.
+    pub particle_force_compare_probe_count: usize,
     /// Low-rate Matter particle execution backend.
     pub particle_execution_backend: ParticleExecutionBackend,
     /// Logical Matter particle execution batch size.
@@ -253,6 +257,12 @@ impl Default for QuestMakepadMatterSurfaceConfig {
             particle_count: DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
             particle_seed: DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
             particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::StepOnly,
+            particle_force_source: MatterSurfaceParticleForceSource::MeshDistance,
+            particle_force_update_interval_frames: NonZeroUsize::new(
+                DEFAULT_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES,
+            )
+            .expect("default particle force update interval is non-zero"),
+            particle_force_compare_probe_count: 0,
             particle_execution_backend: ParticleExecutionBackend::Serial,
             particle_execution_batch_size: NonZeroUsize::new(DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE)
                 .expect("default particle execution batch size is non-zero"),
@@ -276,6 +286,9 @@ impl QuestMakepadMatterSurfaceConfig {
         config.distance_sampler.leaf_triangle_count = self.leaf_triangle_count;
         config.collider.enabled = self.collision_enabled;
         config.particle_distance_refresh_policy = self.particle_distance_refresh_policy;
+        config.particle_force_source = self.particle_force_source;
+        config.particle_force_update_interval_frames = self.particle_force_update_interval_frames;
+        config.particle_force_compare_probe_count = self.particle_force_compare_probe_count;
         config.particles.execution = ParticleExecutionConfig {
             backend: self.particle_execution_backend,
             batch_size: self.particle_execution_batch_size,
@@ -822,8 +835,27 @@ impl QuestMakepadMatterSurfaceRuntime {
             (true, false) => "fresh",
             (true, true) => "reused",
         };
+        let particle_force_source = frame.stats.particle_force_source;
+        let particle_force_source_status = particle_step.map_or(
+            if self.config.particles_enabled {
+                "not-stepped"
+            } else {
+                "disabled"
+            },
+            |diagnostics| diagnostics.particle_force_source_status.marker_value(),
+        );
+        let particle_force_refresh = particle_step.map_or(
+            if self.config.particles_enabled {
+                "not-stepped"
+            } else {
+                "disabled"
+            },
+            |diagnostics| diagnostics.particle_force_refresh.marker_value(),
+        );
+        let sdf_adf_debug_particle_authority =
+            particle_step.is_some_and(|diagnostics| diagnostics.sdf_adf_debug_particle_authority);
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} sdfAdfDebugSource={} sdfAdfDebugFrameInterval={} sdfAdfDebugSourceFrameIndex={} particleCount={} particleSamplingAuthority={} particleFieldSource={} sdfAdfDebugParticleAuthority=false particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} sdfAdfDebugSource={} sdfAdfDebugFrameInterval={} sdfAdfDebugSourceFrameIndex={} particleCount={} particleForceSource={} particleForceSourceStatus={} particleForceRefresh={} particleForceUpdateIntervalFrames={} particleForceCompareProbeCount={} particleSamplingAuthority={} particleFieldSource={} sdfAdfDebugParticleAuthority={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -837,8 +869,14 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.sdf_adf_debug_update_interval_frames,
             optional_usize_marker_token(frame.sdf_adf_debug_source_frame_index),
             frame.stats.particle_count,
-            QUEST_MAKEPAD_PARTICLE_SAMPLING_AUTHORITY,
-            QUEST_MAKEPAD_PARTICLE_FIELD_SOURCE,
+            particle_force_source.marker_value(),
+            particle_force_source_status,
+            particle_force_refresh,
+            frame.stats.particle_force_update_interval_frames,
+            frame.stats.particle_force_compare_probe_count,
+            particle_force_source.sampling_authority_marker(),
+            particle_force_source.field_source_marker(),
+            sdf_adf_debug_particle_authority,
             frame.stats.particle_distance_refresh_policy.marker_value(),
             frame.stats.particle_distance_samples,
             frame
@@ -1422,6 +1460,11 @@ mod tests {
         assert!(marker.contains("proceduralParticleOverlayUsed=false"));
         assert!(marker.contains("dataPlane=makepad-compact-uniform-rows"));
         assert!(marker.contains("distanceSamplerRefit=false"));
+        assert!(marker.contains("particleForceSource=mesh-distance"));
+        assert!(marker.contains("particleForceSourceStatus=ready"));
+        assert!(marker.contains("particleForceRefresh=fresh"));
+        assert!(marker.contains("particleForceUpdateIntervalFrames=1"));
+        assert!(marker.contains("particleForceCompareProbeCount=0"));
         assert!(marker.contains("particleSamplingAuthority=matter-mesh-distance-sampler"));
         assert!(marker.contains("particleFieldSource=current-mesh-distance"));
         assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
@@ -1640,6 +1683,143 @@ mod tests {
         assert!(runtime
             .marker_line("unit-test-adf-cache", &third)
             .contains("sdfAdfDebugSource=fresh"));
+    }
+
+    #[test]
+    fn adapter_can_disable_particle_force_without_disabling_integration() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::None,
+            particle_distance_refresh_policy:
+                MatterSurfaceParticleDistanceRefreshPolicy::SurfaceUpdateAndStep,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 90.0, &[])
+            .expect("adapter frame builds");
+        let diagnostics = frame
+            .particle_step
+            .as_ref()
+            .expect("particles step when enabled");
+
+        assert_eq!(
+            diagnostics.particle_force_source,
+            MatterSurfaceParticleForceSource::None
+        );
+        assert_eq!(diagnostics.particles.closest_samples, 0);
+        assert_eq!(diagnostics.refreshed_distance_samples, 0);
+        assert_eq!(frame.stats.particle_distance_samples, 0);
+        let marker = runtime.marker_line("unit-test-force-none", &frame);
+        assert!(marker.contains("particleForceSource=none"));
+        assert!(marker.contains("particleForceSourceStatus=disabled"));
+        assert!(marker.contains("particleForceRefresh=disabled"));
+        assert!(marker.contains("particleSamplingAuthority=none"));
+        assert!(marker.contains("particleFieldSource=none"));
+        assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
+        assert!(marker.contains("particleClosestSamples=0"));
+        assert!(marker.contains("particleRefreshSamples=0"));
+    }
+
+    #[test]
+    fn adapter_reports_particle_force_update_interval_reuse() {
+        let mut replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let first = runtime
+            .step_from_replay(&replay, 1.0 / 90.0, &[])
+            .expect("first frame builds");
+        replay.step(1.0 / 90.0);
+        let second = runtime
+            .step_from_replay(&replay, 1.0 / 90.0, &[])
+            .expect("second frame builds");
+
+        assert_eq!(
+            first
+                .particle_step
+                .as_ref()
+                .expect("first particle step")
+                .particle_force_refresh,
+            MatterSurfaceParticleForceRefresh::Fresh
+        );
+        assert_eq!(
+            second
+                .particle_step
+                .as_ref()
+                .expect("second particle step")
+                .particle_force_refresh,
+            MatterSurfaceParticleForceRefresh::Reused
+        );
+        assert_eq!(
+            second
+                .particle_step
+                .as_ref()
+                .expect("second particle step")
+                .particles
+                .closest_samples,
+            0
+        );
+
+        let marker = runtime.marker_line("unit-test-force-reuse", &second);
+        assert!(marker.contains("particleForceSource=mesh-distance"));
+        assert!(marker.contains("particleForceRefresh=reused"));
+        assert!(marker.contains("particleForceUpdateIntervalFrames=2"));
+        assert!(marker.contains("particleClosestSamples=0"));
+    }
+
+    #[test]
+    fn adapter_marks_future_field_particle_force_as_unsupported_without_mesh_fallback() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::SdfField,
+            particle_force_compare_probe_count: 3,
+            particle_distance_refresh_policy:
+                MatterSurfaceParticleDistanceRefreshPolicy::SurfaceUpdateAndStep,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 90.0, &[])
+            .expect("adapter frame builds");
+        let diagnostics = frame
+            .particle_step
+            .as_ref()
+            .expect("particles step when enabled");
+
+        assert_eq!(
+            diagnostics.particle_force_source,
+            MatterSurfaceParticleForceSource::SdfField
+        );
+        assert_eq!(diagnostics.particles.closest_samples, 0);
+        assert_eq!(diagnostics.refreshed_distance_samples, 0);
+        assert_eq!(frame.stats.particle_distance_samples, 0);
+
+        let marker = runtime.marker_line("unit-test-force-sdf", &frame);
+        assert!(marker.contains("particleForceSource=sdf-field"));
+        assert!(marker.contains("particleForceSourceStatus=unsupported-future"));
+        assert!(marker.contains("particleForceRefresh=unsupported-future"));
+        assert!(marker.contains("particleForceCompareProbeCount=3"));
+        assert!(marker.contains("particleSamplingAuthority=unsupported-sdf-field-sampler"));
+        assert!(marker.contains("particleFieldSource=sdf-field-unavailable"));
+        assert!(marker.contains("sdfAdfDebugParticleAuthority=false"));
+        assert!(marker.contains("particleClosestSamples=0"));
+        assert!(marker.contains("particleRefreshSamples=0"));
     }
 
     #[test]

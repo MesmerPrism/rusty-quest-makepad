@@ -25,6 +25,9 @@
     "debug.rustyquest.makepad.particles.count",
     "debug.rustyquest.makepad.particles.seed",
     "debug.rustyquest.makepad.particles.distance_refresh_policy",
+    "debug.rustyquest.makepad.particles.force.source",
+    "debug.rustyquest.makepad.particles.force.update_interval_frames",
+    "debug.rustyquest.makepad.particles.force.compare_probe_count",
     "debug.rustyquest.makepad.particles.execution.backend",
     "debug.rustyquest.makepad.particles.execution.batch_size",
     "debug.rustyquest.makepad.particles.execution.max_threads",
@@ -142,6 +145,21 @@
       "name": "debug.rustyquest.makepad.particles.distance_refresh_policy",
       "value": "step-only",
       "source_setting_id": "makepad.particles.distance_refresh_policy"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.source",
+      "value": "mesh-distance",
+      "source_setting_id": "makepad.particles.force.source"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.update_interval_frames",
+      "value": "1",
+      "source_setting_id": "makepad.particles.force.update_interval_frames"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.compare_probe_count",
+      "value": "0",
+      "source_setting_id": "makepad.particles.force.compare_probe_count"
     },
     {
       "name": "debug.rustyquest.makepad.particles.execution.backend",

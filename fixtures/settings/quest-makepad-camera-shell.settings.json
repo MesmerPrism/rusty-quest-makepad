@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 7,
+  "version": 8,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -390,6 +390,59 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.distance_refresh_policy" }
       ],
       "readback_field": "particlesDistanceRefreshPolicy"
+    },
+    {
+      "id": "makepad.particles.force.source",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "enum",
+      "enum_values": ["mesh-distance", "none", "sdf-field", "adf-field"],
+      "default": "mesh-distance",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-force-source" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_FORCE_SOURCE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.force.source" }
+      ],
+      "readback_field": "particlesForceSource"
+    },
+    {
+      "id": "makepad.particles.force.update_interval_frames",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 1,
+      "maximum": 1000000,
+      "default": 1,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-force-update-interval-frames" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_FORCE_UPDATE_INTERVAL_FRAMES" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.force.update_interval_frames" }
+      ],
+      "readback_field": "particlesForceUpdateIntervalFrames"
+    },
+    {
+      "id": "makepad.particles.force.compare_probe_count",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 0,
+      "maximum": 1024,
+      "default": 0,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-force-compare-probe-count" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_FORCE_COMPARE_PROBE_COUNT" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.force.compare_probe_count" }
+      ],
+      "readback_field": "particlesForceCompareProbeCount"
     },
     {
       "id": "makepad.particles.execution.backend",

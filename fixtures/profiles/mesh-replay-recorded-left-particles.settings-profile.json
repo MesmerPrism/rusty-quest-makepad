@@ -93,6 +93,18 @@
       "value": "step-only"
     },
     {
+      "setting_id": "makepad.particles.force.source",
+      "value": "mesh-distance"
+    },
+    {
+      "setting_id": "makepad.particles.force.update_interval_frames",
+      "value": 1
+    },
+    {
+      "setting_id": "makepad.particles.force.compare_probe_count",
+      "value": 0
+    },
+    {
       "setting_id": "makepad.particles.execution.backend",
       "value": "serial"
     },
