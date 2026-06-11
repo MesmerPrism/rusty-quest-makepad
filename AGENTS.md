@@ -232,6 +232,19 @@ the future command-encoder/storage-buffer/readback boundary; do not emit it for
 `mesh-distance`, `none`, renderer-only ADF debug rows, or settings/control JSON
 payloads.
 
+The next storage-buffer checkpoint is still not a compute claim.
+`QuestMakepadGpuStorageProbe` /
+`RUSTY_QUEST_MAKEPAD_GPU_STORAGE_PROBE` may be emitted only from an eligible
+compute preflight plus a Makepad XR/Vulkan storage-buffer readback result. It
+must keep the selected CPU oracle and force-source fields, report
+`resourcePlane=vulkan-storage-buffer-command-readback`,
+`storageProbeBackend=makepad-vulkan-queue-submit-fill-copy-readback`,
+`readbackMatched=true`, `commandEncoderSubmitted=true`,
+`storageBufferResident=true`, and `gpuCommandExecuted=true`, while keeping
+`gpuComputeReady=false`, `computeKernel=false`, and
+`highRateJsonPayload=false`. This proves the resource path, not GPU particle
+force semantics.
+
 The 2026-06-11 indexed ADF pre-GPU sweep at
 `S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the
 current force-mode evidence baseline. At 1024 Matter particles / 1024 visual

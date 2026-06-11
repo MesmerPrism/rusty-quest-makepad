@@ -87,6 +87,17 @@ debug cells, or any settings/control payload. Until a real Makepad compute
 backend exists, it reports `makepadComputeBackend=makepad-command-encoder-pending`,
 `gpuComputeReady=false`, and `computeKernel=false`.
 
+GPU storage probing is the next adapter contract, still not compute authority.
+`QuestMakepadGpuStorageProbe` is derived from an eligible preflight plus a
+Makepad `XrGpuStorageBufferProbeResult`. It records a small storage-buffer
+fill/copy/readback command submitted by the Makepad XR/Vulkan backend and
+keeps the same Matter CPU oracle identity, force-source, topology, and
+readback-policy fields. The marker may report `commandEncoderSubmitted=true`,
+`storageBufferResident=true`, and `gpuCommandExecuted=true` only for that
+bounded probe. It must continue to report `gpuComputeReady=false`,
+`computeKernel=false`, and `highRateJsonPayload=false` until a field/particle
+kernel compares bounded GPU results against Matter's CPU oracle.
+
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
 reports. Runtime adapters still own platform event loops and camera homography

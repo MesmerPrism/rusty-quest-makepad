@@ -131,6 +131,16 @@ force modes are intentionally not eligible. The preflight marker preserves
 Matter authority and keeps field, particle, mesh, and future GPU-buffer payloads
 out of settings/control JSON.
 
+The first real command-buffer checkpoint is
+`QuestMakepadGpuStorageProbe` / `rusty.quest.makepad.gpu_storage_probe.v1`.
+It wraps a Makepad XR/Vulkan storage-buffer fill/copy/readback probe and is
+emitted only from an eligible compute preflight. The marker proves bounded
+storage-buffer allocation, queue submission, and readback parity for a fixed
+pattern, while still reporting `gpuComputeReady=false`,
+`computeKernel=false`, and `highRateJsonPayload=false`. It is a resource-path
+proof for the future field/particle kernel, not a GPU field-force
+implementation.
+
 ## Validation
 
 ```powershell

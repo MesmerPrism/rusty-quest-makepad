@@ -45,6 +45,7 @@ pub use adf_world::{
 pub use gpu_residency::{
     QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind,
     QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof,
+    QuestMakepadGpuStorageProbe, QuestMakepadGpuStorageProbeReadback,
     QUEST_MAKEPAD_ADF_DEBUG_GPU_RESIDENCY_ROW_STRIDE_BYTES,
     QUEST_MAKEPAD_GPU_COMPUTE_DEFAULT_READBACK_PROBE_COUNT,
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_BACKEND_STATUS,
@@ -56,6 +57,10 @@ pub use gpu_residency::{
     QUEST_MAKEPAD_GPU_RESIDENCY_BACKEND_MAKEPAD_INSTANCED_DRAW,
     QUEST_MAKEPAD_GPU_RESIDENCY_MARKER_PREFIX, QUEST_MAKEPAD_GPU_RESIDENCY_MEASUREMENT_SOURCE,
     QUEST_MAKEPAD_GPU_RESIDENCY_PROOF_SCHEMA_ID, QUEST_MAKEPAD_GPU_RESIDENCY_RESOURCE_PLANE,
+    QUEST_MAKEPAD_GPU_STORAGE_PROBE_BACKEND, QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_BYTES,
+    QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_PATTERN, QUEST_MAKEPAD_GPU_STORAGE_PROBE_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_STORAGE_PROBE_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_STORAGE_PROBE_RESOURCE_PLANE, QUEST_MAKEPAD_GPU_STORAGE_PROBE_SCHEMA_ID,
     QUEST_MAKEPAD_PARTICLE_GPU_RESIDENCY_ROW_STRIDE_BYTES,
 };
 pub use rusty_matter_surface_runtime::{
@@ -2468,6 +2473,65 @@ mod tests {
         assert!(marker.contains("highRateJsonPayload=false"));
         assert!(!marker.contains("rusty.xr"));
         assert!(!marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn gpu_storage_probe_marker_preserves_cpu_oracle_boundary() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::SdfField,
+            particle_force_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("SDF field frame builds");
+        let preflight = QuestMakepadGpuComputePreflight::from_frame(
+            &frame,
+            QUEST_MAKEPAD_GPU_COMPUTE_DEFAULT_READBACK_PROBE_COUNT,
+        )
+        .expect("SDF field frame is compute preflight eligible");
+        let probe = QuestMakepadGpuStorageProbe::from_preflight(
+            &preflight,
+            QuestMakepadGpuStorageProbeReadback {
+                requested_bytes: QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_BYTES,
+                storage_buffer_bytes: QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_BYTES,
+                readback_bytes: QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_BYTES,
+                pattern: QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_PATTERN,
+                first_word: QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_PATTERN,
+                word_count: 16,
+                mismatched_words: 0,
+                elapsed_ms: 0.25,
+            },
+        );
+
+        let marker = probe.marker_line("unit-test");
+        assert!(marker.contains("schema=rusty.quest.makepad.gpu_storage_probe.v1"));
+        assert!(marker.contains("status=ready"));
+        assert!(marker.contains("resourcePlane=vulkan-storage-buffer-command-readback"));
+        assert!(
+            marker.contains("storageProbeBackend=makepad-vulkan-queue-submit-fill-copy-readback")
+        );
+        assert!(marker.contains("resourceKind=sdf-particle-forces"));
+        assert!(marker.contains("particleForceSource=sdf-field"));
+        assert!(marker.contains("cpuOraclePreserved=true"));
+        assert!(marker.contains("preflightSchema=rusty.quest.makepad.gpu_compute_preflight.v1"));
+        assert!(marker.contains("readbackPolicy=bounded-cpu-oracle-probes"));
+        assert!(marker.contains("readbackMatched=true"));
+        assert!(marker.contains("commandEncoderSubmitted=true"));
+        assert!(marker.contains("storageBufferResident=true"));
+        assert!(marker.contains("gpuCommandExecuted=true"));
+        assert!(marker.contains("gpuComputeReady=false"));
+        assert!(marker.contains("computeKernel=false"));
+        assert!(marker.contains("highRateJsonPayload=false"));
     }
 
     #[test]

@@ -79,6 +79,17 @@ For the next compute-resource checkpoint, field-force runs should emit
 `gpuComputeReady=false`, `computeKernel=false`, and
 `highRateJsonPayload=false`. Mesh-distance and `none` force profiles must not
 emit this marker.
+For the storage-buffer command/readback checkpoint, eligible field-force runs
+may also emit one `RUSTY_QUEST_MAKEPAD_GPU_STORAGE_PROBE` marker with
+`schema=rusty.quest.makepad.gpu_storage_probe.v1`,
+`resourcePlane=vulkan-storage-buffer-command-readback`,
+`storageProbeBackend=makepad-vulkan-queue-submit-fill-copy-readback`,
+`requestedBytes=64`, `readbackBytes=64`, `wordCount=16`,
+`readbackMatched=true`, `commandEncoderSubmitted=true`,
+`storageBufferResident=true`, and `gpuCommandExecuted=true`. The marker must
+still carry `cpuOraclePreserved=true`, `gpuComputeReady=false`,
+`computeKernel=false`, and `highRateJsonPayload=false`; treat a mismatch as a
+resource-path failure, not as a Matter field/particle result.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected
