@@ -1,4 +1,4 @@
-use rusty_matter_model::Vec3;
+use rusty_matter_mesh::{HandSkinningMatrixSample, HAND_SKINNING_MATRIX_INFLUENCE_COUNT};
 
 use crate::sanitize_marker_value;
 
@@ -15,22 +15,20 @@ pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES: usize = 4;
 /// Conservative f32 tolerance for recorded-hand skinning readback comparison.
 pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_DEFAULT_TOLERANCE: f32 = 0.0001;
 
-/// One bounded weighted-delta skinning sample.
+/// One bounded joint-matrix skinning sample.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct QuestMakepadGpuSkinningProbeSample {
     /// Source bind-mesh vertex index.
     pub vertex_index: usize,
-    /// Bind-pose vertex position, packed as xyz plus w.
+    /// Bind-pose vertex position, packed as `[x, y, z, 1]`.
     pub bind_position: [f32; 4],
-    /// First weighted delta vector; this prototype uses a single full-weight CPU-oracle delta.
-    pub delta0_weight: [f32; 4],
-    /// Reserved weighted delta lane.
-    pub delta1_weight: [f32; 4],
-    /// Reserved weighted delta lane.
-    pub delta2_weight: [f32; 4],
-    /// Reserved weighted delta lane.
-    pub delta3_weight: [f32; 4],
-    /// Matter CPU-skinned oracle position, packed as xyz plus w.
+    /// Influencing joint indices in the source rig.
+    pub joint_indices: [u16; HAND_SKINNING_MATRIX_INFLUENCE_COUNT],
+    /// Skinning weights for each influence slot.
+    pub joint_weights: [f32; HAND_SKINNING_MATRIX_INFLUENCE_COUNT],
+    /// Row-major bind-pose-to-current-joint matrices.
+    pub joint_matrices: [[[f32; 4]; 4]; HAND_SKINNING_MATRIX_INFLUENCE_COUNT],
+    /// Matter CPU-skinned oracle position, packed as `[x, y, z, 1]`.
     pub expected_position: [f32; 4],
 }
 
@@ -50,51 +48,47 @@ pub struct QuestMakepadGpuSkinningProbeInput {
     pub topology_triangle_count: usize,
     /// Number of populated samples.
     pub sample_count: usize,
-    /// Bounded weighted-delta skinning samples.
+    /// Bounded joint-matrix skinning samples.
     pub samples: [QuestMakepadGpuSkinningProbeSample; QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES],
 }
 
 impl QuestMakepadGpuSkinningProbeInput {
-    /// Builds a bounded weighted-delta probe from bind and CPU-skinned Matter positions.
+    /// Builds a bounded joint-matrix probe from Matter-owned oracle samples.
     #[must_use]
-    pub fn from_positions(
+    pub fn from_matter_samples(
         source_id: impl Into<String>,
         source_frame_index: usize,
+        topology_vertex_count: usize,
         topology_triangle_count: usize,
-        bind_positions: &[Vec3],
-        skinned_positions: &[Vec3],
+        matter_samples: &[HandSkinningMatrixSample],
     ) -> Option<Self> {
-        if bind_positions.len() != skinned_positions.len() || bind_positions.is_empty() {
+        if topology_vertex_count == 0 || matter_samples.is_empty() {
             return None;
         }
-        if !bind_positions.iter().copied().all(Vec3::is_finite)
-            || !skinned_positions.iter().copied().all(Vec3::is_finite)
+        if !matter_samples
+            .iter()
+            .all(|sample| matter_sample_is_valid(*sample, topology_vertex_count))
         {
             return None;
         }
 
-        let topology_vertex_count = bind_positions.len();
-        let sample_count = topology_vertex_count.min(QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES);
+        let sample_count = matter_samples
+            .len()
+            .min(QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES);
         let mut samples = [QuestMakepadGpuSkinningProbeSample::default();
             QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES];
-        for (sample_index, sample) in samples.iter_mut().take(sample_count).enumerate() {
-            let vertex_index =
-                selected_vertex_index(topology_vertex_count, sample_count, sample_index);
-            let bind = bind_positions[vertex_index];
-            let expected = skinned_positions[vertex_index];
+        for (sample, source) in samples
+            .iter_mut()
+            .zip(matter_samples.iter().copied())
+            .take(sample_count)
+        {
             *sample = QuestMakepadGpuSkinningProbeSample {
-                vertex_index,
-                bind_position: [bind.x, bind.y, bind.z, 1.0],
-                delta0_weight: [
-                    expected.x - bind.x,
-                    expected.y - bind.y,
-                    expected.z - bind.z,
-                    1.0,
-                ],
-                delta1_weight: [0.0; 4],
-                delta2_weight: [0.0; 4],
-                delta3_weight: [0.0; 4],
-                expected_position: [expected.x, expected.y, expected.z, 1.0],
+                vertex_index: source.vertex_index,
+                bind_position: source.bind_position,
+                joint_indices: source.joint_indices,
+                joint_weights: source.joint_weights,
+                joint_matrices: source.joint_matrices,
+                expected_position: source.expected_position,
             };
         }
 
@@ -167,7 +161,7 @@ impl QuestMakepadGpuSkinningProbeReadback {
     }
 }
 
-/// Prototype f32 weighted-delta skinning dispatch tied to a recorded-hand Matter oracle.
+/// Bounded f32 joint-matrix skinning dispatch tied to a recorded-hand Matter oracle.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadGpuSkinningProbe {
     /// Schema identifier.
@@ -196,7 +190,7 @@ impl QuestMakepadGpuSkinningProbe {
     #[must_use]
     pub fn marker_line(&self, phase: &str) -> String {
         format!(
-            "{} schema={} phase={} status={} proofKind=f32-weighted-delta-skinning computeStage=hand-skinning-prototype sourceId={} sourceFrameIndex={} topologyVertexCount={} topologyTriangleCount={} cpuOracle=matter-recorded-hand-skinning cpuOraclePreserved=true recordedInputEquivalent=true validationInputShape=bind-mesh-plus-compact-joint-frame resourcePlane={} computeProbeBackend={} oraclePayload={} sampleCount={} firstSampleVertexIndex={} lastSampleVertexIndex={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true prototypeComputeKernel=true weightedDeltaSkinningKernel=true jointMatrixSkinningKernel=false meshToSdfKernel=false fieldSamplingKernel=false fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=f32-joint-matrix-skinning computeStage=hand-skinning-joint-matrix sourceId={} sourceFrameIndex={} topologyVertexCount={} topologyTriangleCount={} cpuOracle=matter-recorded-hand-skinning cpuOraclePreserved=true recordedInputEquivalent=true validationInputShape=bind-mesh-plus-compact-joint-frame resourcePlane={} computeProbeBackend={} oraclePayload={} sampleCount={} firstSampleVertexIndex={} lastSampleVertexIndex={} influenceSlotsPerSample={} matrixRowsPerInfluence=4 componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true prototypeComputeKernel=false weightedDeltaSkinningKernel=false jointMatrixSkinningKernel=true meshToSdfKernel=false fieldSamplingKernel=false fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_GPU_SKINNING_PROBE_MARKER_PREFIX,
             self.schema_id,
             sanitize_marker_value(phase),
@@ -215,6 +209,7 @@ impl QuestMakepadGpuSkinningProbe {
             self.readback.sample_count,
             optional_usize_marker_token(self.input.first_sample_vertex_index()),
             optional_usize_marker_token(self.input.last_sample_vertex_index()),
+            HAND_SKINNING_MATRIX_INFLUENCE_COUNT,
             self.readback.component_count,
             self.readback.mismatched_components,
             finite_f32_marker_token(self.readback.max_abs_error),
@@ -233,12 +228,22 @@ impl QuestMakepadGpuSkinningProbe {
     }
 }
 
-fn selected_vertex_index(vertex_count: usize, sample_count: usize, sample_index: usize) -> usize {
-    if sample_count <= 1 {
-        0
-    } else {
-        sample_index * (vertex_count - 1) / (sample_count - 1)
-    }
+fn matter_sample_is_valid(sample: HandSkinningMatrixSample, topology_vertex_count: usize) -> bool {
+    sample.vertex_index < topology_vertex_count
+        && finite_vec4(sample.bind_position)
+        && finite_vec4(sample.expected_position)
+        && sample
+            .joint_weights
+            .iter()
+            .all(|weight| weight.is_finite() && *weight >= 0.0)
+        && sample
+            .joint_matrices
+            .iter()
+            .all(|matrix| matrix.iter().copied().all(finite_vec4))
+}
+
+fn finite_vec4(row: [f32; 4]) -> bool {
+    row.iter().all(|value| value.is_finite())
 }
 
 fn optional_usize_marker_token(value: Option<usize>) -> String {

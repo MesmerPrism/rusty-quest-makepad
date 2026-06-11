@@ -12,6 +12,7 @@ parallel = ["rusty-matter-surface-runtime/parallel"]
 
 [dependencies]
 rusty-matter-adf = { path = "../../../rusty-matter/crates/rusty-matter-adf" }
+rusty-matter-mesh = { path = "../../../rusty-matter/crates/rusty-matter-mesh" }
 rusty-matter-model = { path = "../../../rusty-matter/crates/rusty-matter-model" }
 rusty-matter-particles = { path = "../../../rusty-matter/crates/rusty-matter-particles" }
 rusty-matter-sdf = { path = "../../../rusty-matter/crates/rusty-matter-sdf" }

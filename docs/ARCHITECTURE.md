@@ -137,14 +137,16 @@ kernel compares bounded GPU results against Matter's CPU oracle.
 GPU skinning probing is the recorded-hand bridge to GPU mesh-to-SDF work.
 `QuestMakepadGpuSkinningProbeInput` is attached only to recorded hand-capture
 source frames that still carry the live-provider-equivalent bind mesh plus
-compact joint-frame shape. It stores four selected weighted-delta samples
-derived from the recorded bind mesh and the Matter CPU-skinned validation
-surface. `QuestMakepadGpuSkinningProbe` wraps a generic Makepad
+compact joint-frame shape. It stores four selected joint-matrix samples
+derived by Matter from the recorded bind mesh, bind poses, skinning weights,
+expanded compact joint frame, and Matter CPU-skinned validation surface.
+`QuestMakepadGpuSkinningProbe` wraps a generic Makepad
 `XrGpuF32SkinningProbeResult`, preserves
 `cpuOracle=matter-recorded-hand-skinning`, and must keep
-`jointMatrixSkinningKernel=false`, `meshToSdfKernel=false`,
-`gpuComputeReady=false`, and `highRateJsonPayload=false` until later slices add
-full joint-matrix skinning and mesh-to-dense-SDF kernels.
+`weightedDeltaSkinningKernel=false`, `jointMatrixSkinningKernel=true`,
+`meshToSdfKernel=false`, `gpuComputeReady=false`, and
+`highRateJsonPayload=false` until later slices add full-mesh resident skinning
+and mesh-to-dense-SDF kernels.
 
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`

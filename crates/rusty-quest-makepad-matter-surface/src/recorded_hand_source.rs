@@ -6,7 +6,7 @@ use rusty_quest_makepad_mesh_replay::{
 
 use crate::{
     sanitize_marker_value, QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
-    QuestMakepadMatterSurfaceSourceFrame,
+    QuestMakepadMatterSurfaceSourceFrame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
 };
 
 impl QuestMakepadMatterSurfaceSourceFrame {
@@ -45,12 +45,15 @@ impl QuestMakepadMatterSurfaceSourceFrame {
                 ),
             )
             .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning"))?;
-        let gpu_skinning_probe = QuestMakepadGpuSkinningProbeInput::from_positions(
+        let skinning_matrix_samples = matter_rig
+            .skinning_matrix_samples(&joint_frame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES)
+            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_matrix_samples"))?;
+        let gpu_skinning_probe = QuestMakepadGpuSkinningProbeInput::from_matter_samples(
             &source_id,
             compact_frame.frame_index,
+            validation_frame.surface.vertex_count(),
             validation_frame.surface.triangle_count(),
-            &rig.bind_surface.positions,
-            &validation_frame.surface.positions,
+            &skinning_matrix_samples,
         );
         let (bounds_min, bounds_max) = bounds_from_positions(&validation_frame.surface.positions)?;
         Ok(Self::new(
@@ -133,7 +136,9 @@ mod tests {
         assert_eq!(probe.samples[2].vertex_index, 2);
         assert_eq!(probe.samples[2].bind_position, [1.0, 1.0, -0.5, 1.0]);
         assert_eq!(probe.samples[2].expected_position, [1.0, 1.0, -0.25, 1.0]);
-        assert_eq!(probe.samples[2].delta0_weight, [0.0, 0.0, 0.25, 1.0]);
+        assert_eq!(probe.samples[2].joint_indices, [2, 0, 0, 0]);
+        assert_eq!(probe.samples[2].joint_weights, [1.0, 0.0, 0.0, 0.0]);
+        assert_eq!(probe.samples[2].joint_matrices[0][2][3], 0.25);
     }
 
     #[test]

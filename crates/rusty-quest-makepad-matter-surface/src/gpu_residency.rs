@@ -122,10 +122,10 @@ pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_SCHEMA_ID: &str =
 /// Quest Makepad GPU recorded-hand skinning arithmetic probe marker prefix.
 pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_MARKER_PREFIX: &str =
     "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE";
-/// Backend used by the current Makepad f32 weighted-delta skinning probe.
+/// Backend used by the current Makepad f32 joint-matrix skinning probe.
 pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_BACKEND: &str =
     "makepad-vulkan-compute-f32-skinning-probe";
-/// Measurement companion for the f32 skinning arithmetic probe.
+/// Measurement companion for the f32 skinning matrix probe.
 pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_MEASUREMENT_SOURCE: &str =
     "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
 /// Marker payload type for the current bounded recorded-hand skinning probe.

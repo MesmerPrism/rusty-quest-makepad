@@ -1,4 +1,5 @@
 use super::*;
+use rusty_matter_mesh::HandSkinningMatrixSample;
 use rusty_matter_model::Vec3;
 use rusty_quest_makepad_mesh_replay::{MeshReplayConfig, MeshReplayRuntime, MeshReplaySequence};
 use std::num::NonZeroUsize;
@@ -1315,22 +1316,57 @@ fn gpu_field_force_probe_marker_preserves_cpu_oracle_boundary() {
     assert!(marker.contains("kgslFaultsAfterMarker=unavailable"));
 }
 
+fn identity_matrix_samples() -> [[[f32; 4]; 4]; 4] {
+    let mut matrices = [[[0.0; 4]; 4]; 4];
+    matrices[0] = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    matrices
+}
+
+fn translated_matrix_samples(z_offset: f32) -> [[[f32; 4]; 4]; 4] {
+    let mut matrices = identity_matrix_samples();
+    matrices[0][2][3] = z_offset;
+    matrices
+}
+
 #[test]
 fn gpu_skinning_probe_marker_preserves_recorded_hand_cpu_oracle_boundary() {
-    let input = QuestMakepadGpuSkinningProbeInput::from_positions(
+    let matter_samples = [
+        HandSkinningMatrixSample {
+            vertex_index: 0,
+            bind_position: [0.0, 0.0, 0.0, 1.0],
+            joint_indices: [0, 0, 0, 0],
+            joint_weights: [1.0, 0.0, 0.0, 0.0],
+            joint_matrices: identity_matrix_samples(),
+            expected_position: [0.0, 0.0, 0.0, 1.0],
+        },
+        HandSkinningMatrixSample {
+            vertex_index: 1,
+            bind_position: [1.0, 0.0, -0.5, 1.0],
+            joint_indices: [1, 0, 0, 0],
+            joint_weights: [1.0, 0.0, 0.0, 0.0],
+            joint_matrices: translated_matrix_samples(0.5),
+            expected_position: [1.0, 0.0, 0.0, 1.0],
+        },
+        HandSkinningMatrixSample {
+            vertex_index: 2,
+            bind_position: [1.0, 1.0, -0.5, 1.0],
+            joint_indices: [2, 0, 0, 0],
+            joint_weights: [1.0, 0.0, 0.0, 0.0],
+            joint_matrices: translated_matrix_samples(0.25),
+            expected_position: [1.0, 1.0, -0.25, 1.0],
+        },
+    ];
+    let input = QuestMakepadGpuSkinningProbeInput::from_matter_samples(
         "recorded-hand-synthetic",
         7,
+        3,
         1,
-        &[
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(1.0, 0.0, -0.5),
-            Vec3::new(1.0, 1.0, -0.5),
-        ],
-        &[
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(1.0, 1.0, -0.25),
-        ],
+        &matter_samples,
     )
     .expect("bounded skinning probe input builds");
     let probe = QuestMakepadGpuSkinningProbe::from_input(
@@ -1355,8 +1391,8 @@ fn gpu_skinning_probe_marker_preserves_recorded_hand_cpu_oracle_boundary() {
     let marker = probe.marker_line("unit-test");
     assert!(marker.contains("schema=rusty.quest.makepad.gpu_skinning_probe.v1"));
     assert!(marker.contains("status=ready"));
-    assert!(marker.contains("proofKind=f32-weighted-delta-skinning"));
-    assert!(marker.contains("computeStage=hand-skinning-prototype"));
+    assert!(marker.contains("proofKind=f32-joint-matrix-skinning"));
+    assert!(marker.contains("computeStage=hand-skinning-joint-matrix"));
     assert!(marker.contains("sourceId=recorded-hand-synthetic"));
     assert!(marker.contains("sourceFrameIndex=7"));
     assert!(marker.contains("topologyVertexCount=3"));
@@ -1376,8 +1412,11 @@ fn gpu_skinning_probe_marker_preserves_recorded_hand_cpu_oracle_boundary() {
     assert!(marker.contains("maxAbsError=0.000001"));
     assert!(marker.contains("tolerance=0.000100"));
     assert!(marker.contains("readbackMatched=true"));
-    assert!(marker.contains("weightedDeltaSkinningKernel=true"));
-    assert!(marker.contains("jointMatrixSkinningKernel=false"));
+    assert!(marker.contains("influenceSlotsPerSample=4"));
+    assert!(marker.contains("matrixRowsPerInfluence=4"));
+    assert!(marker.contains("prototypeComputeKernel=false"));
+    assert!(marker.contains("weightedDeltaSkinningKernel=false"));
+    assert!(marker.contains("jointMatrixSkinningKernel=true"));
     assert!(marker.contains("meshToSdfKernel=false"));
     assert!(marker.contains("computeKernel=true"));
     assert!(marker.contains("gpuComputeReady=false"));

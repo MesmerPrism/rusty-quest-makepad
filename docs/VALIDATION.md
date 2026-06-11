@@ -124,13 +124,13 @@ For the recorded-hand skinning checkpoint, runs that submit recorded
 hand-capture source frames may also emit one
 `RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE` marker with
 `schema=rusty.quest.makepad.gpu_skinning_probe.v1`,
-`proofKind=f32-weighted-delta-skinning`,
+`proofKind=f32-joint-matrix-skinning`,
 `cpuOracle=matter-recorded-hand-skinning`, `recordedInputEquivalent=true`,
-`weightedDeltaSkinningKernel=true`, `jointMatrixSkinningKernel=false`,
+`weightedDeltaSkinningKernel=false`, `jointMatrixSkinningKernel=true`,
 `meshToSdfKernel=false`, `readbackMatched=true`, `gpuComputeReady=false`, and
-`highRateJsonPayload=false`. Treat this as bounded arithmetic/readback proof
-only; it does not validate final hand joint-matrix skinning or GPU
-mesh-to-SDF construction.
+`highRateJsonPayload=false`. Treat this as bounded joint-matrix
+arithmetic/readback proof only; it does not validate full-mesh resident
+skinning or GPU mesh-to-SDF construction.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

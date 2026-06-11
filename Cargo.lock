@@ -204,6 +204,7 @@ name = "rusty-quest-makepad-matter-surface"
 version = "0.1.0"
 dependencies = [
  "rusty-matter-adf",
+ "rusty-matter-mesh",
  "rusty-matter-model",
  "rusty-matter-particles",
  "rusty-matter-sdf",
