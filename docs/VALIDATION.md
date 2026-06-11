@@ -169,12 +169,22 @@ left/right GLB layout as separate single-surface Matter replay sequences. The
 GLB/sequences remain external high-rate data-plane artifacts and are not
 settings payloads or committed fixtures.
 
-For Hostess/APK staging, push
-`local-artifacts\quest-makepad-runtime-bundle-recorded-left\effective-settings.json`
-as `makepad-effective-settings.json` and copy the sibling `mesh-replay`
-directory into the same app-private settings directory. Hostess resolves
+For Hostess/APK staging, use the Hostess staging helper rather than hand
+copying through `/sdcard/Android/data/...`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File S:\Work\repos\active\rusty-hostess\tools\Stage-HostessMakepadSettings.ps1 `
+  -BundleDir S:\Work\repos\active\rusty-quest-makepad\local-artifacts\quest-makepad-runtime-bundle-recorded-left
+```
+
+The helper renames the generated `effective-settings.json` to
+`makepad-effective-settings.json`, stages sibling `mesh-replay` and optional
+recorded hand rig/clip files through `/data/local/tmp`, then copies the bundle
+into Hostess's app-owned `files/hostess-t/settings` directory with `run-as`.
+Hostess resolves
 `makepad.mesh_replay.source=recorded-meta-quest-hand-left` against that sibling
-data-plane directory.
+data-plane directory. Keep the high-rate replay, rig, clip, field, particle,
+and future GPU-buffer payloads outside settings/control JSON.
 
 For the current recorded replay plus billboard-particle headset profile, build
 and stage `mesh-replay-recorded-left-particles.bundle.json` into

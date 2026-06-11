@@ -271,16 +271,15 @@ For Makepad ADF debug rendering, consume
 must not create its own ADF cell interpretation or move ADF cells into
 settings/control JSON.
 
-Before launching the APK, stage
-`fixtures\effective-settings\mesh-replay.effective-settings.json` into the
-Hostess app-private path:
+Before launching the APK, stage the generated effective-settings bundle into
+the Hostess app-private path with the Hostess helper. This uses
+`/data/local/tmp` as an ADB-visible staging hop and then `run-as` to copy into
+`files/hostess-t/settings`. Do not use `/sdcard/Android/data/...` as the
+app/ADB handoff path for replay or recorded-hand payloads.
 
 ```powershell
-$adb = $env:RUSTY_XR_ADB
-$package = 'io.github.mesmerprism.rustyhostess.makepad'
-& $adb push S:\Work\repos\active\rusty-quest-makepad\fixtures\effective-settings\mesh-replay.effective-settings.json /data/local/tmp/makepad-effective-settings.json
-& $adb shell "run-as $package sh -c 'mkdir -p files/hostess-t/settings && cp /data/local/tmp/makepad-effective-settings.json files/hostess-t/settings/makepad-effective-settings.json'"
-& $adb shell am start -W -n "$package/.MakepadAppXr"
+powershell -NoProfile -ExecutionPolicy Bypass -File S:\Work\repos\active\rusty-hostess\tools\Stage-HostessMakepadSettings.ps1 `
+  -BundleDir S:\Work\repos\active\rusty-quest-makepad\local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles
 ```
 
 Launch headset evidence through the generated Quest/XR activity

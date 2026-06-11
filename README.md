@@ -65,6 +65,12 @@ Pass `-CaptureDir <recorded-hand-capture-dir>` when validating the recorded
 bind-rig plus compact joint-frame source shape; the tool copies
 `left/right.rig.json` and `left/right.clip.jsonl` beside the effective settings
 as local data-plane assets and records that staging in the build report.
+When installing the Hostess Makepad APK, stage that generated bundle with
+`S:\Work\repos\active\rusty-hostess\tools\Stage-HostessMakepadSettings.ps1`.
+The helper uses `/data/local/tmp` as the ADB-visible hop and then `run-as` to
+copy into Hostess's app-owned `files/hostess-t/settings` directory. Avoid
+`/sdcard/Android/data/...` as the handoff path for these files; on current
+Quest builds ADB can write it while the app cannot reliably read it.
 
 For headset visual inspection with billboard particles, use the sibling
 `mesh-replay-recorded-left-particles.bundle.json` bundle and generate the same
