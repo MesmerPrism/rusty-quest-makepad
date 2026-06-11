@@ -43,8 +43,16 @@ pub use adf_world::{
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_MARKER_PREFIX, QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE,
 };
 pub use gpu_residency::{
+    QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind,
     QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof,
     QUEST_MAKEPAD_ADF_DEBUG_GPU_RESIDENCY_ROW_STRIDE_BYTES,
+    QUEST_MAKEPAD_GPU_COMPUTE_DEFAULT_READBACK_PROBE_COUNT,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_BACKEND_STATUS,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_READBACK_POLICY,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_RESOURCE_PLANE,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID,
     QUEST_MAKEPAD_GPU_RESIDENCY_BACKEND_MAKEPAD_INSTANCED_DRAW,
     QUEST_MAKEPAD_GPU_RESIDENCY_MARKER_PREFIX, QUEST_MAKEPAD_GPU_RESIDENCY_MEASUREMENT_SOURCE,
     QUEST_MAKEPAD_GPU_RESIDENCY_PROOF_SCHEMA_ID, QUEST_MAKEPAD_GPU_RESIDENCY_RESOURCE_PLANE,
@@ -2412,5 +2420,116 @@ mod tests {
         assert!(marker.contains("computeKernel=false"));
         assert!(marker.contains("matterCpuReferencePreserved=true"));
         assert!(marker.contains("highRateJsonPayload=false"));
+    }
+
+    #[test]
+    fn gpu_compute_preflight_identifies_sdf_field_cpu_oracle() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::SdfField,
+            particle_force_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("SDF field frame builds");
+        let preflight = QuestMakepadGpuComputePreflight::from_frame(&frame, 64)
+            .expect("SDF field frame is compute preflight eligible");
+
+        assert_eq!(
+            preflight.resource_kind,
+            QuestMakepadGpuComputeResourceKind::SdfParticleForces
+        );
+        assert_eq!(
+            preflight.force_source,
+            MatterSurfaceParticleForceSource::SdfField
+        );
+        assert_eq!(preflight.particle_rows, 16);
+        assert_eq!(preflight.readback_probe_count, 16);
+        let marker = preflight.marker_line("unit-test");
+        assert!(marker.contains("schema=rusty.quest.makepad.gpu_compute_preflight.v1"));
+        assert!(marker.contains("status=eligible"));
+        assert!(marker.contains("resourceKind=sdf-particle-forces"));
+        assert!(marker.contains("particleForceSource=sdf-field"));
+        assert!(marker.contains("particleSamplingAuthority=matter-sdf-field-sampler"));
+        assert!(marker.contains("cpuOraclePreserved=true"));
+        assert!(marker.contains("commandEncoderRequired=true"));
+        assert!(marker.contains("makepadComputeBackend=makepad-command-encoder-pending"));
+        assert!(marker.contains("gpuComputeReady=false"));
+        assert!(marker.contains("computeKernel=false"));
+        assert!(marker.contains("highRateJsonPayload=false"));
+        assert!(!marker.contains("rusty.xr"));
+        assert!(!marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn gpu_compute_preflight_identifies_adf_field_cpu_oracle() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::AdfField,
+            particle_force_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("ADF field frame builds");
+        let preflight = QuestMakepadGpuComputePreflight::from_frame(
+            &frame,
+            QUEST_MAKEPAD_GPU_COMPUTE_DEFAULT_READBACK_PROBE_COUNT,
+        )
+        .expect("ADF field frame is compute preflight eligible");
+
+        assert_eq!(
+            preflight.resource_kind,
+            QuestMakepadGpuComputeResourceKind::AdfParticleForces
+        );
+        assert_eq!(
+            preflight.force_source,
+            MatterSurfaceParticleForceSource::AdfField
+        );
+        let marker = preflight.marker_line("unit-test");
+        assert!(marker.contains("resourceKind=adf-particle-forces"));
+        assert!(marker.contains("fieldResourceId=quest.makepad.gpu_compute.adf_force_field"));
+        assert!(marker.contains("particleForceSource=adf-field"));
+        assert!(marker.contains("particleSamplingAuthority=matter-adf-field-sampler"));
+        assert!(marker.contains("readbackPolicy=bounded-cpu-oracle-probes"));
+        assert!(marker.contains("readbackProbeCount=16"));
+        assert!(marker.contains("gpuComputeReady=false"));
+    }
+
+    #[test]
+    fn gpu_compute_preflight_rejects_mesh_distance_authority() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::MeshDistance,
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("mesh-distance frame builds");
+
+        assert!(QuestMakepadGpuComputePreflight::from_frame(&frame, 16).is_none());
     }
 }

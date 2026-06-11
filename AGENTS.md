@@ -221,6 +221,17 @@ the headset measurement companion. Do not treat this proof as GPU simulation or
 as permission to move particle rows, ADF cells, mesh frames, or future GPU
 buffers into settings/control JSON.
 
+The next GPU-compute checkpoint starts as a preflight marker, not a compute
+claim. `QuestMakepadGpuComputePreflight` /
+`RUSTY_QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT` is emitted only for Matter frames
+with exactly one ready field-force CPU oracle: `sdf-field` or `adf-field`.
+It must report `gpuComputeReady=false`, `computeKernel=false`,
+`makepadComputeBackend=makepad-command-encoder-pending`,
+`cpuOraclePreserved=true`, and `highRateJsonPayload=false`. Use it to identify
+the future command-encoder/storage-buffer/readback boundary; do not emit it for
+`mesh-distance`, `none`, renderer-only ADF debug rows, or settings/control JSON
+payloads.
+
 The 2026-06-11 indexed ADF pre-GPU sweep at
 `S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the
 current force-mode evidence baseline. At 1024 Matter particles / 1024 visual

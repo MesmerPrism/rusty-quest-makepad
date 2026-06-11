@@ -122,14 +122,14 @@ keeps high-rate rows out of settings/control JSON, and points Quest evidence to
 `RUSTY_MAKEPAD_CADENCE` fields such as
 `xrRepaintGeometryUploadBytes`, `xrRepaintInstances`, and `xrRepaintGpuMs`.
 
-Current particles do not yet sample the dense SDF/ADF debug field. Runtime
-markers identify the particle path as
-`particleSamplingAuthority=matter-mesh-distance-sampler`,
-`particleFieldSource=current-mesh-distance`, and
-`sdfAdfDebugParticleAuthority=false`. A future field-backed SDF/ADF particle
-path must change those markers only after Matter owns the deterministic CPU
-reference contract and the Quest adapter consumes that contract instead of the
-debug visual payload.
+The compute boundary begins with `QuestMakepadGpuComputePreflight` and
+`rusty.quest.makepad.gpu_compute_preflight.v1`. It is emitted only when a
+Matter frame has a ready SDF or indexed ADF field-force CPU oracle and records
+the future storage-buffer/command-encoder/readback requirements while reporting
+`gpuComputeReady=false` and `computeKernel=false`. Mesh-distance and `none`
+force modes are intentionally not eligible. The preflight marker preserves
+Matter authority and keeps field, particle, mesh, and future GPU-buffer payloads
+out of settings/control JSON.
 
 ## Validation
 

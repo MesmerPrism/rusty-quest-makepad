@@ -6,7 +6,12 @@
 //! reference as the source of truth.
 
 use crate::{
-    sanitize_marker_value, QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldParticleBatch,
+    sanitize_marker_value, QuestMakepadMatterSurfaceFrame, QuestMakepadWorldAdfDebugBatch,
+    QuestMakepadWorldParticleBatch,
+};
+
+use rusty_matter_surface_runtime::{
+    MatterSurfaceParticleForceSource, MatterSurfaceParticleForceSourceStatus,
 };
 
 /// Quest Makepad GPU residency proof schema.
@@ -26,6 +31,24 @@ pub const QUEST_MAKEPAD_GPU_RESIDENCY_MEASUREMENT_SOURCE: &str =
 pub const QUEST_MAKEPAD_PARTICLE_GPU_RESIDENCY_ROW_STRIDE_BYTES: usize = 64;
 /// Packed adapter payload stride for one ADF debug-cell row.
 pub const QUEST_MAKEPAD_ADF_DEBUG_GPU_RESIDENCY_ROW_STRIDE_BYTES: usize = 48;
+/// Quest Makepad GPU compute preflight schema.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID: &str =
+    "rusty.quest.makepad.gpu_compute_preflight.v1";
+/// Quest Makepad GPU compute preflight marker prefix.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MARKER_PREFIX: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT";
+/// Resource plane that the next compute slice must provide.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_RESOURCE_PLANE: &str = "future-storage-buffer";
+/// Backend status for the current app boundary.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_BACKEND_STATUS: &str =
+    "makepad-command-encoder-pending";
+/// Readback policy for future GPU-vs-CPU oracle validation.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_READBACK_POLICY: &str = "bounded-cpu-oracle-probes";
+/// Evidence fields that should be paired with a compute preflight marker.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MEASUREMENT_SOURCE: &str =
+    "RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_RUNTIME.particleStepMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
+/// Conservative default number of oracle probes for future GPU readback checks.
+pub const QUEST_MAKEPAD_GPU_COMPUTE_DEFAULT_READBACK_PROBE_COUNT: usize = 16;
 
 /// Payload family adopted by a GPU residency proof.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -176,4 +199,161 @@ impl QuestMakepadGpuResidencyProof {
             QUEST_MAKEPAD_GPU_RESIDENCY_MEASUREMENT_SOURCE,
         )
     }
+}
+
+/// Compute resource family covered by a GPU compute preflight marker.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QuestMakepadGpuComputeResourceKind {
+    /// Particles driven by a Matter-owned dense SDF field.
+    SdfParticleForces,
+    /// Particles driven by a Matter-owned indexed ADF field.
+    AdfParticleForces,
+}
+
+impl QuestMakepadGpuComputeResourceKind {
+    /// Builds a resource kind from the active Matter force source.
+    #[must_use]
+    pub const fn from_force_source(force_source: MatterSurfaceParticleForceSource) -> Option<Self> {
+        match force_source {
+            MatterSurfaceParticleForceSource::SdfField => Some(Self::SdfParticleForces),
+            MatterSurfaceParticleForceSource::AdfField => Some(Self::AdfParticleForces),
+            MatterSurfaceParticleForceSource::MeshDistance
+            | MatterSurfaceParticleForceSource::None => None,
+        }
+    }
+
+    /// Stable marker value.
+    #[must_use]
+    pub const fn marker_value(self) -> &'static str {
+        match self {
+            Self::SdfParticleForces => "sdf-particle-forces",
+            Self::AdfParticleForces => "adf-particle-forces",
+        }
+    }
+
+    /// Stable future resource id.
+    #[must_use]
+    pub const fn resource_id(self) -> &'static str {
+        match self {
+            Self::SdfParticleForces => "quest.makepad.gpu_compute.sdf_particle_forces",
+            Self::AdfParticleForces => "quest.makepad.gpu_compute.adf_particle_forces",
+        }
+    }
+
+    /// Stable future field-buffer id.
+    #[must_use]
+    pub const fn field_resource_id(self) -> &'static str {
+        match self {
+            Self::SdfParticleForces => "quest.makepad.gpu_compute.sdf_force_field",
+            Self::AdfParticleForces => "quest.makepad.gpu_compute.adf_force_field",
+        }
+    }
+}
+
+/// Compact preflight for the future field/particle GPU compute boundary.
+///
+/// This is intentionally not a GPU compute proof. It records that the current
+/// Matter frame has a CPU oracle and single field-force authority that a future
+/// Quest/Makepad command-encoder/storage-buffer path can validate against.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuestMakepadGpuComputePreflight {
+    /// Schema identifier.
+    pub schema_id: String,
+    /// Future GPU resource family.
+    pub resource_kind: QuestMakepadGpuComputeResourceKind,
+    /// Active Matter force source.
+    pub force_source: MatterSurfaceParticleForceSource,
+    /// Force-source refresh marker from the CPU oracle frame.
+    pub force_refresh: String,
+    /// Configured force refresh interval.
+    pub force_update_interval_frames: usize,
+    /// Full Matter particle count.
+    pub particle_rows: usize,
+    /// Renderer-facing particle rows available this frame.
+    pub visual_rows: usize,
+    /// Source mesh vertex count.
+    pub topology_vertex_count: usize,
+    /// Source mesh triangle count.
+    pub topology_triangle_count: usize,
+    /// Source frame index.
+    pub source_frame_index: Option<usize>,
+    /// Requested bounded readback probes for the future GPU path.
+    pub readback_probe_count: usize,
+}
+
+impl QuestMakepadGpuComputePreflight {
+    /// Builds a compute-resource preflight from a Matter surface frame.
+    #[must_use]
+    pub fn from_frame(
+        frame: &QuestMakepadMatterSurfaceFrame,
+        readback_probe_count: usize,
+    ) -> Option<Self> {
+        let particle_step = frame.particle_step.as_ref()?;
+        if particle_step.particle_force_source_status
+            != MatterSurfaceParticleForceSourceStatus::Ready
+        {
+            return None;
+        }
+        let resource_kind = QuestMakepadGpuComputeResourceKind::from_force_source(
+            particle_step.particle_force_source,
+        )?;
+        let particle_rows = frame.stats.particle_count;
+        if particle_rows == 0 {
+            return None;
+        }
+
+        Some(Self {
+            schema_id: QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID.to_owned(),
+            resource_kind,
+            force_source: particle_step.particle_force_source,
+            force_refresh: particle_step
+                .particle_force_refresh
+                .marker_value()
+                .to_owned(),
+            force_update_interval_frames: particle_step.particle_force_update_interval_frames,
+            particle_rows,
+            visual_rows: frame
+                .particle_upload
+                .as_ref()
+                .map_or(0, |upload| upload.rows.len()),
+            topology_vertex_count: frame.matter_update.vertex_count,
+            topology_triangle_count: frame.matter_update.triangle_count,
+            source_frame_index: frame.matter_update.frame_index,
+            readback_probe_count: readback_probe_count.min(particle_rows),
+        })
+    }
+
+    /// Builds a compact marker without logging high-rate field or particle data.
+    #[must_use]
+    pub fn marker_line(&self, phase: &str) -> String {
+        format!(
+            "{} schema={} phase={} status=eligible computeStage=field-particle-force resourceKind={} resourceId={} fieldResourceId={} resourcePlane={} particleForceSource={} particleSamplingAuthority={} particleFieldSource={} particleForceRefresh={} particleForceUpdateIntervalFrames={} particleRows={} visualRows={} topologyVertexCount={} topologyTriangleCount={} sourceFrameIndex={} cpuOracle={} cpuOraclePreserved=true readbackPolicy={} readbackProbeCount={} commandEncoderRequired=true makepadComputeBackend={} gpuComputeReady=false computeKernel=false highRateJsonPayload=false measuredBy={}",
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MARKER_PREFIX,
+            self.schema_id,
+            sanitize_marker_value(phase),
+            self.resource_kind.marker_value(),
+            self.resource_kind.resource_id(),
+            self.resource_kind.field_resource_id(),
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_RESOURCE_PLANE,
+            self.force_source.marker_value(),
+            self.force_source.sampling_authority_marker(),
+            self.force_source.field_source_marker(),
+            sanitize_marker_value(&self.force_refresh),
+            self.force_update_interval_frames,
+            self.particle_rows,
+            self.visual_rows,
+            self.topology_vertex_count,
+            self.topology_triangle_count,
+            optional_usize_marker_token(self.source_frame_index),
+            self.force_source.sampling_authority_marker(),
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_READBACK_POLICY,
+            self.readback_probe_count,
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_BACKEND_STATUS,
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MEASUREMENT_SOURCE,
+        )
+    }
+}
+
+fn optional_usize_marker_token(value: Option<usize>) -> String {
+    value.map_or_else(|| "none".to_owned(), |value| value.to_string())
 }

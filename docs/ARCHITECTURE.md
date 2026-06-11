@@ -78,6 +78,15 @@ profiles/Android properties/command JSON. Quest-side measurement comes from
 the app cadence markers that report repaint geometry uploads, instance counts,
 and GPU repaint timing.
 
+GPU compute preflight is a separate adapter contract. The
+`QuestMakepadGpuComputePreflight` boundary records that a frame has a single
+ready Matter field-force CPU oracle (`sdf-field` or `adf-field`) that a future
+Quest/Makepad command-encoder and storage-buffer path can validate with bounded
+readback probes. It must not be emitted for mesh-distance forces, renderer-only
+debug cells, or any settings/control payload. Until a real Makepad compute
+backend exists, it reports `makepadComputeBackend=makepad-command-encoder-pending`,
+`gpuComputeReady=false`, and `computeKernel=false`.
+
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
 reports. Runtime adapters still own platform event loops and camera homography

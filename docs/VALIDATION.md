@@ -69,6 +69,16 @@ should also emit `RUSTY_QUEST_MAKEPAD_GPU_RESIDENCY` with
 line it up with cadence markers for `xrRepaintGeometryUploadBytes`,
 `xrRepaintInstances`, and `xrRepaintGpuMs` before claiming GPU behavior on
 Quest.
+For the next compute-resource checkpoint, field-force runs should emit
+`RUSTY_QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT` with
+`schema=rusty.quest.makepad.gpu_compute_preflight.v1`,
+`resourceKind=sdf-particle-forces|adf-particle-forces`,
+`particleForceSource=sdf-field|adf-field`, `cpuOraclePreserved=true`,
+`readbackPolicy=bounded-cpu-oracle-probes`,
+`makepadComputeBackend=makepad-command-encoder-pending`,
+`gpuComputeReady=false`, `computeKernel=false`, and
+`highRateJsonPayload=false`. Mesh-distance and `none` force profiles must not
+emit this marker.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected
