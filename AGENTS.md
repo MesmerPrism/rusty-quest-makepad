@@ -181,7 +181,11 @@ arrays into settings, runtime profiles, Android properties, or command JSON.
 ADF debug config sweeps should use the canonical low-rate settings
 `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; do not patch adapter code or Hostess
-runtime receipts for those values.
+runtime receipts for those values. SDF/ADF debug-field cadence is controlled by
+`makepad.sdf_adf.debug.update_interval_frames` and reported through
+`sdfAdfDebugSource`, `sdfAdfDebugFrameInterval`, and
+`sdfAdfDebugSourceFrameIndex`; values above `1` reuse only the debug payload
+between rebuilds and must not be treated as Matter simulation cadence.
 
 Before launching the APK, stage
 `fixtures\effective-settings\mesh-replay.effective-settings.json` into the

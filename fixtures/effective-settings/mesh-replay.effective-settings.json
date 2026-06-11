@@ -2,9 +2,9 @@
   "schema": "rusty.gui.makepad.effective_settings.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
   "surface_schema": "rusty.gui.makepad.app_settings_surface.v1",
-  "surface_version": 6,
+  "surface_version": 7,
   "revision": 1,
-  "generated_at": "SystemTime { intervals: 134256175517846050 }",
+  "generated_at": "SystemTime { intervals: 134256202982635205 }",
   "settings": [
     {
       "setting_id": "makepad.mesh_replay.enabled",
@@ -226,6 +226,23 @@
       "hotload_policy": "scene_rebuild",
       "writer_policy": "profile_owned",
       "readback_field": "adfDebugErrorTolerance"
+    },
+    {
+      "setting_id": "makepad.sdf_adf.debug.update_interval_frames",
+      "value": 1,
+      "winning_layer": "runtime_profile",
+      "winning_source_id": "profile.quest_makepad.mesh_replay",
+      "rejected_layers": [
+        {
+          "layer": "schema_default",
+          "source_id": "rusty-quest-makepad.camera-shell.default",
+          "value": 1,
+          "reason": "overridden_by_runtime_profile"
+        }
+      ],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "sdfAdfDebugUpdateIntervalFrames"
     },
     {
       "setting_id": "makepad.particles.enabled",

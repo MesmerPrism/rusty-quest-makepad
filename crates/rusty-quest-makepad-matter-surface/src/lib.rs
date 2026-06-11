@@ -99,6 +99,8 @@ pub const DEFAULT_WORLD_CONTENT_CENTER: [f32; 3] = [0.0, 0.0, -0.5];
 pub const DEFAULT_WORLD_CONTENT_TARGET_RADIUS: f32 = 0.16;
 /// Default Matter particle execution batch size used by Quest Makepad profiles.
 pub const DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE: usize = 256;
+/// Default SDF/ADF debug-field rebuild interval used by Quest Makepad profiles.
+pub const DEFAULT_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES: usize = 1;
 
 /// One animated hand/surface source frame ready for the native Matter runtime.
 #[derive(Clone, Debug, PartialEq)]
@@ -185,6 +187,13 @@ pub struct QuestMakepadMatterSurfaceConfig {
     pub adf_debug_enabled: bool,
     /// ADF debug build configuration.
     pub adf_debug_config: QuestMakepadAdfDebugConfig,
+    /// Source-frame interval for SDF/ADF debug-field rebuilds.
+    ///
+    /// Values above one reuse the last SDF/ADF debug payload between rebuilds.
+    /// This affects renderer/debug output only; Matter surface update,
+    /// distance sampling, collisions, and particles still consume the current
+    /// source frame.
+    pub sdf_adf_debug_update_interval_frames: NonZeroUsize,
     /// Whether particles should be stepped and emitted.
     pub particles_enabled: bool,
     /// Particle count for deterministic resets.
@@ -224,6 +233,10 @@ impl Default for QuestMakepadMatterSurfaceConfig {
             sdf_slice_enabled: false,
             adf_debug_enabled: false,
             adf_debug_config: QuestMakepadAdfDebugConfig::default(),
+            sdf_adf_debug_update_interval_frames: NonZeroUsize::new(
+                DEFAULT_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES,
+            )
+            .expect("default SDF/ADF debug update interval is non-zero"),
             particles_enabled: false,
             particle_count: DEFAULT_SURFACE_RUNTIME_PARTICLE_COUNT,
             particle_seed: DEFAULT_SURFACE_RUNTIME_PARTICLE_SEED,
@@ -490,6 +503,12 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub sdf_slice_upload: Option<QuestMakepadDistanceSliceUpload>,
     /// Optional Matter-backed Optics ADF debug visual.
     pub adf_debug: Option<QuestMakepadAdfDebugFrame>,
+    /// Whether SDF/ADF debug payloads were reused from an earlier source frame.
+    pub sdf_adf_debug_reused: bool,
+    /// Source frame index that produced the current SDF/ADF debug payloads.
+    pub sdf_adf_debug_source_frame_index: Option<usize>,
+    /// Configured SDF/ADF debug rebuild interval in source frames.
+    pub sdf_adf_debug_update_interval_frames: usize,
     /// Typed particle snapshot with latest surface distances.
     pub particle_snapshot: MatterSurfaceParticleSnapshot,
     /// Matter-owned particle step diagnostics, if particles were stepped.
@@ -530,6 +549,8 @@ pub struct QuestMakepadMatterSurfaceRuntime {
     matter: MatterSurfaceRuntime,
     particle_profile: ParticleVisualAnimationProfile,
     particles_initialized: bool,
+    sdf_adf_debug_frame_counter: usize,
+    sdf_adf_debug_cache: Option<QuestMakepadSdfAdfDebugCache>,
 }
 
 impl QuestMakepadMatterSurfaceRuntime {
@@ -550,6 +571,8 @@ impl QuestMakepadMatterSurfaceRuntime {
                 "quest.makepad.particles.browser_parity",
             ),
             particles_initialized: false,
+            sdf_adf_debug_frame_counter: 0,
+            sdf_adf_debug_cache: None,
         })
     }
 
@@ -650,36 +673,43 @@ impl QuestMakepadMatterSurfaceRuntime {
         let collision_upload = collision_upload_from_batch(&collision);
         stage_timings.collision_upload_ms = elapsed_ms(started_at);
 
-        let needs_sdf_grid =
+        let needs_sdf_adf_debug =
             self.config.enabled && (self.config.sdf_slice_enabled || self.config.adf_debug_enabled);
-        let (sdf_slice, sdf_slice_upload, adf_debug) = if needs_sdf_grid {
-            let started_at = Instant::now();
-            let grid = self.matter.build_sdf_grid(self.config.sdf_config())?;
-            stage_timings.sdf_build_ms = elapsed_ms(started_at);
-            let (sdf_slice, sdf_slice_upload) = if self.config.sdf_slice_enabled {
-                let slice = SdfSliceVisual::middle_z("quest.makepad.sdf_slice.middle_z", &grid)?;
-                let started_at = Instant::now();
-                let upload = distance_slice_upload_from_visual(&slice);
-                stage_timings.sdf_upload_ms = elapsed_ms(started_at);
-                (Some(slice), Some(upload))
+        let (sdf_slice, sdf_slice_upload, adf_debug, sdf_adf_debug_reused, sdf_adf_debug_frame) =
+            if needs_sdf_adf_debug {
+                let interval = self.config.sdf_adf_debug_update_interval_frames.get();
+                let should_rebuild = self.sdf_adf_debug_cache.is_none()
+                    || self.sdf_adf_debug_frame_counter % interval == 0;
+                self.sdf_adf_debug_frame_counter =
+                    self.sdf_adf_debug_frame_counter.saturating_add(1);
+                if should_rebuild {
+                    let debug_frame = self
+                        .build_sdf_adf_debug_frame(&mut stage_timings, matter_update.frame_index)?;
+                    self.sdf_adf_debug_cache = Some(debug_frame.clone());
+                    (
+                        debug_frame.sdf_slice,
+                        debug_frame.sdf_slice_upload,
+                        debug_frame.adf_debug,
+                        false,
+                        debug_frame.source_frame_index,
+                    )
+                } else {
+                    let debug_frame = self
+                        .sdf_adf_debug_cache
+                        .as_ref()
+                        .expect("SDF/ADF debug cache exists when rebuild is skipped")
+                        .clone();
+                    (
+                        debug_frame.sdf_slice,
+                        debug_frame.sdf_slice_upload,
+                        debug_frame.adf_debug,
+                        true,
+                        debug_frame.source_frame_index,
+                    )
+                }
             } else {
-                (None, None)
+                (None, None, None, false, None)
             };
-            let adf_debug = if self.config.adf_debug_enabled {
-                let started_at = Instant::now();
-                let report = build_adf_report(&grid, self.config.adf_debug_config)?;
-                stage_timings.adf_build_ms = elapsed_ms(started_at);
-                let started_at = Instant::now();
-                let frame = adf_debug_frame_from_report(report)?;
-                stage_timings.adf_visual_ms = elapsed_ms(started_at);
-                Some(frame)
-            } else {
-                None
-            };
-            (sdf_slice, sdf_slice_upload, adf_debug)
-        } else {
-            (None, None, None)
-        };
 
         let started_at = Instant::now();
         let particle_snapshot = self.matter.particle_snapshot();
@@ -719,6 +749,12 @@ impl QuestMakepadMatterSurfaceRuntime {
             sdf_slice,
             sdf_slice_upload,
             adf_debug,
+            sdf_adf_debug_reused,
+            sdf_adf_debug_source_frame_index: sdf_adf_debug_frame,
+            sdf_adf_debug_update_interval_frames: self
+                .config
+                .sdf_adf_debug_update_interval_frames
+                .get(),
             particle_snapshot,
             particle_step,
             particle_visual_frame,
@@ -753,8 +789,16 @@ impl QuestMakepadMatterSurfaceRuntime {
             (true, true) => "ready",
             (true, false) => "empty",
         };
+        let sdf_adf_debug_source = match (
+            self.config.sdf_slice_enabled || self.config.adf_debug_enabled,
+            frame.sdf_adf_debug_reused,
+        ) {
+            (false, _) => "disabled",
+            (true, false) => "fresh",
+            (true, true) => "reused",
+        };
         format!(
-            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
+            "{} schema={} phase={} status={} nativeMatterRuntime=true wasmRuntimeUsed=false shaderScaffoldUsed=false proceduralParticleOverlayUsed=false proceduralSdfOverlayUsed=false proceduralCollisionOverlayUsed=false dataPlane=makepad-compact-uniform-rows sourceId={} sourceSchema={} frameIndex={} vertexCount={} triangleCount={} sdfAdfDebugSource={} sdfAdfDebugFrameInterval={} sdfAdfDebugSourceFrameIndex={} particleCount={} particleDistanceRefreshPolicy={} particleDistanceSamples={} particleInputDeltaSeconds={:.6} particleSimulatedDeltaSeconds={:.6} particleDroppedDeltaSeconds={:.6} particleSubsteps={} particleClosestSamples={} particleSurfaceNodeTests={} particleSurfaceLeafTests={} particleSurfaceTriangleTests={} particleRefreshSamples={} particleRefreshNodeTests={} particleRefreshLeafTests={} particleRefreshTriangleTests={} particleExecutionBackend={} particleExecutionBatchSize={} particleExecutionChunks={} particleExecutionWorkers={} particleExecutionElapsedMicros={} collisionRows={} particleSourceRows={} particleRows={} particleVisualRowLimit={} sdfRows={} adfDebugEnabled={} adfStatus={} adfSchema={} adfVisualSchema={} adfCells={} adfSourceSamples={} adfSplitCount={} adfMaxLevel={} adfMaxDepth={} adfMaxCells={} adfErrorTolerance={:.6} leafTriangleCount={} distanceSamplerRefit={} adapterTotalMs={:.3} matterUpdateMs={:.3} particleResetMs={:.3} particleStepMs={:.3} collisionProbeMs={:.3} collisionUploadMs={:.3} sdfBuildMs={:.3} sdfUploadMs={:.3} adfBuildMs={:.3} adfVisualMs={:.3} particleSnapshotMs={:.3} particlePayloadMs={:.3} particleVisualMs={:.3} particleUploadMs={:.3}",
             QUEST_MAKEPAD_MATTER_SURFACE_MARKER_PREFIX,
             QUEST_MAKEPAD_MATTER_SURFACE_SCHEMA_ID,
             sanitize_marker_value(phase),
@@ -764,6 +808,9 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.matter_update.frame_index.unwrap_or(0),
             frame.matter_update.vertex_count,
             frame.matter_update.triangle_count,
+            sdf_adf_debug_source,
+            frame.sdf_adf_debug_update_interval_frames,
+            optional_usize_marker_token(frame.sdf_adf_debug_source_frame_index),
             frame.stats.particle_count,
             frame.stats.particle_distance_refresh_policy.marker_value(),
             frame.stats.particle_distance_samples,
@@ -862,6 +909,50 @@ impl QuestMakepadMatterSurfaceRuntime {
             frame.stage_timings.particle_upload_ms,
         )
     }
+
+    fn build_sdf_adf_debug_frame(
+        &self,
+        stage_timings: &mut QuestMakepadMatterSurfaceStageTimings,
+        source_frame_index: Option<usize>,
+    ) -> Result<QuestMakepadSdfAdfDebugCache, QuestMakepadMatterSurfaceError> {
+        let started_at = Instant::now();
+        let grid = self.matter.build_sdf_grid(self.config.sdf_config())?;
+        stage_timings.sdf_build_ms = elapsed_ms(started_at);
+        let (sdf_slice, sdf_slice_upload) = if self.config.sdf_slice_enabled {
+            let slice = SdfSliceVisual::middle_z("quest.makepad.sdf_slice.middle_z", &grid)?;
+            let started_at = Instant::now();
+            let upload = distance_slice_upload_from_visual(&slice);
+            stage_timings.sdf_upload_ms = elapsed_ms(started_at);
+            (Some(slice), Some(upload))
+        } else {
+            (None, None)
+        };
+        let adf_debug = if self.config.adf_debug_enabled {
+            let started_at = Instant::now();
+            let report = build_adf_report(&grid, self.config.adf_debug_config)?;
+            stage_timings.adf_build_ms = elapsed_ms(started_at);
+            let started_at = Instant::now();
+            let frame = adf_debug_frame_from_report(report)?;
+            stage_timings.adf_visual_ms = elapsed_ms(started_at);
+            Some(frame)
+        } else {
+            None
+        };
+        Ok(QuestMakepadSdfAdfDebugCache {
+            source_frame_index,
+            sdf_slice,
+            sdf_slice_upload,
+            adf_debug,
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct QuestMakepadSdfAdfDebugCache {
+    source_frame_index: Option<usize>,
+    sdf_slice: Option<SdfSliceVisual>,
+    sdf_slice_upload: Option<QuestMakepadDistanceSliceUpload>,
+    adf_debug: Option<QuestMakepadAdfDebugFrame>,
 }
 
 impl Default for QuestMakepadMatterSurfaceRuntime {
@@ -1394,6 +1485,77 @@ mod tests {
         assert!(marker.contains("adfVisualMs="));
         assert!(!marker.contains("rusty.xr"));
         assert!(!marker.contains("RUSTY_XR"));
+    }
+
+    #[test]
+    fn adapter_reuses_sdf_adf_debug_payloads_between_interval_frames() {
+        let mut replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            adf_debug_enabled: true,
+            particles_enabled: false,
+            collision_enabled: false,
+            sdf_slice_enabled: false,
+            sdf_adf_debug_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let first = runtime
+            .step_from_replay(&replay, 0.0, &[])
+            .expect("first ADF debug frame builds");
+        assert!(!first.sdf_adf_debug_reused);
+        assert_eq!(first.sdf_adf_debug_update_interval_frames, 2);
+        assert_eq!(
+            first.sdf_adf_debug_source_frame_index,
+            first.matter_update.frame_index
+        );
+        assert!(first.stage_timings.sdf_build_ms > 0.0);
+        assert!(first.stage_timings.adf_build_ms > 0.0);
+
+        replay.step(1.0 / 60.0);
+        let second = runtime
+            .step_from_replay(&replay, 1.0 / 60.0, &[])
+            .expect("second ADF debug frame reuses cache");
+        assert!(second.sdf_adf_debug_reused);
+        assert_eq!(
+            second.sdf_adf_debug_source_frame_index,
+            first.sdf_adf_debug_source_frame_index
+        );
+        assert_eq!(second.stage_timings.sdf_build_ms, 0.0);
+        assert_eq!(second.stage_timings.adf_build_ms, 0.0);
+        assert_eq!(
+            second
+                .adf_debug
+                .as_ref()
+                .expect("cached ADF frame")
+                .visual
+                .cell_count,
+            first
+                .adf_debug
+                .as_ref()
+                .expect("fresh ADF frame")
+                .visual
+                .cell_count
+        );
+
+        let marker = runtime.marker_line("unit-test-adf-cache", &second);
+        assert!(marker.contains("sdfAdfDebugSource=reused"));
+        assert!(marker.contains("sdfAdfDebugFrameInterval=2"));
+        assert!(marker.contains("sdfAdfDebugSourceFrameIndex="));
+
+        replay.step(1.0 / 60.0);
+        let third = runtime
+            .step_from_replay(&replay, 1.0 / 60.0, &[])
+            .expect("third ADF debug frame rebuilds");
+        assert!(!third.sdf_adf_debug_reused);
+        assert!(third.stage_timings.sdf_build_ms > 0.0);
+        assert!(third.stage_timings.adf_build_ms > 0.0);
+        assert!(runtime
+            .marker_line("unit-test-adf-cache", &third)
+            .contains("sdfAdfDebugSource=fresh"));
     }
 
     #[test]

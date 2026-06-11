@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 6,
+  "version": 7,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -231,6 +231,24 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.adf.debug.error_tolerance" }
       ],
       "readback_field": "adfDebugErrorTolerance"
+    },
+    {
+      "id": "makepad.sdf_adf.debug.update_interval_frames",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.matter_surface",
+      "value_type": "number",
+      "minimum": 1,
+      "maximum": 1000000,
+      "default": 1,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "sdf-adf-debug-update-interval-frames" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.sdf_adf.debug.update_interval_frames" }
+      ],
+      "readback_field": "sdfAdfDebugUpdateIntervalFrames"
     },
     {
       "id": "makepad.particles.enabled",

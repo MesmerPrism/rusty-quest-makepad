@@ -53,7 +53,12 @@ buffers and debug payloads for Makepad consumption, but it must not duplicate
 Matter distance, collision, SDF, ADF, or particle truth. High-rate particle
 rows, SDF slice cells, and ADF leaf-cell data stay on the data/render plane and
 do not enter settings, runtime profiles, Android property values, or future
-Manifold command JSON.
+Manifold command JSON. The adapter may cache/reuse SDF/ADF debug visual payloads
+between source frames according to the low-rate
+`makepad.sdf_adf.debug.update_interval_frames` setting, but that cache is a
+renderer/debug cadence policy only. It is not a simulation authority and does
+not change the current-frame Matter surface used for collisions, distance
+sampling, or particles.
 
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`

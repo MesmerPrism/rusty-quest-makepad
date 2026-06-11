@@ -57,6 +57,10 @@
       "value": 0.025
     },
     {
+      "setting_id": "makepad.sdf_adf.debug.update_interval_frames",
+      "value": 1
+    },
+    {
       "setting_id": "makepad.particles.enabled",
       "value": false
     },

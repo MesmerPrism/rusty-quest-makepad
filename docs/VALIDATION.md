@@ -49,12 +49,19 @@ ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected
 values as `adfMaxDepth`, `adfMaxCells`, and `adfErrorTolerance`.
+SDF/ADF debug-cadence sweeps should use
+`makepad.sdf_adf.debug.update_interval_frames`; evidence must show
+`sdfAdfDebugSource=fresh|reused`, `sdfAdfDebugFrameInterval`, and
+`sdfAdfDebugSourceFrameIndex`. Reused frames should show zero SDF/ADF build
+timing for that adapter frame while Matter update/collision/particle timings
+continue to reflect the current source frame.
 
 Focused ADF adapter checks:
 
 ```powershell
 cargo test -p rusty-quest-makepad-matter-surface adf -- --nocapture
 cargo test -p rusty-quest-makepad-camera-shell adf -- --nocapture
+cargo test -p rusty-quest-makepad-camera-shell sdf_adf_debug_update_interval -- --nocapture
 ```
 
 Optional recorded full hand-mesh replay smoke:

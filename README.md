@@ -95,8 +95,15 @@ Optics `rusty.optics.adf.debug.visual.v1` payload. Runtime markers report
 ADF-specific timings. ADF debug build policy is controlled by the same
 canonical effective-settings path with `makepad.adf.debug.max_depth`,
 `makepad.adf.debug.max_cells`, and
-`makepad.adf.debug.error_tolerance`. `combined` remains a gated future mode
-until a dedicated slice supports simultaneous SDF slice plus ADF debug output.
+`makepad.adf.debug.error_tolerance`. SDF/ADF debug rebuild cadence is also a
+low-rate setting, `makepad.sdf_adf.debug.update_interval_frames`; the default
+`1` preserves per-source-frame rebuilds, while larger local sweep values reuse
+the last debug payload between rebuilds and are reported as
+`sdfAdfDebugSource`, `sdfAdfDebugFrameInterval`, and
+`sdfAdfDebugSourceFrameIndex`. This cadence only affects debug visuals; Matter
+surface updates, collisions, distance sampling, and particle stepping still use
+the current source frame. `combined` remains a gated future mode until a
+dedicated slice supports simultaneous SDF slice plus ADF debug output.
 
 ## Validation
 

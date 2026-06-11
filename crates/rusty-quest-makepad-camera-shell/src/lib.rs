@@ -104,6 +104,9 @@ pub const SETTING_MATTER_ADF_DEBUG_MAX_DEPTH: &str = "makepad.adf.debug.max_dept
 pub const SETTING_MATTER_ADF_DEBUG_MAX_CELLS: &str = "makepad.adf.debug.max_cells";
 /// Native Matter ADF debug distance-range tolerance setting id.
 pub const SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE: &str = "makepad.adf.debug.error_tolerance";
+/// Native Matter SDF/ADF debug rebuild interval setting id.
+pub const SETTING_MATTER_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES: &str =
+    "makepad.sdf_adf.debug.update_interval_frames";
 /// Default world-particle draw cap for current Quest Makepad billboard smoke.
 pub const DEFAULT_PARTICLE_RENDER_DRAW_LIMIT: usize = 96;
 /// Default particle renderer animation mode.
@@ -753,6 +756,11 @@ fn parse_matter_surface_config(
         SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE,
         config.adf_debug_config.error_tolerance,
     )?;
+    config.sdf_adf_debug_update_interval_frames = parse_nonzero_usize_setting_or_default(
+        settings,
+        SETTING_MATTER_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES,
+        config.sdf_adf_debug_update_interval_frames,
+    )?;
     Ok(config)
 }
 
@@ -1149,6 +1157,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_sdf_adf_debug_update_interval_setting() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES,
+            serde_json::json!(3),
+        );
+
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(
+            config
+                .matter_surface
+                .sdf_adf_debug_update_interval_frames
+                .get(),
+            3
+        );
+    }
+
+    #[test]
     fn rejects_invalid_sdf_adf_overlay_mode() {
         let invalid =
             EFFECTIVE_SETTINGS_FIXTURE.replace("\"value\": \"sdf\"", "\"value\": \"private\"");
@@ -1286,6 +1313,21 @@ mod tests {
             CameraShellEffectiveConfig::from_effective_settings_json(&invalid_adf_tolerance)
                 .unwrap_err(),
             CameraShellConfigError::InvalidSettingValue(SETTING_MATTER_ADF_DEBUG_ERROR_TOLERANCE)
+        );
+
+        let invalid_sdf_adf_debug_interval = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_MATTER_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES,
+            serde_json::json!(0),
+        );
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(
+                &invalid_sdf_adf_debug_interval
+            )
+            .unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(
+                SETTING_MATTER_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES
+            )
         );
     }
 

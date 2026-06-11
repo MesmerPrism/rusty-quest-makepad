@@ -16,6 +16,7 @@
     "debug.rustyquest.makepad.adf.debug.max_depth",
     "debug.rustyquest.makepad.adf.debug.max_cells",
     "debug.rustyquest.makepad.adf.debug.error_tolerance",
+    "debug.rustyquest.makepad.sdf_adf.debug.update_interval_frames",
     "debug.rustyquest.makepad.particles.enabled",
     "debug.rustyquest.makepad.particles.render.draw_limit",
     "debug.rustyquest.makepad.particles.render.animation_mode",
@@ -96,6 +97,11 @@
       "name": "debug.rustyquest.makepad.adf.debug.error_tolerance",
       "value": "0.025",
       "source_setting_id": "makepad.adf.debug.error_tolerance"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf_adf.debug.update_interval_frames",
+      "value": "1",
+      "source_setting_id": "makepad.sdf_adf.debug.update_interval_frames"
     },
     {
       "name": "debug.rustyquest.makepad.particles.enabled",
