@@ -553,6 +553,20 @@ pub struct QuestMakepadGpuOracleComputeProbeReadback {
     pub word_count: usize,
     /// Number of output words that did not match the CPU-expected value.
     pub mismatched_words: usize,
+    /// Makepad XR/Vulkan submit serial for the proof command.
+    pub queue_submit_serial: u64,
+    /// Fence serial observed for the proof command.
+    pub fence_serial: u64,
+    /// Monotonic proof-resource generation for the current renderer lifetime.
+    pub resource_generation: u64,
+    /// Proof resources still pending retirement.
+    pub pending_retire_count: usize,
+    /// Proof resources retained by the current Makepad backend.
+    pub retained_resource_count: usize,
+    /// Proof resources destroyed after fence evidence in this call.
+    pub retired_after_fence_count: usize,
+    /// True when the Makepad backend waited for queue idle after the proof.
+    pub queue_wait_idle_performed: bool,
     /// CPU-side elapsed time for shader compilation, command submission, wait, and readback.
     pub elapsed_ms: f64,
 }
@@ -621,7 +635,7 @@ impl QuestMakepadGpuOracleComputeProbe {
     #[must_use]
     pub fn marker_line(&self, phase: &str) -> String {
         format!(
-            "{} schema={} phase={} status={} computeStage=field-particle-force-prototype resourceKind={} resourceId={} fieldResourceId={} resourcePlane={} computeProbeBackend={} particleForceSource={} particleSamplingAuthority={} particleFieldSource={} particleRows={} visualRows={} topologyVertexCount={} topologyTriangleCount={} sourceFrameIndex={} cpuOracle={} cpuOraclePreserved=true preflightSchema={} readbackPolicy={} readbackProbeCount={} oraclePayload={} oracleWordCount={} oracleInputWords={} gpuOutputWords={} cpuExpectedWords={} mismatchedWords={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true prototypeComputeKernel=true fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=u32-oracle-compute computeStage=field-particle-force-prototype resourceKind={} resourceId={} fieldResourceId={} resourcePlane={} computeProbeBackend={} particleForceSource={} particleSamplingAuthority={} particleFieldSource={} particleRows={} visualRows={} topologyVertexCount={} topologyTriangleCount={} sourceFrameIndex={} cpuOracle={} cpuOraclePreserved=true preflightSchema={} readbackPolicy={} readbackProbeCount={} oraclePayload={} oracleWordCount={} oracleInputWords={} gpuOutputWords={} cpuExpectedWords={} mismatchedWords={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true prototypeComputeKernel=true fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MARKER_PREFIX,
             self.schema_id,
             sanitize_marker_value(phase),
@@ -654,6 +668,13 @@ impl QuestMakepadGpuOracleComputeProbe {
             u32_words_marker_token(&self.readback.expected_words),
             self.readback.mismatched_words,
             self.readback.readback_matched(),
+            self.readback.queue_submit_serial,
+            self.readback.fence_serial,
+            self.readback.resource_generation,
+            self.readback.pending_retire_count,
+            self.readback.retained_resource_count,
+            self.readback.retired_after_fence_count,
+            self.readback.queue_wait_idle_performed,
             finite_f64_marker_token(self.readback.elapsed_ms),
             QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MEASUREMENT_SOURCE,
         )

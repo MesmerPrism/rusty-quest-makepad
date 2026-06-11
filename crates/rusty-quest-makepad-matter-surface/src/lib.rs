@@ -2579,6 +2579,13 @@ mod tests {
                 expected_words,
                 word_count: QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS,
                 mismatched_words: 0,
+                queue_submit_serial: 7,
+                fence_serial: 7,
+                resource_generation: 1,
+                pending_retire_count: 1,
+                retained_resource_count: 1,
+                retired_after_fence_count: 0,
+                queue_wait_idle_performed: true,
                 elapsed_ms: 0.25,
             },
         );
@@ -2586,6 +2593,7 @@ mod tests {
         let marker = probe.marker_line("unit-test");
         assert!(marker.contains("schema=rusty.quest.makepad.gpu_oracle_compute_probe.v1"));
         assert!(marker.contains("status=ready"));
+        assert!(marker.contains("proofKind=u32-oracle-compute"));
         assert!(marker.contains("computeStage=field-particle-force-prototype"));
         assert!(marker.contains("resourcePlane=vulkan-compute-storage-buffer-readback"));
         assert!(marker.contains("computeProbeBackend=makepad-vulkan-compute-u32-oracle-probe"));
@@ -2608,6 +2616,18 @@ mod tests {
         assert!(marker.contains("computeKernel=true"));
         assert!(marker.contains("gpuComputeReady=false"));
         assert!(marker.contains("highRateJsonPayload=false"));
+        assert!(marker.contains("queueSubmitSerial=7"));
+        assert!(marker.contains("fenceSerial=7"));
+        assert!(marker.contains("resourceGeneration=1"));
+        assert!(marker.contains("pendingRetireCount=1"));
+        assert!(marker.contains("retainedResourceCount=1"));
+        assert!(marker.contains("retiredAfterFenceCount=0"));
+        assert!(marker.contains("queueWaitIdlePerformed=true"));
+        assert!(marker.contains("retirementPolicy=retained-until-vulkan-drop"));
+        assert!(marker.contains("hwbAcquiredCount=0"));
+        assert!(marker.contains("hwbReleasedAfterFenceCount=0"));
+        assert!(marker.contains("kgslFaultsBeforeMarker=unavailable"));
+        assert!(marker.contains("kgslFaultsAfterMarker=unavailable"));
     }
 
     #[test]
