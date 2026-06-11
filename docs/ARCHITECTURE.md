@@ -47,6 +47,18 @@ constants as the app-facing boundary. Hostess and other active Makepad shells
 should consume that adapter surface instead of depending on the lower replay
 crate directly or reparsing replay settings locally.
 
+`rusty-quest-makepad-mesh-replay` now has two replay lanes. The existing
+`rusty.matter.tools.glb_mesh_surface_sequence.v1` lane stays as the
+positions-only visual smoke path: it emits `TriangleMeshSurface` frames after
+the bind mesh, skinning weights, compact joints, tip lengths, and tracking
+metadata have already been baked away. The recorded hand-capture lane parses
+the recorder's rig, compact clip, and validation-mesh JSONL artifacts instead:
+bind mesh/topology, bind-joint poses, skinning weights, compact 21-joint
+Makepad/OpenXR frames, tip lengths, and validation meshes. It expands compact
+frames into full Matter `HandJointFrame` values only at the adapter boundary so
+Matter can CPU-skin and compare against recorded validation frames without
+importing Makepad, OpenXR, Quest, or renderer types.
+
 The Matter-surface adapter consumes `rusty-matter-surface-runtime`,
 `rusty-matter-adf`, and Optics visual crates. It may create app-facing row
 buffers and debug payloads for Makepad consumption, but it must not duplicate

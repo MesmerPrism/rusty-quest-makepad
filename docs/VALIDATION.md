@@ -23,6 +23,22 @@ The replay test proves recorded frames can become native Matter
 path can step replay frames through Matter distance/collider/particle runtime
 and emit bounded Makepad-facing rows without browser Wasm.
 
+For real-input-equivalent recorded hand replay, the mesh-replay crate also has
+an ignored external-data oracle test. Point it at a local recorder output
+directory containing `left.rig.json`, `left.clip.jsonl`, and
+`left.validation_mesh.jsonl`:
+
+```powershell
+$env:RUSTY_QUEST_MAKEPAD_RECORDED_HAND_CAPTURE_DIR = "<capture-dir>"
+cargo test -p rusty-quest-makepad-mesh-replay external_recorded_hand_capture_matches_validation_frame_when_configured -- --ignored --nocapture
+```
+
+That test parses the recorded bind mesh and compact 21-joint Makepad/OpenXR
+frame, reconstructs the full bind-joint Matter frame including tip lengths,
+runs Matter CPU skinning, and compares the result against the recorded
+validation mesh. It is intentionally not part of the default suite because the
+full hand capture remains a local high-rate data-plane artifact.
+
 The Matter-surface adapter tests also cover
 `QuestMakepadMatterSurfaceWorker`, the nonblocking latest-wins wrapper used by
 Hostess. Worker evidence in headset logs should include

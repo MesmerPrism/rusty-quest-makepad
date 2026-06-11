@@ -1,8 +1,12 @@
 //! Mesh replay parser and runtime for Quest Makepad app adapters.
 
+mod recorded_hand;
+
 use rusty_matter_mesh::TriangleMeshSurface;
 use rusty_matter_model::Vec3;
 use serde_json::Value;
+
+pub use recorded_hand::*;
 
 /// Matter-owned source sequence schema consumed by the replay adapter.
 pub const SURFACE_SEQUENCE_SCHEMA_ID: &str = "rusty.matter.tools.glb_mesh_surface_sequence.v1";
