@@ -2,7 +2,9 @@ use rusty_matter_model::Vec3;
 use rusty_matter_surface_runtime::MatterSurfaceFrameInput;
 use rusty_quest_makepad_mesh_replay::MeshReplayRuntime;
 
-use crate::{bounds_max_half_extent, QuestMakepadMatterSurfaceError};
+use crate::{
+    bounds_max_half_extent, QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
+};
 
 /// One animated hand/surface source frame ready for the native Matter runtime.
 #[derive(Clone, Debug, PartialEq)]
@@ -17,6 +19,8 @@ pub struct QuestMakepadMatterSurfaceSourceFrame {
     pub bounds_max: [f32; 3],
     /// Source-space radius used for particle cloud sizing.
     pub bounds_radius: f32,
+    /// Optional bounded recorded-hand GPU skinning probe input.
+    pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
 }
 
 impl QuestMakepadMatterSurfaceSourceFrame {
@@ -34,6 +38,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_min,
             bounds_max,
             bounds_radius: bounds_max_half_extent(bounds_min, bounds_max),
+            gpu_skinning_probe: None,
         }
     }
 
@@ -60,7 +65,18 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_min: sequence.bounds_min(),
             bounds_max: sequence.bounds_max(),
             bounds_radius: sequence.bounds_radius(),
+            gpu_skinning_probe: None,
         })
+    }
+
+    /// Attaches bounded diagnostic GPU skinning probe input to this source frame.
+    #[must_use]
+    pub fn with_gpu_skinning_probe(
+        mut self,
+        probe: Option<QuestMakepadGpuSkinningProbeInput>,
+    ) -> Self {
+        self.gpu_skinning_probe = probe;
+        self
     }
 
     pub(crate) fn bounds_center(&self) -> Vec3 {

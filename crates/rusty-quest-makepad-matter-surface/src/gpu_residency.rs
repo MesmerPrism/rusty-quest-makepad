@@ -10,6 +10,7 @@ mod marker;
 mod oracle_probe;
 mod preflight;
 mod render;
+mod skinning_probe;
 mod storage_probe;
 
 pub use field_force_probe::{
@@ -20,6 +21,11 @@ pub use oracle_probe::{
 };
 pub use preflight::{QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind};
 pub use render::{QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof};
+pub use skinning_probe::{
+    QuestMakepadGpuSkinningProbe, QuestMakepadGpuSkinningProbeInput,
+    QuestMakepadGpuSkinningProbeReadback, QuestMakepadGpuSkinningProbeSample,
+    QUEST_MAKEPAD_GPU_SKINNING_PROBE_DEFAULT_TOLERANCE, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
+};
 pub use storage_probe::{QuestMakepadGpuStorageProbe, QuestMakepadGpuStorageProbeReadback};
 
 /// Quest Makepad GPU residency proof schema.
@@ -110,3 +116,17 @@ pub const QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_MEASUREMENT_SOURCE: &str =
 /// Marker payload type for the current bounded f32 force arithmetic probe.
 pub const QUEST_MAKEPAD_GPU_FIELD_FORCE_PROBE_PAYLOAD: &str =
     "bounded-matter-particle-force-probes";
+/// Quest Makepad GPU recorded-hand skinning arithmetic probe schema.
+pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_SCHEMA_ID: &str =
+    "rusty.quest.makepad.gpu_skinning_probe.v1";
+/// Quest Makepad GPU recorded-hand skinning arithmetic probe marker prefix.
+pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_MARKER_PREFIX: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE";
+/// Backend used by the current Makepad f32 weighted-delta skinning probe.
+pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_BACKEND: &str =
+    "makepad-vulkan-compute-f32-skinning-probe";
+/// Measurement companion for the f32 skinning arithmetic probe.
+pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_MEASUREMENT_SOURCE: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
+/// Marker payload type for the current bounded recorded-hand skinning probe.
+pub const QUEST_MAKEPAD_GPU_SKINNING_PROBE_PAYLOAD: &str = "bounded-recorded-hand-skinning-probes";

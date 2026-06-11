@@ -147,6 +147,18 @@ pattern, while still reporting `gpuComputeReady=false`,
 proof for the future field/particle kernel, not a GPU field-force
 implementation.
 
+The next bounded compute checkpoint is
+`QuestMakepadGpuSkinningProbe` / `rusty.quest.makepad.gpu_skinning_probe.v1`.
+Recorded hand-capture source frames may carry four weighted-delta skinning
+samples derived from the recorded bind mesh and Matter's CPU-skinned
+validation surface. Hostess can submit those samples to the generic Makepad
+XR/Vulkan f32 skinning probe and emit a marker with
+`weightedDeltaSkinningKernel=true`, `jointMatrixSkinningKernel=false`,
+`meshToSdfKernel=false`, `gpuComputeReady=false`, and
+`highRateJsonPayload=false`. This proves bounded skinning arithmetic/readback
+against the Matter oracle; it is not the final joint-matrix skinning or
+mesh-to-SDF kernel.
+
 ## Validation
 
 ```powershell

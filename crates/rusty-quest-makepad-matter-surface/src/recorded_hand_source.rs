@@ -5,7 +5,8 @@ use rusty_quest_makepad_mesh_replay::{
 };
 
 use crate::{
-    sanitize_marker_value, QuestMakepadMatterSurfaceError, QuestMakepadMatterSurfaceSourceFrame,
+    sanitize_marker_value, QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
+    QuestMakepadMatterSurfaceSourceFrame,
 };
 
 impl QuestMakepadMatterSurfaceSourceFrame {
@@ -44,6 +45,13 @@ impl QuestMakepadMatterSurfaceSourceFrame {
                 ),
             )
             .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning"))?;
+        let gpu_skinning_probe = QuestMakepadGpuSkinningProbeInput::from_positions(
+            &source_id,
+            compact_frame.frame_index,
+            validation_frame.surface.triangle_count(),
+            &rig.bind_surface.positions,
+            &validation_frame.surface.positions,
+        );
         let (bounds_min, bounds_max) = bounds_from_positions(&validation_frame.surface.positions)?;
         Ok(Self::new(
             source_id,
@@ -54,7 +62,8 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             ),
             bounds_min,
             bounds_max,
-        ))
+        )
+        .with_gpu_skinning_probe(gpu_skinning_probe))
     }
 }
 
@@ -112,6 +121,19 @@ mod tests {
             source_frame.frame.surface.positions[2],
             Vec3::new(1.0, 1.0, -0.25)
         );
+        let probe = source_frame
+            .gpu_skinning_probe
+            .as_ref()
+            .expect("recorded hand source carries GPU skinning probe");
+        assert_eq!(probe.source_id, "recorded-hand-synthetic");
+        assert_eq!(probe.source_frame_index, 7);
+        assert_eq!(probe.topology_vertex_count, 3);
+        assert_eq!(probe.topology_triangle_count, 1);
+        assert_eq!(probe.sample_count, 3);
+        assert_eq!(probe.samples[2].vertex_index, 2);
+        assert_eq!(probe.samples[2].bind_position, [1.0, 1.0, -0.5, 1.0]);
+        assert_eq!(probe.samples[2].expected_position, [1.0, 1.0, -0.25, 1.0]);
+        assert_eq!(probe.samples[2].delta0_weight, [0.0, 0.0, 0.25, 1.0]);
     }
 
     #[test]
@@ -143,6 +165,7 @@ mod tests {
         assert_eq!(frame.matter_update.vertex_count, 3);
         assert_eq!(frame.matter_update.triangle_count, 1);
         assert_eq!(frame.collision_upload.rows.len(), 1);
+        assert!(frame.gpu_skinning_probe.is_some());
 
         let marker = runtime.marker_line("unit-test", &frame);
         assert!(marker.contains("sourceId=recorded-hand-synthetic"));

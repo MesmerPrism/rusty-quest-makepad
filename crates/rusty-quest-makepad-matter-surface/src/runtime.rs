@@ -108,6 +108,7 @@ impl QuestMakepadMatterSurfaceRuntime {
         let particle_radius =
             (surface_radius * DEFAULT_PARTICLE_RADIUS_SCALE).max(DEFAULT_MIN_PARTICLE_RADIUS);
         let source_id = source_frame.source_id.clone();
+        let gpu_skinning_probe = source_frame.gpu_skinning_probe.clone();
 
         let started_at = std::time::Instant::now();
         let matter_update = self.matter.update_frame(source_frame.frame)?;
@@ -237,6 +238,7 @@ impl QuestMakepadMatterSurfaceRuntime {
             particle_step,
             particle_visual_frame,
             particle_upload,
+            gpu_skinning_probe,
             stage_timings,
         })
     }

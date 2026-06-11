@@ -86,12 +86,13 @@ marker contracts are also split under `gpu_residency/`: `render.rs` for
 render-plane residency, `preflight.rs` for CPU-oracle compute eligibility,
 `storage_probe.rs` for storage-buffer command/readback evidence,
 `oracle_probe.rs` for bounded u32 compute readback, `field_force_probe.rs` for
-bounded f32 force-arithmetic readback, and `marker.rs` for compact marker
-format helpers. Future hand-skinning, mesh-to-SDF, dense-SDF, or ADF GPU
-proofs should add sibling modules there instead of expanding `lib.rs` or the
-GPU facade. The related PowerShell scripts remain thin operator wrappers over
-bundle generation, Matter extraction, and Cargo smoke tests; they are not
-runtime authorities and did not need a structural split in this checkpoint.
+bounded f32 force-arithmetic readback, `skinning_probe.rs` for bounded
+recorded-hand skinning readback, and `marker.rs` for compact marker format
+helpers. Future mesh-to-SDF, dense-SDF, or ADF GPU proofs should add sibling
+modules there instead of expanding `lib.rs` or the GPU facade. The related
+PowerShell scripts remain thin operator wrappers over bundle generation,
+Matter extraction, and Cargo smoke tests; they are not runtime authorities and
+did not need a structural split in this checkpoint.
 
 ADF world debug rows follow the same adapter rule. The
 `QuestMakepadWorldAdfDebugBatch` boundary converts the existing
@@ -130,6 +131,18 @@ readback-policy fields. The marker may report `commandEncoderSubmitted=true`,
 bounded probe. It must continue to report `gpuComputeReady=false`,
 `computeKernel=false`, and `highRateJsonPayload=false` until a field/particle
 kernel compares bounded GPU results against Matter's CPU oracle.
+
+GPU skinning probing is the recorded-hand bridge to GPU mesh-to-SDF work.
+`QuestMakepadGpuSkinningProbeInput` is attached only to recorded hand-capture
+source frames that still carry the live-provider-equivalent bind mesh plus
+compact joint-frame shape. It stores four selected weighted-delta samples
+derived from the recorded bind mesh and the Matter CPU-skinned validation
+surface. `QuestMakepadGpuSkinningProbe` wraps a generic Makepad
+`XrGpuF32SkinningProbeResult`, preserves
+`cpuOracle=matter-recorded-hand-skinning`, and must keep
+`jointMatrixSkinningKernel=false`, `meshToSdfKernel=false`,
+`gpuComputeReady=false`, and `highRateJsonPayload=false` until later slices add
+full joint-matrix skinning and mesh-to-dense-SDF kernels.
 
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`

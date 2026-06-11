@@ -120,6 +120,17 @@ may also emit one `RUSTY_QUEST_MAKEPAD_GPU_STORAGE_PROBE` marker with
 still carry `cpuOraclePreserved=true`, `gpuComputeReady=false`,
 `computeKernel=false`, and `highRateJsonPayload=false`; treat a mismatch as a
 resource-path failure, not as a Matter field/particle result.
+For the recorded-hand skinning checkpoint, runs that submit recorded
+hand-capture source frames may also emit one
+`RUSTY_QUEST_MAKEPAD_GPU_SKINNING_PROBE` marker with
+`schema=rusty.quest.makepad.gpu_skinning_probe.v1`,
+`proofKind=f32-weighted-delta-skinning`,
+`cpuOracle=matter-recorded-hand-skinning`, `recordedInputEquivalent=true`,
+`weightedDeltaSkinningKernel=true`, `jointMatrixSkinningKernel=false`,
+`meshToSdfKernel=false`, `readbackMatched=true`, `gpuComputeReady=false`, and
+`highRateJsonPayload=false`. Treat this as bounded arithmetic/readback proof
+only; it does not validate final hand joint-matrix skinning or GPU
+mesh-to-SDF construction.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

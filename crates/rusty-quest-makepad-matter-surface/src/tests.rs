@@ -1316,6 +1316,75 @@ fn gpu_field_force_probe_marker_preserves_cpu_oracle_boundary() {
 }
 
 #[test]
+fn gpu_skinning_probe_marker_preserves_recorded_hand_cpu_oracle_boundary() {
+    let input = QuestMakepadGpuSkinningProbeInput::from_positions(
+        "recorded-hand-synthetic",
+        7,
+        1,
+        &[
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, -0.5),
+            Vec3::new(1.0, 1.0, -0.5),
+        ],
+        &[
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(1.0, 1.0, -0.25),
+        ],
+    )
+    .expect("bounded skinning probe input builds");
+    let probe = QuestMakepadGpuSkinningProbe::from_input(
+        &input,
+        QuestMakepadGpuSkinningProbeReadback {
+            sample_count: 3,
+            component_count: 9,
+            mismatched_components: 0,
+            max_abs_error: 0.000_001,
+            tolerance: QUEST_MAKEPAD_GPU_SKINNING_PROBE_DEFAULT_TOLERANCE,
+            queue_submit_serial: 10,
+            fence_serial: 10,
+            resource_generation: 1,
+            pending_retire_count: 1,
+            retained_resource_count: 1,
+            retired_after_fence_count: 0,
+            queue_wait_idle_performed: true,
+            elapsed_ms: 0.6,
+        },
+    );
+
+    let marker = probe.marker_line("unit-test");
+    assert!(marker.contains("schema=rusty.quest.makepad.gpu_skinning_probe.v1"));
+    assert!(marker.contains("status=ready"));
+    assert!(marker.contains("proofKind=f32-weighted-delta-skinning"));
+    assert!(marker.contains("computeStage=hand-skinning-prototype"));
+    assert!(marker.contains("sourceId=recorded-hand-synthetic"));
+    assert!(marker.contains("sourceFrameIndex=7"));
+    assert!(marker.contains("topologyVertexCount=3"));
+    assert!(marker.contains("topologyTriangleCount=1"));
+    assert!(marker.contains("cpuOracle=matter-recorded-hand-skinning"));
+    assert!(marker.contains("cpuOraclePreserved=true"));
+    assert!(marker.contains("recordedInputEquivalent=true"));
+    assert!(marker.contains("validationInputShape=bind-mesh-plus-compact-joint-frame"));
+    assert!(marker.contains("resourcePlane=vulkan-compute-storage-buffer-readback"));
+    assert!(marker.contains("computeProbeBackend=makepad-vulkan-compute-f32-skinning-probe"));
+    assert!(marker.contains("oraclePayload=bounded-recorded-hand-skinning-probes"));
+    assert!(marker.contains("sampleCount=3"));
+    assert!(marker.contains("firstSampleVertexIndex=0"));
+    assert!(marker.contains("lastSampleVertexIndex=2"));
+    assert!(marker.contains("componentCount=9"));
+    assert!(marker.contains("mismatchedComponents=0"));
+    assert!(marker.contains("maxAbsError=0.000001"));
+    assert!(marker.contains("tolerance=0.000100"));
+    assert!(marker.contains("readbackMatched=true"));
+    assert!(marker.contains("weightedDeltaSkinningKernel=true"));
+    assert!(marker.contains("jointMatrixSkinningKernel=false"));
+    assert!(marker.contains("meshToSdfKernel=false"));
+    assert!(marker.contains("computeKernel=true"));
+    assert!(marker.contains("gpuComputeReady=false"));
+    assert!(marker.contains("highRateJsonPayload=false"));
+}
+
+#[test]
 fn gpu_compute_preflight_identifies_adf_field_cpu_oracle() {
     let replay = enabled_replay();
     let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
