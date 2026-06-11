@@ -44,6 +44,7 @@ pub use adf_world::{
 };
 pub use gpu_residency::{
     QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind,
+    QuestMakepadGpuOracleComputeProbe, QuestMakepadGpuOracleComputeProbeReadback,
     QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof,
     QuestMakepadGpuStorageProbe, QuestMakepadGpuStorageProbeReadback,
     QUEST_MAKEPAD_ADF_DEBUG_GPU_RESIDENCY_ROW_STRIDE_BYTES,
@@ -53,7 +54,12 @@ pub use gpu_residency::{
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MEASUREMENT_SOURCE,
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_READBACK_POLICY,
     QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_RESOURCE_PLANE,
-    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID,
+    QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID, QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_BACKEND,
+    QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_PAYLOAD,
+    QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_RESOURCE_PLANE,
+    QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_SCHEMA_ID, QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS,
     QUEST_MAKEPAD_GPU_RESIDENCY_BACKEND_MAKEPAD_INSTANCED_DRAW,
     QUEST_MAKEPAD_GPU_RESIDENCY_MARKER_PREFIX, QUEST_MAKEPAD_GPU_RESIDENCY_MEASUREMENT_SOURCE,
     QUEST_MAKEPAD_GPU_RESIDENCY_PROOF_SCHEMA_ID, QUEST_MAKEPAD_GPU_RESIDENCY_RESOURCE_PLANE,
@@ -2531,6 +2537,76 @@ mod tests {
         assert!(marker.contains("gpuCommandExecuted=true"));
         assert!(marker.contains("gpuComputeReady=false"));
         assert!(marker.contains("computeKernel=false"));
+        assert!(marker.contains("highRateJsonPayload=false"));
+    }
+
+    #[test]
+    fn gpu_oracle_compute_probe_marker_preserves_cpu_oracle_boundary() {
+        let replay = enabled_replay();
+        let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
+            enabled: true,
+            particles_enabled: true,
+            particle_count: 16,
+            particle_force_source: MatterSurfaceParticleForceSource::SdfField,
+            particle_force_update_interval_frames: NonZeroUsize::new(2).unwrap(),
+            particle_distance_refresh_policy: MatterSurfaceParticleDistanceRefreshPolicy::Disabled,
+            sdf_voxel_size: 0.12,
+            sdf_max_voxels: 4_096,
+            ..QuestMakepadMatterSurfaceConfig::default()
+        })
+        .expect("runtime builds");
+
+        let frame = runtime
+            .step_from_replay(&replay, 1.0 / 30.0, &[])
+            .expect("SDF field frame builds");
+        let preflight = QuestMakepadGpuComputePreflight::from_frame(
+            &frame,
+            QUEST_MAKEPAD_GPU_COMPUTE_DEFAULT_READBACK_PROBE_COUNT,
+        )
+        .expect("SDF field frame is compute preflight eligible");
+        let input_words = preflight.oracle_compute_probe_words();
+        assert_eq!(input_words[0], 0x5DF0_0001);
+        assert_eq!(input_words[1], 16);
+        assert_eq!(input_words[2], preflight.topology_vertex_count as u32);
+        assert_eq!(input_words[3], preflight.topology_triangle_count as u32);
+
+        let expected_words = [0x10, 0x20, 0x30, 0x40];
+        let probe = QuestMakepadGpuOracleComputeProbe::from_preflight(
+            &preflight,
+            QuestMakepadGpuOracleComputeProbeReadback {
+                input_words,
+                output_words: expected_words,
+                expected_words,
+                word_count: QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS,
+                mismatched_words: 0,
+                elapsed_ms: 0.25,
+            },
+        );
+
+        let marker = probe.marker_line("unit-test");
+        assert!(marker.contains("schema=rusty.quest.makepad.gpu_oracle_compute_probe.v1"));
+        assert!(marker.contains("status=ready"));
+        assert!(marker.contains("computeStage=field-particle-force-prototype"));
+        assert!(marker.contains("resourcePlane=vulkan-compute-storage-buffer-readback"));
+        assert!(marker.contains("computeProbeBackend=makepad-vulkan-compute-u32-oracle-probe"));
+        assert!(marker.contains("resourceKind=sdf-particle-forces"));
+        assert!(marker.contains("particleForceSource=sdf-field"));
+        assert!(marker.contains("cpuOraclePreserved=true"));
+        assert!(marker.contains("preflightSchema=rusty.quest.makepad.gpu_compute_preflight.v1"));
+        assert!(marker.contains("readbackPolicy=bounded-cpu-oracle-probes"));
+        assert!(marker.contains("oraclePayload=bounded-matter-frame-u32-probes"));
+        assert!(marker.contains("oracleInputWords=0x5DF00001,0x00000010"));
+        assert!(marker.contains("gpuOutputWords=0x00000010,0x00000020,0x00000030,0x00000040"));
+        assert!(marker.contains("cpuExpectedWords=0x00000010,0x00000020,0x00000030,0x00000040"));
+        assert!(marker.contains("mismatchedWords=0"));
+        assert!(marker.contains("readbackMatched=true"));
+        assert!(marker.contains("commandEncoderSubmitted=true"));
+        assert!(marker.contains("storageBufferResident=true"));
+        assert!(marker.contains("computeDispatchSubmitted=true"));
+        assert!(marker.contains("prototypeComputeKernel=true"));
+        assert!(marker.contains("fieldParticleKernel=false"));
+        assert!(marker.contains("computeKernel=true"));
+        assert!(marker.contains("gpuComputeReady=false"));
         assert!(marker.contains("highRateJsonPayload=false"));
     }
 

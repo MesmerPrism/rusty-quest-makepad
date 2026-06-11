@@ -68,6 +68,25 @@ pub const QUEST_MAKEPAD_GPU_STORAGE_PROBE_MEASUREMENT_SOURCE: &str =
 pub const QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_BYTES: usize = 64;
 /// Deterministic pattern for the current command/readback probe.
 pub const QUEST_MAKEPAD_GPU_STORAGE_PROBE_DEFAULT_PATTERN: u32 = 0x5DF0_ADF1;
+/// Quest Makepad GPU oracle compute probe schema.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_SCHEMA_ID: &str =
+    "rusty.quest.makepad.gpu_oracle_compute_probe.v1";
+/// Quest Makepad GPU oracle compute probe marker prefix.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MARKER_PREFIX: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE";
+/// Resource plane proven by the prototype compute probe.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_RESOURCE_PLANE: &str =
+    "vulkan-compute-storage-buffer-readback";
+/// Backend used by the current Makepad prototype compute probe.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_BACKEND: &str =
+    "makepad-vulkan-compute-u32-oracle-probe";
+/// Measurement companion for the prototype compute probe.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MEASUREMENT_SOURCE: &str =
+    "RUSTY_QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
+/// Current bounded oracle probe word count.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS: usize = 4;
+/// Marker payload type for the current bounded oracle probe.
+pub const QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_PAYLOAD: &str = "bounded-matter-frame-u32-probes";
 
 /// Payload family adopted by a GPU residency proof.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -267,6 +286,15 @@ impl QuestMakepadGpuComputeResourceKind {
             Self::AdfParticleForces => "quest.makepad.gpu_compute.adf_force_field",
         }
     }
+
+    /// Bounded u32 tag used by the prototype GPU oracle probe.
+    #[must_use]
+    pub const fn oracle_probe_tag(self) -> u32 {
+        match self {
+            Self::SdfParticleForces => 0x5DF0_0001,
+            Self::AdfParticleForces => 0xADF0_0001,
+        }
+    }
 }
 
 /// Compact preflight for the future field/particle GPU compute boundary.
@@ -370,6 +398,22 @@ impl QuestMakepadGpuComputePreflight {
             QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_BACKEND_STATUS,
             QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_MEASUREMENT_SOURCE,
         )
+    }
+
+    /// Builds bounded words for the prototype GPU oracle compute probe.
+    ///
+    /// These are compact frame/classification words only. They do not serialize
+    /// particle rows, SDF grids, ADF cells, mesh frames, or GPU buffers.
+    #[must_use]
+    pub fn oracle_compute_probe_words(
+        &self,
+    ) -> [u32; QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS] {
+        [
+            self.resource_kind.oracle_probe_tag(),
+            saturating_u32(self.particle_rows),
+            saturating_u32(self.topology_vertex_count),
+            saturating_u32(self.topology_triangle_count),
+        ]
     }
 }
 
@@ -496,12 +540,144 @@ impl QuestMakepadGpuStorageProbe {
     }
 }
 
+/// Generic Makepad GPU u32 compute readback result consumed by the adapter marker.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct QuestMakepadGpuOracleComputeProbeReadback {
+    /// Bounded input words derived from the Matter CPU oracle frame.
+    pub input_words: [u32; QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS],
+    /// GPU output words read back after the prototype compute dispatch.
+    pub output_words: [u32; QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS],
+    /// CPU-expected words for the same bounded probe transform.
+    pub expected_words: [u32; QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS],
+    /// Number of checked u32 words.
+    pub word_count: usize,
+    /// Number of output words that did not match the CPU-expected value.
+    pub mismatched_words: usize,
+    /// CPU-side elapsed time for shader compilation, command submission, wait, and readback.
+    pub elapsed_ms: f64,
+}
+
+impl QuestMakepadGpuOracleComputeProbeReadback {
+    /// True when the bounded GPU output matched the CPU-expected probe transform.
+    #[must_use]
+    pub fn readback_matched(self) -> bool {
+        self.word_count == QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS
+            && self.mismatched_words == 0
+            && self.output_words == self.expected_words
+    }
+}
+
+/// Prototype compute dispatch tied to a Matter field-force oracle.
+///
+/// This proves shader dispatch and bounded GPU-vs-CPU readback over compact
+/// oracle-derived words. It still does not move SDF/ADF/particle force
+/// semantics out of Matter.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuestMakepadGpuOracleComputeProbe {
+    /// Schema identifier.
+    pub schema_id: String,
+    /// Future GPU resource family.
+    pub resource_kind: QuestMakepadGpuComputeResourceKind,
+    /// Active Matter force source.
+    pub force_source: MatterSurfaceParticleForceSource,
+    /// Full Matter particle count in the oracle frame.
+    pub particle_rows: usize,
+    /// Renderer-facing particle rows in the oracle frame.
+    pub visual_rows: usize,
+    /// Source mesh vertex count.
+    pub topology_vertex_count: usize,
+    /// Source mesh triangle count.
+    pub topology_triangle_count: usize,
+    /// Source frame index.
+    pub source_frame_index: Option<usize>,
+    /// Bounded readback probe count reserved for future GPU-vs-CPU oracle checks.
+    pub readback_probe_count: usize,
+    /// Makepad prototype compute readback result.
+    pub readback: QuestMakepadGpuOracleComputeProbeReadback,
+}
+
+impl QuestMakepadGpuOracleComputeProbe {
+    /// Builds a prototype compute probe marker from the current compute preflight.
+    #[must_use]
+    pub fn from_preflight(
+        preflight: &QuestMakepadGpuComputePreflight,
+        readback: QuestMakepadGpuOracleComputeProbeReadback,
+    ) -> Self {
+        Self {
+            schema_id: QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_SCHEMA_ID.to_owned(),
+            resource_kind: preflight.resource_kind,
+            force_source: preflight.force_source,
+            particle_rows: preflight.particle_rows,
+            visual_rows: preflight.visual_rows,
+            topology_vertex_count: preflight.topology_vertex_count,
+            topology_triangle_count: preflight.topology_triangle_count,
+            source_frame_index: preflight.source_frame_index,
+            readback_probe_count: preflight.readback_probe_count,
+            readback,
+        }
+    }
+
+    /// Builds a compact marker without logging high-rate field or particle data.
+    #[must_use]
+    pub fn marker_line(&self, phase: &str) -> String {
+        format!(
+            "{} schema={} phase={} status={} computeStage=field-particle-force-prototype resourceKind={} resourceId={} fieldResourceId={} resourcePlane={} computeProbeBackend={} particleForceSource={} particleSamplingAuthority={} particleFieldSource={} particleRows={} visualRows={} topologyVertexCount={} topologyTriangleCount={} sourceFrameIndex={} cpuOracle={} cpuOraclePreserved=true preflightSchema={} readbackPolicy={} readbackProbeCount={} oraclePayload={} oracleWordCount={} oracleInputWords={} gpuOutputWords={} cpuExpectedWords={} mismatchedWords={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true prototypeComputeKernel=true fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false elapsedMs={} measuredBy={}",
+            QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MARKER_PREFIX,
+            self.schema_id,
+            sanitize_marker_value(phase),
+            if self.readback.readback_matched() {
+                "ready"
+            } else {
+                "mismatch"
+            },
+            self.resource_kind.marker_value(),
+            self.resource_kind.resource_id(),
+            self.resource_kind.field_resource_id(),
+            QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_RESOURCE_PLANE,
+            QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_BACKEND,
+            self.force_source.marker_value(),
+            self.force_source.sampling_authority_marker(),
+            self.force_source.field_source_marker(),
+            self.particle_rows,
+            self.visual_rows,
+            self.topology_vertex_count,
+            self.topology_triangle_count,
+            optional_usize_marker_token(self.source_frame_index),
+            self.force_source.sampling_authority_marker(),
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_SCHEMA_ID,
+            QUEST_MAKEPAD_GPU_COMPUTE_PREFLIGHT_READBACK_POLICY,
+            self.readback_probe_count,
+            QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_PAYLOAD,
+            self.readback.word_count,
+            u32_words_marker_token(&self.readback.input_words),
+            u32_words_marker_token(&self.readback.output_words),
+            u32_words_marker_token(&self.readback.expected_words),
+            self.readback.mismatched_words,
+            self.readback.readback_matched(),
+            finite_f64_marker_token(self.readback.elapsed_ms),
+            QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_MEASUREMENT_SOURCE,
+        )
+    }
+}
+
 fn optional_usize_marker_token(value: Option<usize>) -> String {
     value.map_or_else(|| "none".to_owned(), |value| value.to_string())
 }
 
+fn saturating_u32(value: usize) -> u32 {
+    value.min(u32::MAX as usize) as u32
+}
+
 fn hex_u32_marker_token(value: u32) -> String {
     format!("0x{value:08X}")
+}
+
+fn u32_words_marker_token(words: &[u32; QUEST_MAKEPAD_GPU_ORACLE_COMPUTE_PROBE_WORDS]) -> String {
+    words
+        .iter()
+        .map(|word| hex_u32_marker_token(*word))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn finite_f64_marker_token(value: f64) -> String {
