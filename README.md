@@ -192,9 +192,11 @@ thread. Full skinning-mesh and mesh-to-dense-SDF CPU oracle payloads are
 attached only when Hostess requests `gpu_oracle_probes()` for bounded evidence;
 ordinary recorded replay uses the Matter-only option.
 
-The bounded mesh-to-dense-SDF proof now reports whether the Makepad XR/Vulkan
-backend paid shader/pipeline setup on that submit or reused its
-renderer-lifetime program. `programGeneration`, `programReused`,
+The bounded mesh-to-dense-SDF proof now builds a larger capped dense grid
+(`max_voxels=2048`, target longest axis about ten cells before padding) and
+echoes eight Matter CPU-oracle samples in the compact marker. It reports
+whether the Makepad XR/Vulkan backend paid shader/pipeline setup on that submit
+or reused its renderer-lifetime program. `programGeneration`, `programReused`,
 `shaderCompiledThisSubmit`, and `pipelineCreatedThisSubmit` are adapter
 residency evidence fields only. It also reports `sourceMeshBufferGeneration`,
 `sourceMeshBuffersResident`, `sourceMeshBuffersReused`,

@@ -155,7 +155,8 @@ may also emit one `RUSTY_QUEST_MAKEPAD_GPU_MESH_SDF_PROBE` marker with
 `skinnedVertexBufferResident=true`, `denseSdfVoxelBufferResident=true`,
 `denseSdfConstructedOnGpu=true`, `fullSourceMeshConsumedByGpu=true`,
 `meshToSdfKernel=true`, `readbackMatched=true`, `gpuComputeReady=false`, and
-`highRateJsonPayload=false`. The marker must also carry
+`highRateJsonPayload=false`. The current bounded validation shape should report
+`sampleCount=8` and a dense grid capped at `2048` voxels. The marker must also carry
 `programGeneration`, `programReused`, `shaderCompiledThisSubmit`, and
 `pipelineCreatedThisSubmit` so Quest evidence can separate first-use
 shader/pipeline setup from reused renderer-lifetime compute program dispatch.

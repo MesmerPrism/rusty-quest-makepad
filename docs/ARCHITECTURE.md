@@ -168,7 +168,9 @@ and mesh-to-dense-SDF kernels.
 GPU mesh-to-dense-SDF probing consumes the full recorded/live-equivalent
 skinning mesh probe input, builds Matter's bounded CPU dense-SDF oracle, and
 then asks the generic Makepad XR/Vulkan backend to skin the full vertex buffer
-and write a dense SDF buffer. Makepad caches the shader modules, descriptor-set
+and write a dense SDF buffer. The current bounded oracle uses a larger capped
+proof grid (`max_voxels=2048`, target longest axis about ten cells before
+padding) and eight compact comparison samples. Makepad caches the shader modules, descriptor-set
 layout, pipeline layout, and compute pipelines for the renderer lifetime. It
 also keeps source vertex/triangle storage buffers resident and reuses them
 when no older mesh-SDF proof is still pending; dense-SDF output, descriptor

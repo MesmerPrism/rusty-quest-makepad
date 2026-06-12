@@ -1647,8 +1647,8 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     assert!(marker.contains("vertexCount=3"));
     assert!(marker.contains("triangleCount=1"));
     assert!(marker.contains("indexCount=3"));
-    assert!(marker.contains("sampleCount=4"));
-    assert!(marker.contains("checkedSampleCount=4"));
+    assert!(marker.contains("sampleCount=8"));
+    assert!(marker.contains("checkedSampleCount=8"));
     assert!(marker.contains("mismatchedSamples=0"));
     assert!(marker.contains("readbackMatched=true"));
     assert!(marker.contains("skinnedVertexBufferResident=true"));

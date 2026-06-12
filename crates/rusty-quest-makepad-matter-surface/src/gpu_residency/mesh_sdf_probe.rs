@@ -13,12 +13,12 @@ use super::{
 };
 
 /// Number of bounded dense-SDF samples echoed in the mesh-to-SDF proof marker.
-pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES: usize = 4;
+pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES: usize = 8;
 /// Conservative f32 tolerance for bounded dense-SDF readback comparison.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_DEFAULT_TOLERANCE: f32 = 0.001;
 /// Maximum voxel count for the current bounded dense-SDF construction probe.
-pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS: usize = 1_024;
-const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_TARGET_AXIS_CELLS: f32 = 6.0;
+pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS: usize = 2_048;
+const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_TARGET_AXIS_CELLS: f32 = 10.0;
 const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MIN_VOXEL_SIZE: f32 = 0.001;
 
 /// Bounded Matter-oracle dense SDF grid shape for GPU mesh-to-SDF validation.

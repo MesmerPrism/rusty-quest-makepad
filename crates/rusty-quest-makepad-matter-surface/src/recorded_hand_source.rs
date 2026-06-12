@@ -325,7 +325,10 @@ mod tests {
             mesh_sdf_probe.grid.voxel_count <= crate::QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS
         );
         assert!(mesh_sdf_probe.grid.voxel_size > 0.0);
-        assert_eq!(mesh_sdf_probe.sample_count, 4);
+        assert_eq!(
+            mesh_sdf_probe.sample_count,
+            crate::QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES
+        );
         assert!(mesh_sdf_probe.samples[..mesh_sdf_probe.sample_count]
             .iter()
             .all(|sample| sample.expected_distance.is_finite()));
