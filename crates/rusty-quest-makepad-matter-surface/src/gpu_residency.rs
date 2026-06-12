@@ -5,6 +5,7 @@
 //! adopted by a Makepad instanced draw path, while preserving Matter's CPU
 //! reference as the source of truth.
 
+mod field_construction;
 mod field_force_probe;
 mod marker;
 mod mesh_sdf_probe;
@@ -15,6 +16,16 @@ mod skinning_mesh_probe;
 mod skinning_probe;
 mod storage_probe;
 
+pub use field_construction::{
+    QuestMakepadGpuFieldConstructionReceipt,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_CPU_ORACLE,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_FIELD_KIND,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_RESOURCE_PLANE,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_SCHEMA_ID,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_SOURCE_KIND,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_VALIDATION_INPUT_SHAPE,
+};
 pub use field_force_probe::{
     QuestMakepadGpuFieldForceProbe, QuestMakepadGpuFieldForceProbeReadback,
 };
