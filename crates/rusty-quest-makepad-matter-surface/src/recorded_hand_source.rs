@@ -12,6 +12,51 @@ use crate::{
     QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
 };
 
+/// Optional CPU-oracle GPU probe payloads to attach while building a recorded hand source frame.
+///
+/// Matter remains the CPU truth for every option. The flags only decide
+/// whether the adapter spends the extra per-frame work to package bounded GPU
+/// validation payloads beside the Matter source surface.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct QuestMakepadRecordedHandSourceFrameOptions {
+    /// Include bounded matrix-sample input for the GPU skinning probe.
+    pub include_gpu_skinning_probe: bool,
+    /// Include full skinned vertex/index oracle input for mesh residency.
+    pub include_gpu_skinning_mesh_probe: bool,
+    /// Include bounded dense-SDF oracle samples derived from the skinned mesh.
+    pub include_gpu_mesh_sdf_probe: bool,
+}
+
+impl QuestMakepadRecordedHandSourceFrameOptions {
+    /// Builds the Matter source frame only, without optional GPU diagnostic payloads.
+    #[must_use]
+    pub const fn matter_only() -> Self {
+        Self {
+            include_gpu_skinning_probe: false,
+            include_gpu_skinning_mesh_probe: false,
+            include_gpu_mesh_sdf_probe: false,
+        }
+    }
+
+    /// Builds the Matter source frame plus all current bounded GPU oracle payloads.
+    #[must_use]
+    pub const fn gpu_oracle_probes() -> Self {
+        Self {
+            include_gpu_skinning_probe: true,
+            include_gpu_skinning_mesh_probe: true,
+            include_gpu_mesh_sdf_probe: true,
+        }
+    }
+
+    /// Returns true if any optional GPU oracle payload is requested.
+    #[must_use]
+    pub const fn includes_gpu_oracle_payload(self) -> bool {
+        self.include_gpu_skinning_probe
+            || self.include_gpu_skinning_mesh_probe
+            || self.include_gpu_mesh_sdf_probe
+    }
+}
+
 /// Cached adapter for replay/live-equivalent hand source frames.
 ///
 /// The recorded rig is converted to Matter's neutral CPU oracle rig once, then
@@ -57,6 +102,24 @@ impl QuestMakepadRecordedHandSourceFrameBuilder {
         &self,
         compact_frame: &RecordedCompactHandJointFrame,
     ) -> Result<QuestMakepadMatterSurfaceSourceFrame, QuestMakepadMatterSurfaceError> {
+        self.source_frame_with_options(
+            compact_frame,
+            QuestMakepadRecordedHandSourceFrameOptions::gpu_oracle_probes(),
+        )
+    }
+
+    /// Expands one compact joint frame into a Matter source frame with selected GPU proof payloads.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuestMakepadMatterSurfaceError`] when compact frame expansion,
+    /// Matter CPU skinning, optional oracle payload packaging, or source-frame
+    /// bounds extraction fails.
+    pub fn source_frame_with_options(
+        &self,
+        compact_frame: &RecordedCompactHandJointFrame,
+        options: QuestMakepadRecordedHandSourceFrameOptions,
+    ) -> Result<QuestMakepadMatterSurfaceSourceFrame, QuestMakepadMatterSurfaceError> {
         let joint_frame = compact_frame.expand_to_matter_joint_frame(
             &self.rig,
             format!(
@@ -74,29 +137,51 @@ impl QuestMakepadRecordedHandSourceFrameBuilder {
                 ),
             )
             .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning"))?;
-        let skinning_matrix_samples = self
-            .matter_rig
-            .skinning_matrix_samples(&joint_frame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES)
-            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_matrix_samples"))?;
-        let gpu_skinning_probe = QuestMakepadGpuSkinningProbeInput::from_matter_samples(
-            &self.source_id,
-            compact_frame.frame_index,
-            validation_frame.surface.vertex_count(),
-            validation_frame.surface.triangle_count(),
-            &skinning_matrix_samples,
-        );
-        let skinning_mesh_oracle = self
-            .matter_rig
-            .skinning_mesh_buffer_oracle(&joint_frame)
-            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_mesh_oracle"))?;
-        let gpu_skinning_mesh_probe = QuestMakepadGpuSkinningMeshProbeInput::from_matter_oracle(
-            &self.source_id,
-            compact_frame.frame_index,
-            &skinning_mesh_oracle,
-        );
-        let gpu_mesh_sdf_probe = gpu_skinning_mesh_probe
-            .as_ref()
-            .and_then(QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input);
+
+        let gpu_skinning_probe = if options.include_gpu_skinning_probe {
+            let skinning_matrix_samples = self
+                .matter_rig
+                .skinning_matrix_samples(&joint_frame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES)
+                .map_err(|_| {
+                    MeshReplayError::InvalidValue("recorded_hand_skinning_matrix_samples")
+                })?;
+            QuestMakepadGpuSkinningProbeInput::from_matter_samples(
+                &self.source_id,
+                compact_frame.frame_index,
+                validation_frame.surface.vertex_count(),
+                validation_frame.surface.triangle_count(),
+                &skinning_matrix_samples,
+            )
+        } else {
+            None
+        };
+        let gpu_skinning_mesh_input = if options.include_gpu_skinning_mesh_probe
+            || options.include_gpu_mesh_sdf_probe
+        {
+            let skinning_mesh_oracle = self
+                .matter_rig
+                .skinning_mesh_buffer_oracle(&joint_frame)
+                .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_mesh_oracle"))?;
+            QuestMakepadGpuSkinningMeshProbeInput::from_matter_oracle(
+                &self.source_id,
+                compact_frame.frame_index,
+                &skinning_mesh_oracle,
+            )
+        } else {
+            None
+        };
+        let gpu_mesh_sdf_probe = if options.include_gpu_mesh_sdf_probe {
+            gpu_skinning_mesh_input
+                .as_ref()
+                .and_then(QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input)
+        } else {
+            None
+        };
+        let gpu_skinning_mesh_probe = if options.include_gpu_skinning_mesh_probe {
+            gpu_skinning_mesh_input
+        } else {
+            None
+        };
         let (bounds_min, bounds_max) = bounds_from_positions(&validation_frame.surface.positions)?;
         Ok(QuestMakepadMatterSurfaceSourceFrame::new(
             self.source_id.clone(),
@@ -244,6 +329,39 @@ mod tests {
         assert!(mesh_sdf_probe.samples[..mesh_sdf_probe.sample_count]
             .iter()
             .all(|sample| sample.expected_distance.is_finite()));
+    }
+
+    #[test]
+    fn recorded_hand_source_frame_options_can_skip_gpu_oracle_payloads() {
+        let rig = RecordedHandRig::from_json_str(SYNTHETIC_RIG).expect("rig parses");
+        let compact =
+            RecordedCompactHandJointFrame::from_json_line(SYNTHETIC_FRAME).expect("frame parses");
+        let builder =
+            QuestMakepadRecordedHandSourceFrameBuilder::new("recorded-hand-synthetic", rig)
+                .expect("builder builds");
+
+        let source_frame = builder
+            .source_frame_with_options(
+                &compact,
+                QuestMakepadRecordedHandSourceFrameOptions::matter_only(),
+            )
+            .expect("recorded hand source frame builds");
+
+        assert_eq!(
+            source_frame.provider_shape,
+            QuestMakepadMatterSurfaceProviderShape::BindMeshPlusCompactJointFrame
+        );
+        assert_eq!(source_frame.frame.surface.vertex_count(), 3);
+        assert_eq!(source_frame.frame.surface.triangle_count(), 1);
+        assert!(source_frame.gpu_skinning_probe.is_none());
+        assert!(source_frame.gpu_skinning_mesh_probe.is_none());
+        assert!(source_frame.gpu_mesh_sdf_probe.is_none());
+        assert!(!QuestMakepadRecordedHandSourceFrameOptions::matter_only()
+            .includes_gpu_oracle_payload());
+        assert!(
+            QuestMakepadRecordedHandSourceFrameOptions::gpu_oracle_probes()
+                .includes_gpu_oracle_payload()
+        );
     }
 
     #[test]

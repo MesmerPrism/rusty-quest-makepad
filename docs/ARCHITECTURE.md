@@ -76,13 +76,15 @@ The matter-surface crate root is now a facade only. Keep new adapter behavior
 in ownership modules instead of growing `src/lib.rs`: `source.rs` owns the
 generic Matter source-frame shape and its low-rate provider-shape evidence,
 `recorded_hand_source.rs` owns recorded live-equivalent hand source-frame
-conversion, `config.rs` maps app adapter
+conversion and the optional bounded GPU-oracle payload policy, `config.rs` maps app adapter
 config into Matter runtime config, `frame.rs` owns frame DTOs and world-batch
 helpers, `runtime.rs` owns Matter stepping and runtime evidence markers,
 `uploads.rs` owns bounded Makepad-facing row schemas and world-particle
 packing, `geometry.rs` and `markers.rs` own small shared helpers, `adf.rs` and
 `adf_world.rs` own ADF debug adaptation, `worker.rs` owns latest-wins
-execution, and `tests.rs` owns the broad crate-level validation suite. GPU
+execution, including recorded-hand compact-frame requests that expand into
+Matter source frames on the worker thread, and `tests.rs` owns the broad
+crate-level validation suite. GPU
 marker contracts are also split under `gpu_residency/`: `render.rs` for
 render-plane residency, `preflight.rs` for CPU-oracle compute eligibility,
 `storage_probe.rs` for storage-buffer command/readback evidence,
@@ -141,6 +143,11 @@ source frames that still carry the live-provider-equivalent bind mesh plus
 compact joint-frame shape. It stores four selected joint-matrix samples
 derived by Matter from the recorded bind mesh, bind poses, skinning weights,
 expanded compact joint frame, and Matter CPU-skinned validation surface.
+Steady recorded replay should build Matter source frames with
+`QuestMakepadRecordedHandSourceFrameOptions::matter_only()`; Hostess should
+request `gpu_oracle_probes()` only on the bounded proof cadence so full
+skinning-mesh and dense-SDF CPU oracle packaging does not become a render-loop
+or steady worker cost.
 `QuestMakepadGpuSkinningProbe` wraps a generic Makepad
 `XrGpuF32SkinningProbeResult`, preserves
 `cpuOracle=matter-recorded-hand-skinning`, and must keep

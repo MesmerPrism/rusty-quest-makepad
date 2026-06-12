@@ -11,12 +11,13 @@ use std::{
     time::Instant,
 };
 
-use rusty_quest_makepad_mesh_replay::MeshReplayRuntime;
+use rusty_quest_makepad_mesh_replay::{MeshReplayRuntime, RecordedCompactHandJointFrame};
 
 use crate::{
     MatterSurfaceContactProbe, QuestMakepadMatterSurfaceConfig, QuestMakepadMatterSurfaceError,
     QuestMakepadMatterSurfaceFrame, QuestMakepadMatterSurfaceRuntime,
-    QuestMakepadMatterSurfaceSourceFrame,
+    QuestMakepadMatterSurfaceSourceFrame, QuestMakepadRecordedHandSourceFrameBuilder,
+    QuestMakepadRecordedHandSourceFrameOptions,
 };
 
 /// Quest Makepad Matter surface worker marker schema.
@@ -212,6 +213,49 @@ impl QuestMakepadMatterSurfaceWorker {
         delta_seconds: f32,
         probes: &[MatterSurfaceContactProbe],
     ) -> u64 {
+        self.submit_request(
+            phase,
+            delta_seconds,
+            WorkerRequestInput::SourceFrame {
+                source_frame,
+                probes: probes.to_vec(),
+            },
+        )
+    }
+
+    /// Submits a recorded/live-equivalent compact hand frame without building the Matter source
+    /// frame on the app/render thread.
+    ///
+    /// The worker thread expands the compact frame through the cached recorded-hand builder,
+    /// builds Matter's CPU source surface, optionally attaches bounded GPU oracle payloads, and
+    /// then steps the native Matter adapter runtime.
+    pub fn submit_recorded_hand_frame(
+        &self,
+        phase: impl Into<String>,
+        builder: Arc<QuestMakepadRecordedHandSourceFrameBuilder>,
+        compact_frame: RecordedCompactHandJointFrame,
+        delta_seconds: f32,
+        gpu_probe_options: QuestMakepadRecordedHandSourceFrameOptions,
+        contact_probe_label: impl Into<String>,
+    ) -> u64 {
+        self.submit_request(
+            phase,
+            delta_seconds,
+            WorkerRequestInput::RecordedHandFrame {
+                builder,
+                compact_frame,
+                gpu_probe_options,
+                contact_probe_label: contact_probe_label.into(),
+            },
+        )
+    }
+
+    fn submit_request(
+        &self,
+        phase: impl Into<String>,
+        delta_seconds: f32,
+        input: WorkerRequestInput,
+    ) -> u64 {
         let (lock, wake) = &*self.shared;
         let mut state = lock.lock().expect("Matter worker state lock poisoned");
         if state.pending.is_some() {
@@ -224,9 +268,8 @@ impl QuestMakepadMatterSurfaceWorker {
         let request = WorkerRequest {
             sequence,
             phase: phase.into(),
-            source_frame,
             delta_seconds,
-            probes: probes.to_vec(),
+            input,
             submitted_at: Instant::now(),
         };
         state.pending = Some(request);
@@ -279,10 +322,23 @@ impl Drop for QuestMakepadMatterSurfaceWorker {
 struct WorkerRequest {
     sequence: u64,
     phase: String,
-    source_frame: QuestMakepadMatterSurfaceSourceFrame,
     delta_seconds: f32,
-    probes: Vec<MatterSurfaceContactProbe>,
+    input: WorkerRequestInput,
     submitted_at: Instant,
+}
+
+#[derive(Debug)]
+enum WorkerRequestInput {
+    SourceFrame {
+        source_frame: QuestMakepadMatterSurfaceSourceFrame,
+        probes: Vec<MatterSurfaceContactProbe>,
+    },
+    RecordedHandFrame {
+        builder: Arc<QuestMakepadRecordedHandSourceFrameBuilder>,
+        compact_frame: RecordedCompactHandJointFrame,
+        gpu_probe_options: QuestMakepadRecordedHandSourceFrameOptions,
+        contact_probe_label: String,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -318,26 +374,32 @@ fn worker_loop(
             request
         };
 
-        let result = runtime.step_from_source_frame(
-            request.source_frame,
-            request.delta_seconds,
-            &request.probes,
-        );
-        let latency_ms = request.submitted_at.elapsed().as_secs_f32() * 1000.0;
+        let WorkerRequest {
+            sequence,
+            phase,
+            delta_seconds,
+            input,
+            submitted_at,
+        } = request;
+
+        let result = resolve_worker_request_input(input).and_then(|(source_frame, probes)| {
+            runtime.step_from_source_frame(source_frame, delta_seconds, &probes)
+        });
+        let latency_ms = submitted_at.elapsed().as_secs_f32() * 1000.0;
 
         let (lock, _) = &*shared;
         let mut state = lock.lock().expect("Matter worker state lock poisoned");
         state.stats.in_flight = false;
-        state.stats.latest_finished_sequence = request.sequence;
+        state.stats.latest_finished_sequence = sequence;
 
         match result {
             Ok(frame) => {
                 state.stats.completed_count = state.stats.completed_count.saturating_add(1);
                 let stats = state.stats;
-                let runtime_marker_line = runtime.marker_line(&request.phase, &frame);
+                let runtime_marker_line = runtime.marker_line(&phase, &frame);
                 state.latest = Some(QuestMakepadMatterSurfaceWorkerOutput::Frame(
                     QuestMakepadMatterSurfaceWorkerFrame {
-                        sequence: request.sequence,
+                        sequence,
                         stats,
                         latency_ms,
                         frame,
@@ -350,7 +412,7 @@ fn worker_loop(
                 let stats = state.stats;
                 state.latest = Some(QuestMakepadMatterSurfaceWorkerOutput::Error(
                     QuestMakepadMatterSurfaceWorkerError {
-                        sequence: request.sequence,
+                        sequence,
                         stats,
                         latency_ms,
                         error,
@@ -359,6 +421,45 @@ fn worker_loop(
             }
         }
     }
+}
+
+fn resolve_worker_request_input(
+    input: WorkerRequestInput,
+) -> Result<
+    (
+        QuestMakepadMatterSurfaceSourceFrame,
+        Vec<MatterSurfaceContactProbe>,
+    ),
+    QuestMakepadMatterSurfaceError,
+> {
+    match input {
+        WorkerRequestInput::SourceFrame {
+            source_frame,
+            probes,
+        } => Ok((source_frame, probes)),
+        WorkerRequestInput::RecordedHandFrame {
+            builder,
+            compact_frame,
+            gpu_probe_options,
+            contact_probe_label,
+        } => {
+            let source_frame =
+                builder.source_frame_with_options(&compact_frame, gpu_probe_options)?;
+            let probe = source_frame_center_probe(&source_frame, &contact_probe_label);
+            Ok((source_frame, vec![probe]))
+        }
+    }
+}
+
+fn source_frame_center_probe(
+    source_frame: &QuestMakepadMatterSurfaceSourceFrame,
+    label: &str,
+) -> MatterSurfaceContactProbe {
+    MatterSurfaceContactProbe::sphere(
+        label,
+        source_frame.bounds_center(),
+        source_frame.surface_radius() * 0.5,
+    )
 }
 
 fn worker_marker_line(

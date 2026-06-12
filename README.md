@@ -184,6 +184,14 @@ marker with `weightedDeltaSkinningKernel=false`,
 against the Matter oracle; it is not the final full-mesh resident skinning or
 mesh-to-SDF kernel.
 
+For steady recorded replay, Hostess submits the cached recorded-hand builder
+plus the current `RecordedCompactHandJointFrame` to
+`QuestMakepadMatterSurfaceWorker::submit_recorded_hand_frame`. The worker
+expands that compact frame into Matter's CPU source frame off the app/render
+thread. Full skinning-mesh and mesh-to-dense-SDF CPU oracle payloads are
+attached only when Hostess requests `gpu_oracle_probes()` for bounded evidence;
+ordinary recorded replay uses the Matter-only option.
+
 The bounded mesh-to-dense-SDF proof now reports whether the Makepad XR/Vulkan
 backend paid shader/pipeline setup on that submit or reused its
 renderer-lifetime program. `programGeneration`, `programReused`,
