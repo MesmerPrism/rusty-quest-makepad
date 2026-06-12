@@ -31,6 +31,15 @@ The current replay slice is:
    build optional Matter ADF debug payloads, and package bounded
    Makepad-facing upload rows plus Optics visuals.
 
+Settings changes use the shared invalidation policy rather than passive JSON
+polling. Writers publish a small revision sidecar with global and scoped hashes
+beside the detailed effective-settings report. Consumers treat file-watch
+events and mtimes as wakeup hints, compare the global identity, then compare
+only owned scopes before parsing detail. Adapter evidence should say whether a
+revision was seen, applied, or rejected. This keeps settings as low-rate
+control intent while hand, mesh, field, particle, and GPU-buffer payloads stay
+on data/render/compute planes.
+
 `tools\Build-QuestMakepadRuntimeBundle.ps1` is the cohesive operator entry
 point for that path. It accepts a Quest Makepad profile bundle, delegates
 settings resolution to `rusty-makepad`, delegates platform property planning to

@@ -108,6 +108,16 @@ that worker and render the latest completed payload. Evidence should include
 renderThreadBlocking=false` plus the normal Matter runtime marker. Do not move
 the worker's high-rate frame payloads into settings/control JSON.
 
+Settings hotload uses the shared settings invalidation policy. Generated or
+staged bundles should include `makepad-effective-settings.revision.json`
+beside the detailed effective settings. Runtime consumers should treat file
+watch events, mtimes, and launch wakeups as hints, compare the global
+revision/hash, then compare only the scoped hashes they own before parsing
+detail. Evidence should distinguish seen, applied, and rejected revisions.
+High-rate recorded/live hand meshes, compact joint frames, SDF/ADF cells,
+particles, and GPU buffers stay in sibling data-plane artifacts or adapter
+buffers, never in settings/control JSON.
+
 For particle-density sweeps, keep the committed recorded-left-particles profile
 as the 64-particle visual smoke and patch only the generated effective settings
 or a local bundle copy. Safe density knobs are
