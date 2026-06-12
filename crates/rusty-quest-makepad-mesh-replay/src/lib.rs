@@ -1,5 +1,6 @@
 //! Mesh replay parser and runtime for Quest Makepad app adapters.
 
+mod live_equivalent;
 mod recorded_hand;
 
 use rusty_matter_mesh::TriangleMeshSurface;

@@ -58,6 +58,17 @@ recorded hand capture reports
 shape the future live Makepad/OpenXR hand provider must populate before the
 unchanged GPU skinning and mesh-to-SDF adapter probes run.
 
+The live-equivalent primitive constructor path is covered by the default
+mesh-replay tests:
+
+```powershell
+cargo test -p rusty-quest-makepad-mesh-replay live_equivalent
+```
+
+That test constructs the 26-bind-joint / 21-compact-joint Makepad/OpenXR shape
+from primitive arrays, expands it through Matter's CPU skinning oracle, and
+keeps Makepad runtime types out of Quest-Makepad core crates.
+
 The Matter-surface adapter tests also cover
 `QuestMakepadMatterSurfaceWorker`, the nonblocking latest-wins wrapper used by
 Hostess. Worker evidence in headset logs should include

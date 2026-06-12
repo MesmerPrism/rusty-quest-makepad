@@ -157,6 +157,14 @@ are already baked away. Recorded hand capture must report
 live Makepad/OpenXR hand provider should populate before entering the existing
 Matter/GPU adapter boundary.
 
+`rusty-quest-makepad-mesh-replay` also exposes Makepad-free primitive
+constructors for that future live provider shape. Platform shells convert
+native `XrHandMeshBindData` / `XrHand` values into primitive arrays, then the
+mesh-replay crate builds the same `RecordedHandRig` plus
+`RecordedCompactHandJointFrame` shape used by recorded replay. Keep Makepad,
+OpenXR handles, and headset runtime types outside this crate; this bridge is a
+data-shape equivalence contract only.
+
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`
 reports. Runtime adapters still own platform event loops and camera homography
