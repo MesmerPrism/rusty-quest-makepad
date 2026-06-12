@@ -147,6 +147,18 @@ hand-capture source frames may also emit one
 `highRateJsonPayload=false`. Treat this as bounded joint-matrix
 arithmetic/readback proof only; it does not validate full-mesh resident
 skinning or GPU mesh-to-SDF construction.
+For the mesh-to-dense-SDF checkpoint, recorded/live-equivalent source frames
+may also emit one `RUSTY_QUEST_MAKEPAD_GPU_MESH_SDF_PROBE` marker with
+`schema=rusty.quest.makepad.gpu_mesh_sdf_probe.v1`,
+`proofKind=bounded-recorded-hand-mesh-to-dense-sdf`,
+`cpuOracle=matter-mesh-to-sdf`, `recordedInputEquivalent=true`,
+`skinnedVertexBufferResident=true`, `denseSdfVoxelBufferResident=true`,
+`denseSdfConstructedOnGpu=true`, `fullSourceMeshConsumedByGpu=true`,
+`meshToSdfKernel=true`, `readbackMatched=true`, `gpuComputeReady=false`, and
+`highRateJsonPayload=false`. The marker must also carry
+`programGeneration`, `programReused`, `shaderCompiledThisSubmit`, and
+`pipelineCreatedThisSubmit` so Quest evidence can separate first-use
+shader/pipeline setup from reused renderer-lifetime compute program dispatch.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

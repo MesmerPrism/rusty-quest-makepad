@@ -173,6 +173,13 @@ marker with `weightedDeltaSkinningKernel=false`,
 against the Matter oracle; it is not the final full-mesh resident skinning or
 mesh-to-SDF kernel.
 
+The bounded mesh-to-dense-SDF proof now reports whether the Makepad XR/Vulkan
+backend paid shader/pipeline setup on that submit or reused its
+renderer-lifetime program. `programGeneration`, `programReused`,
+`shaderCompiledThisSubmit`, and `pipelineCreatedThisSubmit` are adapter
+residency evidence fields only; Matter remains the CPU oracle for dense-SDF
+samples and Hostess still only forwards compact readback markers.
+
 ## Validation
 
 ```powershell

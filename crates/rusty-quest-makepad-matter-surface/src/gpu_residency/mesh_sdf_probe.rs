@@ -209,6 +209,14 @@ pub struct QuestMakepadGpuMeshSdfProbeReadback {
     pub fence_serial: u64,
     /// Monotonic proof-resource generation for the current renderer lifetime.
     pub resource_generation: u64,
+    /// Renderer-lifetime GPU program generation used by this proof.
+    pub program_generation: u64,
+    /// True when the shader modules/layouts/pipelines were already resident before this submit.
+    pub program_reused: bool,
+    /// True when WGSL-to-SPIR-V and shader-module setup happened during this submit.
+    pub shader_compiled_this_submit: bool,
+    /// True when compute pipeline creation happened during this submit.
+    pub pipeline_created_this_submit: bool,
     /// Proof resources still pending retirement.
     pub pending_retire_count: usize,
     /// Proof resources retained by the current Makepad backend.
@@ -267,7 +275,7 @@ impl QuestMakepadGpuMeshSdfProbe {
     #[must_use]
     pub fn marker_line(&self, phase: &str) -> String {
         format!(
-            "{} schema={} phase={} status={} proofKind=bounded-recorded-hand-mesh-to-dense-sdf computeStage=hand-skinning-to-dense-sdf sourceId={} sourceFrameIndex={} topologyVertexCount={} topologyTriangleCount={} topologyIndexCount={} cpuOracle=matter-mesh-to-sdf cpuOraclePreserved=true recordedInputEquivalent=true validationInputShape=bind-mesh-plus-compact-joint-frame resourcePlane={} computeProbeBackend={} oraclePayload={} gridOriginX={} gridOriginY={} gridOriginZ={} gridVoxelSize={} gridDimX={} gridDimY={} gridDimZ={} voxelCount={} vertexCount={} triangleCount={} indexCount={} sampleCount={} checkedSampleCount={} firstSampleLinearIndex={} lastSampleLinearIndex={} mismatchedSamples={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true skinnedVertexBufferResident=true denseSdfVoxelBufferResident=true denseSdfConstructedOnGpu=true indexBufferConsumedByGpu=true fullSourceMeshConsumedByGpu=true computeDispatchSubmitted=true boundedSampleOnly=false prototypeComputeKernel=false weightedDeltaSkinningKernel=false jointMatrixSkinningKernel=true meshToSdfKernel=true fieldSamplingKernel=false fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=bounded-recorded-hand-mesh-to-dense-sdf computeStage=hand-skinning-to-dense-sdf sourceId={} sourceFrameIndex={} topologyVertexCount={} topologyTriangleCount={} topologyIndexCount={} cpuOracle=matter-mesh-to-sdf cpuOraclePreserved=true recordedInputEquivalent=true validationInputShape=bind-mesh-plus-compact-joint-frame resourcePlane={} computeProbeBackend={} oraclePayload={} gridOriginX={} gridOriginY={} gridOriginZ={} gridVoxelSize={} gridDimX={} gridDimY={} gridDimZ={} voxelCount={} vertexCount={} triangleCount={} indexCount={} sampleCount={} checkedSampleCount={} firstSampleLinearIndex={} lastSampleLinearIndex={} mismatchedSamples={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true skinnedVertexBufferResident=true denseSdfVoxelBufferResident=true denseSdfConstructedOnGpu=true indexBufferConsumedByGpu=true fullSourceMeshConsumedByGpu=true computeDispatchSubmitted=true boundedSampleOnly=false prototypeComputeKernel=false weightedDeltaSkinningKernel=false jointMatrixSkinningKernel=true meshToSdfKernel=true fieldSamplingKernel=false fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} programGeneration={} programReused={} shaderCompiledThisSubmit={} pipelineCreatedThisSubmit={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MARKER_PREFIX,
             self.schema_id,
             sanitize_marker_value(phase),
@@ -306,6 +314,10 @@ impl QuestMakepadGpuMeshSdfProbe {
             self.readback.queue_submit_serial,
             self.readback.fence_serial,
             self.readback.resource_generation,
+            self.readback.program_generation,
+            self.readback.program_reused,
+            self.readback.shader_compiled_this_submit,
+            self.readback.pipeline_created_this_submit,
             self.readback.pending_retire_count,
             self.readback.retained_resource_count,
             self.readback.retired_after_fence_count,

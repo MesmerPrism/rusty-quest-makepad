@@ -149,6 +149,18 @@ expanded compact joint frame, and Matter CPU-skinned validation surface.
 `highRateJsonPayload=false` until later slices add full-mesh resident skinning
 and mesh-to-dense-SDF kernels.
 
+GPU mesh-to-dense-SDF probing consumes the full recorded/live-equivalent
+skinning mesh probe input, builds Matter's bounded CPU dense-SDF oracle, and
+then asks the generic Makepad XR/Vulkan backend to skin the full vertex buffer
+and write a dense SDF buffer. Makepad caches the shader modules, descriptor-set
+layout, pipeline layout, and compute pipelines for the renderer lifetime; each
+probe submission still owns its source buffers, dense-SDF buffer, descriptor
+pool, command buffer, fence, and compact readback. The marker carries
+`programGeneration`, `programReused`, `shaderCompiledThisSubmit`, and
+`pipelineCreatedThisSubmit` so evidence can separate setup cost from reused
+compute dispatch. Those fields do not make Makepad an SDF authority: Matter
+still owns the CPU oracle, grid semantics, and sample comparison.
+
 The runtime marker also reports `sourceProviderShape`. Positions-only GLB
 surface replay must remain `positions-only-surface` smoke evidence because its
 bind mesh, skinning weights, compact joints, tip lengths, and tracking metadata

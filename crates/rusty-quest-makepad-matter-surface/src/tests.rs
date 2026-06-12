@@ -1613,6 +1613,10 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
             queue_submit_serial: 12,
             fence_serial: 12,
             resource_generation: 1,
+            program_generation: 1,
+            program_reused: true,
+            shader_compiled_this_submit: false,
+            pipeline_created_this_submit: false,
             pending_retire_count: 1,
             retained_resource_count: 1,
             retired_after_fence_count: 0,
@@ -1653,6 +1657,10 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     assert!(marker.contains("fieldParticleKernel=false"));
     assert!(marker.contains("gpuComputeReady=false"));
     assert!(marker.contains("highRateJsonPayload=false"));
+    assert!(marker.contains("programGeneration=1"));
+    assert!(marker.contains("programReused=true"));
+    assert!(marker.contains("shaderCompiledThisSubmit=false"));
+    assert!(marker.contains("pipelineCreatedThisSubmit=false"));
 }
 
 #[test]
