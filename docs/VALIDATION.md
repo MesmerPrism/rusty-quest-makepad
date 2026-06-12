@@ -159,6 +159,10 @@ may also emit one `RUSTY_QUEST_MAKEPAD_GPU_MESH_SDF_PROBE` marker with
 `programGeneration`, `programReused`, `shaderCompiledThisSubmit`, and
 `pipelineCreatedThisSubmit` so Quest evidence can separate first-use
 shader/pipeline setup from reused renderer-lifetime compute program dispatch.
+It should also carry `sourceMeshBufferGeneration`,
+`sourceMeshBuffersResident`, `sourceMeshBuffersReused`,
+`sourceVertexBufferBytes`, and `sourceTriangleBufferBytes` so evidence can
+separate resident source-mesh storage from per-proof dense-SDF resources.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

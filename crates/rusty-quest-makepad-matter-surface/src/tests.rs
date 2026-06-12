@@ -1617,6 +1617,11 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
             program_reused: true,
             shader_compiled_this_submit: false,
             pipeline_created_this_submit: false,
+            source_mesh_buffer_generation: 2,
+            source_mesh_buffers_resident: true,
+            source_mesh_buffers_reused: true,
+            source_vertex_buffer_bytes: 672,
+            source_triangle_buffer_bytes: 16,
             pending_retire_count: 1,
             retained_resource_count: 1,
             retired_after_fence_count: 0,
@@ -1661,6 +1666,11 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     assert!(marker.contains("programReused=true"));
     assert!(marker.contains("shaderCompiledThisSubmit=false"));
     assert!(marker.contains("pipelineCreatedThisSubmit=false"));
+    assert!(marker.contains("sourceMeshBufferGeneration=2"));
+    assert!(marker.contains("sourceMeshBuffersResident=true"));
+    assert!(marker.contains("sourceMeshBuffersReused=true"));
+    assert!(marker.contains("sourceVertexBufferBytes=672"));
+    assert!(marker.contains("sourceTriangleBufferBytes=16"));
 }
 
 #[test]
