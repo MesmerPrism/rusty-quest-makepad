@@ -679,6 +679,18 @@ fn adapter_steps_generic_source_frame_like_replay_frame() {
         QuestMakepadMatterSurfaceProviderShape::PositionsOnlySurface
     );
     assert_eq!(
+        from_source.source_bounds_min,
+        replay.sequence().bounds_min()
+    );
+    assert_eq!(
+        from_source.source_bounds_max,
+        replay.sequence().bounds_max()
+    );
+    assert_eq!(
+        from_source.source_bounds_radius,
+        replay.sequence().bounds_radius()
+    );
+    assert_eq!(
         from_source.matter_update.frame_index,
         from_replay.matter_update.frame_index
     );

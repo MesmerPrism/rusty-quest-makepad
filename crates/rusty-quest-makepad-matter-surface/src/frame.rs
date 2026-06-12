@@ -58,6 +58,12 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub source_id: String,
     /// Provider shape used before this frame entered Matter.
     pub source_provider_shape: QuestMakepadMatterSurfaceProviderShape,
+    /// Source-space bounds minimum for render placement and evidence consumers.
+    pub source_bounds_min: [f32; 3],
+    /// Source-space bounds maximum for render placement and evidence consumers.
+    pub source_bounds_max: [f32; 3],
+    /// Source-space radius used by Matter particle reset policy.
+    pub source_bounds_radius: f32,
     /// Runtime update for the current source surface.
     pub matter_update: MatterSurfaceRuntimeUpdate,
     /// Runtime stats after the frame step.

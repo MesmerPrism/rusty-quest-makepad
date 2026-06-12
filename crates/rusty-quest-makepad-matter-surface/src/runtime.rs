@@ -104,6 +104,9 @@ impl QuestMakepadMatterSurfaceRuntime {
         let mut stage_timings = QuestMakepadMatterSurfaceStageTimings::default();
         let center = source_frame.bounds_center();
         let surface_radius = source_frame.surface_radius();
+        let source_bounds_min = source_frame.bounds_min;
+        let source_bounds_max = source_frame.bounds_max;
+        let source_bounds_radius = source_frame.bounds_radius;
         let cloud_radius = surface_radius * DEFAULT_PARTICLE_CLOUD_RADIUS_SCALE;
         let particle_radius =
             (surface_radius * DEFAULT_PARTICLE_RADIUS_SCALE).max(DEFAULT_MIN_PARTICLE_RADIUS);
@@ -225,6 +228,9 @@ impl QuestMakepadMatterSurfaceRuntime {
         Ok(QuestMakepadMatterSurfaceFrame {
             source_id,
             source_provider_shape,
+            source_bounds_min,
+            source_bounds_max,
+            source_bounds_radius,
             matter_update,
             stats: self.matter.stats(),
             collision,
