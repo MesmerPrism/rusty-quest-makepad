@@ -201,9 +201,13 @@ or reused its renderer-lifetime program. `programGeneration`, `programReused`,
 residency evidence fields only. It also reports `sourceMeshBufferGeneration`,
 `sourceMeshBuffersResident`, `sourceMeshBuffersReused`,
 `sourceVertexBufferBytes`, and `sourceTriangleBufferBytes` so evidence can
-separate source mesh storage-buffer allocation from per-submit SDF resources.
-Matter remains the CPU oracle for dense-SDF samples and Hostess still only
-forwards compact readback markers.
+separate source mesh storage-buffer allocation from per-submit work. Newer
+markers also report `derivedBufferGeneration`, `derivedBuffersResident`,
+`derivedBuffersReused`, `skinnedPositionBufferBytes`, and
+`sdfDistanceBufferBytes` so evidence can distinguish one-shot derived
+skinned/SDF buffers from renderer-lifetime reusable derived buffers. Matter
+remains the CPU oracle for dense-SDF samples and Hostess still only forwards
+compact readback markers.
 
 ## Validation
 

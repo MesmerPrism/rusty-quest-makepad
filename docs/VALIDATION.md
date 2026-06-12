@@ -163,7 +163,11 @@ shader/pipeline setup from reused renderer-lifetime compute program dispatch.
 It should also carry `sourceMeshBufferGeneration`,
 `sourceMeshBuffersResident`, `sourceMeshBuffersReused`,
 `sourceVertexBufferBytes`, and `sourceTriangleBufferBytes` so evidence can
-separate resident source-mesh storage from per-proof dense-SDF resources.
+separate resident source-mesh storage from per-proof work. Newer markers should
+also carry `derivedBufferGeneration`, `derivedBuffersResident`,
+`derivedBuffersReused`, `skinnedPositionBufferBytes`, and
+`sdfDistanceBufferBytes` so evidence can require renderer-lifetime reuse of
+the derived skinned-position and dense-SDF distance buffers.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

@@ -1622,6 +1622,11 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
             source_mesh_buffers_reused: true,
             source_vertex_buffer_bytes: 672,
             source_triangle_buffer_bytes: 16,
+            derived_buffer_generation: 3,
+            derived_buffers_resident: true,
+            derived_buffers_reused: true,
+            skinned_position_buffer_bytes: 48,
+            sdf_distance_buffer_bytes: (input.grid.voxel_count as u64) * 4,
             pending_retire_count: 1,
             retained_resource_count: 1,
             retired_after_fence_count: 0,
@@ -1671,6 +1676,11 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     assert!(marker.contains("sourceMeshBuffersReused=true"));
     assert!(marker.contains("sourceVertexBufferBytes=672"));
     assert!(marker.contains("sourceTriangleBufferBytes=16"));
+    assert!(marker.contains("derivedBufferGeneration=3"));
+    assert!(marker.contains("derivedBuffersResident=true"));
+    assert!(marker.contains("derivedBuffersReused=true"));
+    assert!(marker.contains("skinnedPositionBufferBytes=48"));
+    assert!(marker.contains("sdfDistanceBufferBytes="));
 }
 
 #[test]

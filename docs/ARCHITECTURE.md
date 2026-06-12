@@ -170,19 +170,23 @@ skinning mesh probe input, builds Matter's bounded CPU dense-SDF oracle, and
 then asks the generic Makepad XR/Vulkan backend to skin the full vertex buffer
 and write a dense SDF buffer. The current bounded oracle uses a larger capped
 proof grid (`max_voxels=2048`, target longest axis about ten cells before
-padding) and eight compact comparison samples. Makepad caches the shader modules, descriptor-set
-layout, pipeline layout, and compute pipelines for the renderer lifetime. It
-also keeps source vertex/triangle storage buffers resident and reuses them
-when no older mesh-SDF proof is still pending; dense-SDF output, descriptor
-pool, command buffer, fence, and compact readback remain per-proof resources.
+padding) and eight compact comparison samples. Makepad caches the shader
+modules, descriptor-set layout, pipeline layout, and compute pipelines for the
+renderer lifetime. It also keeps source vertex/triangle storage buffers
+resident and reuses them when no older mesh-SDF proof is still pending. It now
+keeps derived skinned-position and dense-SDF distance buffers resident and
+reuses them under the same no-pending-proof rule; descriptor pool, command
+buffer, fence, params, grid, and compact readback remain per-proof resources.
 The marker carries `programGeneration`, `programReused`,
 `shaderCompiledThisSubmit`, `pipelineCreatedThisSubmit`,
 `sourceMeshBufferGeneration`, `sourceMeshBuffersResident`,
 `sourceMeshBuffersReused`, `sourceVertexBufferBytes`, and
-`sourceTriangleBufferBytes` so evidence can separate setup/allocation cost
-from reused compute dispatch. Those fields do not make Makepad an SDF
-authority: Matter still owns the CPU oracle, grid semantics, and sample
-comparison.
+`sourceTriangleBufferBytes`, plus `derivedBufferGeneration`,
+`derivedBuffersResident`, `derivedBuffersReused`,
+`skinnedPositionBufferBytes`, and `sdfDistanceBufferBytes` so evidence can
+separate setup/allocation cost from reused compute dispatch. Those fields do
+not make Makepad an SDF authority: Matter still owns the CPU oracle, grid
+semantics, and sample comparison.
 
 The runtime marker also reports `sourceProviderShape`. Positions-only GLB
 surface replay must remain `positions-only-surface` smoke evidence because its
