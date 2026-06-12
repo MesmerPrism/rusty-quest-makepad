@@ -1,7 +1,9 @@
 # Rusty Quest Makepad Fixtures
 
 - `settings/`: Quest Makepad app settings surfaces.
-- `profiles/`: settings profiles, Quest runtime profiles, and profile bundles.
+- `profiles/`: settings profiles, Quest runtime profiles, and profile bundles,
+  including remote-camera session handoff profiles and the
+  `stimulus-interference` Optics profile handoff bundle.
 - `effective-settings/`: representative resolver output consumed by app
   adapter unit tests. Regenerate the profile output through
   `tools/Build-QuestMakepadRuntimeBundle.ps1` and copy the generated

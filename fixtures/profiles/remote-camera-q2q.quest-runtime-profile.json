@@ -1,0 +1,84 @@
+{
+  "schema": "rusty.quest.runtime_profile.v1",
+  "profile_id": "profile.quest.remote_camera.q2q_two_way.quest_a",
+  "target_platform": "quest",
+  "owned_android_properties": [
+    "debug.rustyquest.remote_camera.enabled",
+    "debug.rustyquest.remote_camera.session_id",
+    "debug.rustyquest.remote_camera.topology_id",
+    "debug.rustyquest.remote_camera.endpoint_device_id",
+    "debug.rustyquest.remote_camera.endpoint_device_kind",
+    "debug.rustyquest.remote_camera.endpoint_role",
+    "debug.rustyquest.remote_camera.privacy_tier",
+    "debug.rustyquest.remote_camera.lane_count",
+    "debug.rustyquest.remote_camera.incoming_lane_count",
+    "debug.rustyquest.remote_camera.outgoing_lane_count",
+    "debug.rustyquest.remote_camera.transport_kind"
+  ],
+  "set_properties": [
+    {
+      "name": "debug.rustyquest.remote_camera.enabled",
+      "value": "true",
+      "source_setting_id": "quest.remote_camera.enabled"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.session_id",
+      "value": "session.remote_camera.q2q_two_way_lan_smoke",
+      "source_setting_id": "quest.remote_camera.session_id"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.topology_id",
+      "value": "quest_to_quest_two_way",
+      "source_setting_id": "quest.remote_camera.topology_id"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.endpoint_device_id",
+      "value": "quest-a",
+      "source_setting_id": "quest.remote_camera.endpoint_device_id"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.endpoint_device_kind",
+      "value": "quest",
+      "source_setting_id": "quest.remote_camera.endpoint_device_kind"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.endpoint_role",
+      "value": "sender_receiver",
+      "source_setting_id": "quest.remote_camera.endpoint_role"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.privacy_tier",
+      "value": "local_lan_diagnostic",
+      "source_setting_id": "quest.remote_camera.privacy_tier"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.lane_count",
+      "value": "4",
+      "source_setting_id": "quest.remote_camera.lane_count"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.incoming_lane_count",
+      "value": "2",
+      "source_setting_id": "quest.remote_camera.incoming_lane_count"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.outgoing_lane_count",
+      "value": "2",
+      "source_setting_id": "quest.remote_camera.outgoing_lane_count"
+    },
+    {
+      "name": "debug.rustyquest.remote_camera.transport_kind",
+      "value": "lan_tcp",
+      "source_setting_id": "quest.remote_camera.transport_kind"
+    }
+  ],
+  "expected_markers": [
+    "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+    "RUSTY_QUEST_REMOTE_CAMERA_SESSION_PLAN",
+    "RUSTY_QUEST_REMOTE_CAMERA_RECEIVER_ARMED",
+    "RUSTY_QUEST_REMOTE_CAMERA_SENDER_STARTED"
+  ],
+  "validation_commands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-QuestMakepadProfiles.ps1"
+  ]
+}

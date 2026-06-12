@@ -1,0 +1,12 @@
+{
+  "schema": "rusty.quest.makepad.runtime_profile.v1",
+  "bundle_id": "bundle.quest_makepad.stimulus_interference",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "settings_surface": "fixtures/settings/quest-makepad-camera-shell.settings.json",
+  "settings_profile": "fixtures/profiles/stimulus-interference.settings-profile.json",
+  "quest_runtime_profile": "fixtures/profiles/stimulus-interference.quest-runtime-profile.json",
+  "stimulus_profile": "../rusty-optics/fixtures/stimulus/interference_preview_profile.json",
+  "stimulus_profile_out": "stimulus/interference_preview_profile.json",
+  "effective_settings_marker": "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+  "notes": "Full-screen Optics stimulus profile handoff for Quest stereo playback; the profile JSON is staged beside effective settings as data-plane payload."
+}

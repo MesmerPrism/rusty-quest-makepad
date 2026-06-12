@@ -42,6 +42,23 @@ function Resolve-RepoPath {
     return (Resolve-Path (Join-Path $RepoRoot $PathValue)).Path
 }
 
+function Assert-SafeRelativePayloadPath {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$PathValue
+    )
+
+    if ([string]::IsNullOrWhiteSpace($PathValue)) {
+        throw "Payload output path must not be empty"
+    }
+    if ([System.IO.Path]::IsPathRooted($PathValue)) {
+        throw "Payload output path must be relative: $PathValue"
+    }
+    if ($PathValue.Contains("..")) {
+        throw "Payload output path must not contain '..': $PathValue"
+    }
+}
+
 function Convert-EffectiveValueToPropertyString {
     param($Value)
 
@@ -130,6 +147,28 @@ $resolvedOutDir = (Resolve-Path $resolvedOutDir).Path
 $effectiveOut = Join-Path $resolvedOutDir "effective-settings.json"
 $propertyPlanOut = Join-Path $resolvedOutDir "property-write-plan.json"
 $reportOut = Join-Path $resolvedOutDir "runtime-bundle-report.json"
+$payloads = @()
+
+if ($bundle.PSObject.Properties.Name -contains "stimulus_profile") {
+    $stimulusProfileSource = Resolve-RepoPath -RepoRoot $RepoRoot -PathValue ([string]$bundle.stimulus_profile)
+    $stimulusProfileOutRelative = if ($bundle.PSObject.Properties.Name -contains "stimulus_profile_out") {
+        [string]$bundle.stimulus_profile_out
+    } else {
+        "stimulus/stimulus-profile.json"
+    }
+    Assert-SafeRelativePayloadPath -PathValue $stimulusProfileOutRelative
+    $stimulusProfileOut = Join-Path $resolvedOutDir $stimulusProfileOutRelative
+    New-Item -ItemType Directory -Path (Split-Path -Parent $stimulusProfileOut) -Force | Out-Null
+    Copy-Item -LiteralPath $stimulusProfileSource -Destination $stimulusProfileOut -Force
+    $payloads += [ordered]@{
+        role = "stimulus-profile"
+        source = $stimulusProfileSource
+        relative_path = $stimulusProfileOutRelative -replace "\\", "/"
+        out = $stimulusProfileOut
+        sha256 = (Get-FileHash -LiteralPath $stimulusProfileOut -Algorithm SHA256).Hash.ToLowerInvariant()
+        size_bytes = (Get-Item -LiteralPath $stimulusProfileOut).Length
+    }
+}
 
 Invoke-Checked "Quest Makepad settings surface" "cargo" @(
     "run", "-p", "rusty-makepad-settings-cli", "--",
@@ -175,6 +214,23 @@ foreach ($setting in @($effective.settings)) {
     $effectiveById[[string]$setting.setting_id] = $setting.value
 }
 
+foreach ($payload in @($payloads | Where-Object { $_.role -eq "stimulus-profile" })) {
+    $profilePathSetting = "makepad.stimulus.profile_path"
+    $profileShaSetting = "makepad.stimulus.profile_sha256"
+    if (-not $effectiveById.ContainsKey($profilePathSetting)) {
+        throw "Stimulus profile payload is present but $profilePathSetting is missing"
+    }
+    if (-not $effectiveById.ContainsKey($profileShaSetting)) {
+        throw "Stimulus profile payload is present but $profileShaSetting is missing"
+    }
+    if ([string]$effectiveById[$profilePathSetting] -ne [string]$payload.relative_path) {
+        throw "Stimulus profile payload path $($payload.relative_path) does not match effective setting $profilePathSetting=$($effectiveById[$profilePathSetting])"
+    }
+    if ([string]$effectiveById[$profileShaSetting] -ne [string]$payload.sha256) {
+        throw "Stimulus profile payload SHA $($payload.sha256) does not match effective setting $profileShaSetting=$($effectiveById[$profileShaSetting])"
+    }
+}
+
 $sourceLinks = @()
 foreach ($operation in @($propertyPlan.operations)) {
     if ($operation.kind -ne "set") {
@@ -218,6 +274,7 @@ $report = [ordered]@{
         setting_count = @($effective.settings).Count
         marker = [string]$bundle.effective_settings_marker
     }
+    payloads = @($payloads)
     property_write_plan = [ordered]@{
         schema = [string]$propertyPlan.schema
         path = $propertyPlanOut

@@ -16,6 +16,7 @@ rusty-optics-model = { git = "https://github.com/MesmerPrism/rusty-optics.git", 
 rusty-quest-makepad-matter-surface = { path = "../rusty-quest-makepad-matter-surface" }
 rusty-quest-makepad-mesh-replay = { path = "../rusty-quest-makepad-mesh-replay" }
 serde_json = "1"
+sha2 = "0.10"
 
 [lints]
 workspace = true

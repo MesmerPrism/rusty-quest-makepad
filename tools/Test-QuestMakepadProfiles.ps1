@@ -71,3 +71,13 @@ Test-RuntimeBundle `
     -Name "Quest Makepad recorded-left-particles runtime bundle" `
     -BundlePath "fixtures\profiles\mesh-replay-recorded-left-particles.bundle.json" `
     -OutDir "local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles"
+
+Test-RuntimeBundle `
+    -Name "Quest Makepad remote-camera Q2Q runtime bundle" `
+    -BundlePath "fixtures\profiles\remote-camera-q2q.bundle.json" `
+    -OutDir "local-artifacts\quest-makepad-runtime-bundle-remote-camera-q2q"
+
+Test-RuntimeBundle `
+    -Name "Quest Makepad stimulus interference runtime bundle" `
+    -BundlePath "fixtures\profiles\stimulus-interference.bundle.json" `
+    -OutDir "local-artifacts\quest-makepad-runtime-bundle-stimulus-interference"

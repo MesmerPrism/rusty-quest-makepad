@@ -258,3 +258,35 @@ The profile validation runs through
 property set operation references an effective setting and carries the same
 value. This keeps profile, property, and app readback preparation on one
 deterministic surface instead of a hand-edited ADB launch sequence.
+
+The remote-camera Q2Q profile is included in the same dry-run profile gate:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\remote-camera-q2q.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-remote-camera-q2q
+```
+
+That bundle carries only `quest.remote_camera.*` session handoff settings and
+matching `debug.rustyquest.remote_camera.*` property plan entries. It does not
+start camera capture, open media sockets, decode H.264, or move frame payloads
+through effective settings.
+
+The stimulus interference profile is also included in the dry-run profile
+gate:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-interference.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-interference
+```
+
+That bundle copies the Optics stimulus profile into
+`local-artifacts\quest-makepad-runtime-bundle-stimulus-interference\stimulus`
+and verifies that `makepad.stimulus.profile_path` plus
+`makepad.stimulus.profile_sha256` match the staged file. Browser-created
+profiles use:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Expand-StimulusBrowserHandoff.ps1 -HandoffPath <downloaded-quest-handoff.json> -OutDir local-artifacts\quest-makepad-browser-stimulus-handoff
+```
+
+Stage either bundle directory with the Hostess staging helper before launching
+the Quest stereo APK. The helper copies both `makepad-effective-settings.json`
+and the sibling `stimulus/` payload into app-private storage.

@@ -56,6 +56,22 @@ constants as the app-facing boundary. Hostess and other active Makepad shells
 should consume that adapter surface instead of depending on the lower replay
 crate directly or reparsing replay settings locally.
 
+Remote camera settings use the same effective-settings boundary, but only for
+low-rate session handoff. `quest.remote_camera.*` values identify the accepted
+Quest remote-camera session, this endpoint, role, lane counts, privacy tier,
+and transport kind. Manifold remains command/session authority for start
+receiver, start sender, status, and stop, while binary H.264 packets stay on
+the media plane.
+
+Procedural stimulus settings also use the effective-settings boundary only for
+low-rate identity and selection. `makepad.stimulus.*` enables a staged Optics
+stimulus profile, records its app-private relative path, expected SHA-256,
+schema, optional browser-tuning sidecar, and `StereoEyeField` presentation
+mode. The profile JSON remains a sibling `stimulus/` payload. The camera-shell
+adapter can verify the staged file's hash and full-screen stereo presentation
+before a future Quest Vulkan/Makepad stimulus renderer lowers the Optics
+profile to textures, storage buffers, descriptors, and XR submissions.
+
 `rusty-quest-makepad-mesh-replay` now has two replay lanes. The existing
 `rusty.matter.tools.glb_mesh_surface_sequence.v1` lane stays as the
 positions-only visual smoke path: it emits `TriangleMeshSurface` frames after

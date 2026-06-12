@@ -104,6 +104,24 @@ mod tests {
     }
 
     #[test]
+    fn remote_camera_bundle_passes() {
+        let bundle: QuestMakepadProfileBundle = serde_json::from_str(include_str!(
+            "../../../fixtures/profiles/remote-camera-q2q.bundle.json"
+        ))
+        .expect("valid bundle JSON");
+        validate_bundle(&bundle).expect("bundle validates");
+    }
+
+    #[test]
+    fn stimulus_bundle_passes() {
+        let bundle: QuestMakepadProfileBundle = serde_json::from_str(include_str!(
+            "../../../fixtures/profiles/stimulus-interference.bundle.json"
+        ))
+        .expect("valid bundle JSON");
+        validate_bundle(&bundle).expect("bundle validates");
+    }
+
+    #[test]
     fn missing_profile_is_rejected() {
         let bundle: QuestMakepadProfileBundle = serde_json::from_str(include_str!(
             "../../../fixtures/damaged/missing-profile.bundle.json"
