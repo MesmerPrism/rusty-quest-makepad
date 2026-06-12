@@ -634,6 +634,10 @@ fn adapter_steps_generic_source_frame_like_replay_frame() {
         QuestMakepadMatterSurfaceSourceFrame::from_replay(&replay).expect("source frame builds");
 
     assert_eq!(source_frame.source_id, "public-synthetic-hand-sequence");
+    assert_eq!(
+        source_frame.provider_shape,
+        QuestMakepadMatterSurfaceProviderShape::PositionsOnlySurface
+    );
     assert_eq!(source_frame.frame.frame_index, replay.current_frame_index());
     assert_eq!(source_frame.bounds_min, replay.sequence().bounds_min());
     assert_eq!(source_frame.bounds_max, replay.sequence().bounds_max());
@@ -667,6 +671,14 @@ fn adapter_steps_generic_source_frame_like_replay_frame() {
 
     assert_eq!(from_source.source_id, from_replay.source_id);
     assert_eq!(
+        from_source.source_provider_shape,
+        from_replay.source_provider_shape
+    );
+    assert_eq!(
+        from_source.source_provider_shape,
+        QuestMakepadMatterSurfaceProviderShape::PositionsOnlySurface
+    );
+    assert_eq!(
         from_source.matter_update.frame_index,
         from_replay.matter_update.frame_index
     );
@@ -685,6 +697,7 @@ fn adapter_steps_generic_source_frame_like_replay_frame() {
 
     let marker = source_runtime.marker_line("unit-test", &from_source);
     assert!(marker.contains("sourceId=public-synthetic-hand-sequence"));
+    assert!(marker.contains("sourceProviderShape=positions-only-surface"));
     assert!(!marker.contains("rusty.xr"));
     assert!(!marker.contains("RUSTY_XR"));
 }

@@ -107,7 +107,7 @@ pub use rusty_matter_surface_runtime::{
     MatterSurfaceParticleForceRefresh, MatterSurfaceParticleForceSource,
     MatterSurfaceParticleForceSourceStatus, ParticleExecutionBackend,
 };
-pub use source::QuestMakepadMatterSurfaceSourceFrame;
+pub use source::{QuestMakepadMatterSurfaceProviderShape, QuestMakepadMatterSurfaceSourceFrame};
 pub use uploads::{
     world_particle_batch_from_upload, QuestMakepadCollisionRow, QuestMakepadCollisionUpload,
     QuestMakepadDistanceSliceRow, QuestMakepadDistanceSliceUpload, QuestMakepadParticleRow,

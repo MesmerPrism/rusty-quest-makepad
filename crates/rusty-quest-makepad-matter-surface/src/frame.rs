@@ -9,7 +9,8 @@ use crate::{
     world_adf_debug_batch_from_frame, world_particle_batch_from_upload, QuestMakepadAdfDebugFrame,
     QuestMakepadCollisionUpload, QuestMakepadDistanceSliceUpload, QuestMakepadGpuMeshSdfProbeInput,
     QuestMakepadGpuSkinningMeshProbeInput, QuestMakepadGpuSkinningProbeInput,
-    QuestMakepadParticleUpload, QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldAdfDebugPlacement,
+    QuestMakepadMatterSurfaceProviderShape, QuestMakepadParticleUpload,
+    QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldAdfDebugPlacement,
     QuestMakepadWorldParticleBatch, QuestMakepadWorldParticlePlacement,
 };
 
@@ -55,6 +56,8 @@ pub struct QuestMakepadMatterSurfaceStageTimings {
 pub struct QuestMakepadMatterSurfaceFrame {
     /// Stable source identity for this frame.
     pub source_id: String,
+    /// Provider shape used before this frame entered Matter.
+    pub source_provider_shape: QuestMakepadMatterSurfaceProviderShape,
     /// Runtime update for the current source surface.
     pub matter_update: MatterSurfaceRuntimeUpdate,
     /// Runtime stats after the frame step.
@@ -87,7 +90,7 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
     /// Optional full recorded-hand GPU skinning mesh residency probe input.
     pub gpu_skinning_mesh_probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
-    /// Optional tiny GPU mesh-to-dense-SDF probe input.
+    /// Optional bounded GPU mesh-to-dense-SDF probe input.
     pub gpu_mesh_sdf_probe: Option<QuestMakepadGpuMeshSdfProbeInput>,
     /// Adapter timing evidence for this frame.
     pub stage_timings: QuestMakepadMatterSurfaceStageTimings,

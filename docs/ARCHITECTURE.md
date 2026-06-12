@@ -74,8 +74,9 @@ sampling, or particles.
 
 The matter-surface crate root is now a facade only. Keep new adapter behavior
 in ownership modules instead of growing `src/lib.rs`: `source.rs` owns the
-generic Matter source-frame shape, `recorded_hand_source.rs` owns recorded
-live-equivalent hand source-frame conversion, `config.rs` maps app adapter
+generic Matter source-frame shape and its low-rate provider-shape evidence,
+`recorded_hand_source.rs` owns recorded live-equivalent hand source-frame
+conversion, `config.rs` maps app adapter
 config into Matter runtime config, `frame.rs` owns frame DTOs and world-batch
 helpers, `runtime.rs` owns Matter stepping and runtime evidence markers,
 `uploads.rs` owns bounded Makepad-facing row schemas and world-particle
@@ -147,6 +148,14 @@ expanded compact joint frame, and Matter CPU-skinned validation surface.
 `meshToSdfKernel=false`, `gpuComputeReady=false`, and
 `highRateJsonPayload=false` until later slices add full-mesh resident skinning
 and mesh-to-dense-SDF kernels.
+
+The runtime marker also reports `sourceProviderShape`. Positions-only GLB
+surface replay must remain `positions-only-surface` smoke evidence because its
+bind mesh, skinning weights, compact joints, tip lengths, and tracking metadata
+are already baked away. Recorded hand capture must report
+`bind-mesh-plus-compact-joint-frame`, which is the same compact shape a future
+live Makepad/OpenXR hand provider should populate before entering the existing
+Matter/GPU adapter boundary.
 
 The camera-shell adapter also consumes `rusty.lattice.display_view_set.v1`
 view sets and derives baseline `rusty.optics.video_projection_geometry.v1`

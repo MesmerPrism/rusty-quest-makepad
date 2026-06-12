@@ -7,7 +7,8 @@ use rusty_quest_makepad_mesh_replay::{
 use crate::{
     sanitize_marker_value, QuestMakepadGpuMeshSdfProbeInput, QuestMakepadGpuSkinningMeshProbeInput,
     QuestMakepadGpuSkinningProbeInput, QuestMakepadMatterSurfaceError,
-    QuestMakepadMatterSurfaceSourceFrame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
+    QuestMakepadMatterSurfaceProviderShape, QuestMakepadMatterSurfaceSourceFrame,
+    QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
 };
 
 impl QuestMakepadMatterSurfaceSourceFrame {
@@ -78,6 +79,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             bounds_min,
             bounds_max,
         )
+        .with_provider_shape(QuestMakepadMatterSurfaceProviderShape::BindMeshPlusCompactJointFrame)
         .with_gpu_skinning_probe(gpu_skinning_probe)
         .with_gpu_skinning_mesh_probe(gpu_skinning_mesh_probe)
         .with_gpu_mesh_sdf_probe(gpu_mesh_sdf_probe))
@@ -127,6 +129,10 @@ mod tests {
         let source_frame = synthetic_recorded_source_frame();
 
         assert_eq!(source_frame.source_id, "recorded-hand-synthetic");
+        assert_eq!(
+            source_frame.provider_shape,
+            QuestMakepadMatterSurfaceProviderShape::BindMeshPlusCompactJointFrame
+        );
         assert_eq!(source_frame.frame.frame_index, 7);
         assert_eq!(source_frame.frame.time_seconds, 2.0);
         assert_eq!(source_frame.frame.surface.vertex_count(), 3);
@@ -224,6 +230,7 @@ mod tests {
 
         let marker = runtime.marker_line("unit-test", &frame);
         assert!(marker.contains("sourceId=recorded-hand-synthetic"));
+        assert!(marker.contains("sourceProviderShape=bind-mesh-plus-compact-joint-frame"));
         assert!(marker.contains("nativeMatterRuntime=true"));
         assert!(!marker.contains("rusty.xr"));
         assert!(!marker.contains("RUSTY_XR"));

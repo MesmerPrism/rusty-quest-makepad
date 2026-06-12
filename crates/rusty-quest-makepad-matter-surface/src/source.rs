@@ -8,11 +8,38 @@ use crate::{
     QuestMakepadMatterSurfaceError,
 };
 
+/// Source-provider payload shape at the Matter surface adapter boundary.
+///
+/// This is low-rate evidence about how the current frame was produced. It is
+/// not a data-plane payload and it does not carry hand joints, meshes, fields,
+/// particles, or GPU buffers.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum QuestMakepadMatterSurfaceProviderShape {
+    /// Positions-only replay surface used as smoke evidence.
+    #[default]
+    PositionsOnlySurface,
+    /// Bind mesh plus compact runtime joint frame, matching the live hand path.
+    BindMeshPlusCompactJointFrame,
+}
+
+impl QuestMakepadMatterSurfaceProviderShape {
+    /// Marker-safe token for runtime evidence.
+    #[must_use]
+    pub const fn marker_value(self) -> &'static str {
+        match self {
+            Self::PositionsOnlySurface => "positions-only-surface",
+            Self::BindMeshPlusCompactJointFrame => "bind-mesh-plus-compact-joint-frame",
+        }
+    }
+}
+
 /// One animated hand/surface source frame ready for the native Matter runtime.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadMatterSurfaceSourceFrame {
     /// Stable source identity, for example a recorded replay or realtime hand pair.
     pub source_id: String,
+    /// Provider shape used before this frame entered Matter.
+    pub provider_shape: QuestMakepadMatterSurfaceProviderShape,
     /// Matter-owned surface frame input.
     pub frame: MatterSurfaceFrameInput,
     /// Source-space bounds minimum for reset/scaling policy.
@@ -25,7 +52,7 @@ pub struct QuestMakepadMatterSurfaceSourceFrame {
     pub gpu_skinning_probe: Option<QuestMakepadGpuSkinningProbeInput>,
     /// Optional full recorded-hand GPU skinning mesh residency probe input.
     pub gpu_skinning_mesh_probe: Option<QuestMakepadGpuSkinningMeshProbeInput>,
-    /// Optional tiny GPU mesh-to-dense-SDF probe input.
+    /// Optional bounded GPU mesh-to-dense-SDF probe input.
     pub gpu_mesh_sdf_probe: Option<QuestMakepadGpuMeshSdfProbeInput>,
 }
 
@@ -40,6 +67,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
     ) -> Self {
         Self {
             source_id: source_id.into(),
+            provider_shape: QuestMakepadMatterSurfaceProviderShape::PositionsOnlySurface,
             frame,
             bounds_min,
             bounds_max,
@@ -65,6 +93,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
         };
         Ok(Self {
             source_id,
+            provider_shape: QuestMakepadMatterSurfaceProviderShape::PositionsOnlySurface,
             frame: MatterSurfaceFrameInput::new(
                 replay.current_frame_index(),
                 replay.playback_seconds().max(0.0),
@@ -77,6 +106,16 @@ impl QuestMakepadMatterSurfaceSourceFrame {
             gpu_skinning_mesh_probe: None,
             gpu_mesh_sdf_probe: None,
         })
+    }
+
+    /// Marks the source frame as produced from the live-equivalent hand shape.
+    #[must_use]
+    pub fn with_provider_shape(
+        mut self,
+        provider_shape: QuestMakepadMatterSurfaceProviderShape,
+    ) -> Self {
+        self.provider_shape = provider_shape;
+        self
     }
 
     /// Attaches bounded diagnostic GPU skinning probe input to this source frame.
@@ -99,7 +138,7 @@ impl QuestMakepadMatterSurfaceSourceFrame {
         self
     }
 
-    /// Attaches tiny diagnostic GPU mesh-to-dense-SDF input to this source frame.
+    /// Attaches bounded diagnostic GPU mesh-to-dense-SDF input to this source frame.
     #[must_use]
     pub fn with_gpu_mesh_sdf_probe(
         mut self,

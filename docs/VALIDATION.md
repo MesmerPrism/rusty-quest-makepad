@@ -51,7 +51,12 @@ cargo test -p rusty-quest-makepad-matter-surface external_recorded_hand_capture_
 This test skins one recorded compact hand frame through Matter's CPU oracle,
 builds `QuestMakepadMatterSurfaceSourceFrame`, and steps the native Matter
 runtime without routing rig, mesh, or joint-frame payloads through settings
-JSON.
+JSON. It should also prove the provider-shape split: positions-only replay
+runtime markers report `sourceProviderShape=positions-only-surface`, while
+recorded hand capture reports
+`sourceProviderShape=bind-mesh-plus-compact-joint-frame`. The latter is the
+shape the future live Makepad/OpenXR hand provider must populate before the
+unchanged GPU skinning and mesh-to-SDF adapter probes run.
 
 The Matter-surface adapter tests also cover
 `QuestMakepadMatterSurfaceWorker`, the nonblocking latest-wins wrapper used by
