@@ -14,6 +14,8 @@ use super::{
 
 /// Number of bounded dense-SDF samples echoed in the mesh-to-SDF proof marker.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES: usize = 8;
+/// Number of bounded force samples derived from the dense-SDF proof grid.
+pub const QUEST_MAKEPAD_GPU_MESH_SDF_FORCE_SAMPLE_PROBE_SAMPLES: usize = 4;
 /// Conservative f32 tolerance for bounded dense-SDF readback comparison.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_DEFAULT_TOLERANCE: f32 = 0.001;
 /// Maximum voxel count for the current bounded dense-SDF construction probe.
@@ -47,6 +49,25 @@ pub struct QuestMakepadGpuMeshSdfProbeSample {
     pub expected_distance: f32,
 }
 
+/// One bounded Matter CPU-oracle force sample from the dense-SDF proof grid.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct QuestMakepadGpuMeshSdfForceProbeSample {
+    /// Probe position packed as `[x, y, z, 1]`.
+    pub position: [f32; 4],
+    /// Probe particle radius.
+    pub radius: f32,
+    /// Matter CPU dense-SDF value sampled at `position`.
+    pub distance: f32,
+    /// Matter CPU dense-SDF outward gradient packed as `[x, y, z, 0]`.
+    pub outward: [f32; 4],
+    /// Target signed-distance band used by the force arithmetic.
+    pub target_distance: f32,
+    /// Attraction strength used by the force arithmetic.
+    pub attraction_strength: f32,
+    /// Matter CPU expected acceleration packed as `[x, y, z, 0]`.
+    pub expected_acceleration: [f32; 4],
+}
+
 /// Full recorded-hand mesh-to-dense-SDF GPU probe input.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadGpuMeshSdfProbeInput {
@@ -70,6 +91,11 @@ pub struct QuestMakepadGpuMeshSdfProbeInput {
     pub samples: [QuestMakepadGpuMeshSdfProbeSample; QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES],
     /// Number of populated samples.
     pub sample_count: usize,
+    /// Compact Matter CPU oracle force samples over the same dense-SDF proof grid.
+    pub force_samples: [QuestMakepadGpuMeshSdfForceProbeSample;
+        QUEST_MAKEPAD_GPU_MESH_SDF_FORCE_SAMPLE_PROBE_SAMPLES],
+    /// Number of populated force samples.
+    pub force_sample_count: usize,
 }
 
 impl QuestMakepadGpuMeshSdfProbeInput {
@@ -141,6 +167,40 @@ impl QuestMakepadGpuMeshSdfProbeInput {
                 expected_distance,
             };
         }
+        let force_sample_count =
+            sample_count.min(QUEST_MAKEPAD_GPU_MESH_SDF_FORCE_SAMPLE_PROBE_SAMPLES);
+        let force_target_distance =
+            (voxel_size * 0.5).max(QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MIN_VOXEL_SIZE);
+        let force_radius = force_target_distance;
+        let force_attraction_strength = 1.0_f32;
+        let mut force_samples = [QuestMakepadGpuMeshSdfForceProbeSample::default();
+            QUEST_MAKEPAD_GPU_MESH_SDF_FORCE_SAMPLE_PROBE_SAMPLES];
+        for index in 0..force_sample_count {
+            let center = Vec3::new(
+                samples[index].center[0],
+                samples[index].center[1],
+                samples[index].center[2],
+            );
+            let distance = cpu_grid.sample_nearest_clamped(center)?.distance;
+            let outward =
+                normalize_or(cpu_grid.gradient_nearest(center)?, Vec3::new(0.0, 1.0, 0.0));
+            let error = distance - force_target_distance;
+            let expected_acceleration = outward * (-error * force_attraction_strength);
+            force_samples[index] = QuestMakepadGpuMeshSdfForceProbeSample {
+                position: [center.x, center.y, center.z, 1.0],
+                radius: force_radius,
+                distance,
+                outward: [outward.x, outward.y, outward.z, 0.0],
+                target_distance: force_target_distance,
+                attraction_strength: force_attraction_strength,
+                expected_acceleration: [
+                    expected_acceleration.x,
+                    expected_acceleration.y,
+                    expected_acceleration.z,
+                    0.0,
+                ],
+            };
+        }
 
         Some(Self {
             source_id: input.source_id.clone(),
@@ -158,6 +218,8 @@ impl QuestMakepadGpuMeshSdfProbeInput {
             },
             samples,
             sample_count,
+            force_samples,
+            force_sample_count,
         })
     }
 
@@ -363,6 +425,18 @@ fn selected_index(count: usize, sample_count: usize, sample_index: usize) -> usi
         0
     } else {
         sample_index * (count - 1) / (sample_count - 1)
+    }
+}
+
+fn normalize_or(vector: Vec3, fallback: Vec3) -> Vec3 {
+    if !vector.is_finite() {
+        return fallback;
+    }
+    let length = vector.length();
+    if length <= 1.0e-6 {
+        fallback
+    } else {
+        vector / length
     }
 }
 

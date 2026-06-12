@@ -7,6 +7,7 @@
 
 mod field_construction;
 mod field_force_probe;
+mod field_force_sampling_probe;
 mod field_sampling_probe;
 mod marker;
 mod mesh_sdf_probe;
@@ -30,6 +31,16 @@ pub use field_construction::{
 pub use field_force_probe::{
     QuestMakepadGpuFieldForceProbe, QuestMakepadGpuFieldForceProbeReadback,
 };
+pub use field_force_sampling_probe::{
+    QuestMakepadGpuFieldForceSamplingProbe, QuestMakepadGpuFieldForceSamplingProbeReadback,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_CPU_ORACLE,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_DEFAULT_TOLERANCE,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_RESOURCE_PLANE,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_SAMPLES,
+    QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_SCHEMA_ID,
+};
 pub use field_sampling_probe::{
     QuestMakepadGpuFieldSamplingProbe, QuestMakepadGpuFieldSamplingProbeReadback,
     QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_CPU_ORACLE,
@@ -41,8 +52,10 @@ pub use field_sampling_probe::{
     QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_SCHEMA_ID,
 };
 pub use mesh_sdf_probe::{
-    QuestMakepadGpuMeshSdfProbe, QuestMakepadGpuMeshSdfProbeGrid, QuestMakepadGpuMeshSdfProbeInput,
+    QuestMakepadGpuMeshSdfForceProbeSample, QuestMakepadGpuMeshSdfProbe,
+    QuestMakepadGpuMeshSdfProbeGrid, QuestMakepadGpuMeshSdfProbeInput,
     QuestMakepadGpuMeshSdfProbeReadback, QuestMakepadGpuMeshSdfProbeSample,
+    QUEST_MAKEPAD_GPU_MESH_SDF_FORCE_SAMPLE_PROBE_SAMPLES,
     QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_DEFAULT_TOLERANCE,
     QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS, QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES,
 };

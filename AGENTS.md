@@ -260,6 +260,25 @@ must keep the selected CPU oracle and force-source fields, report
 `highRateJsonPayload=false`. This proves the resource path, not GPU particle
 force semantics.
 
+The resident dense-SDF field proof chain stays low-rate and adapter-bounded.
+`QuestMakepadGpuFieldConstructionReceipt` records that a mesh-SDF proof created
+a runtime-ready resident dense-SDF buffer while keeping `forceAuthorityReady`,
+`runtimeForceAuthority`, and `gpuComputeReady` false.
+`QuestMakepadGpuFieldSamplingProbe` may sample that resident buffer only
+through bounded Matter CPU-oracle distances. It must report
+`runtimeSamplingBoundaryReady=true`, `residentFieldBufferSampled=true`,
+`sourceFieldGenerationMatched=true`, `fieldSamplingKernel=true`, and
+`highRateJsonPayload=false`.
+
+`QuestMakepadGpuFieldForceSamplingProbe` is the next bounded comparison layer:
+it samples accelerations from the same resident dense-SDF buffer and compares
+them with Matter CPU-oracle force samples. It must report
+`runtimeForceSamplingBoundaryReady=true`, `fieldForceSamplingKernel=true`,
+`fieldParticleKernel=false`, `runtimeParticleIntegration=false`,
+`forceAuthorityReady=false`, `runtimeForceAuthority=false`,
+`gpuComputeReady=false`, and `highRateJsonPayload=false`. It is not a runtime
+particle integrator and must not change the selected force authority.
+
 The 2026-06-11 indexed ADF pre-GPU sweep at
 `S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the
 current force-mode evidence baseline. At 1024 Matter particles / 1024 visual
