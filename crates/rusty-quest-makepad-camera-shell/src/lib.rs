@@ -3,6 +3,7 @@
 mod matter_surface_exports;
 mod mesh_replay_source;
 mod stimulus_volume_gpu;
+mod stimulus_volume_raymarch_preview;
 
 use std::{
     num::NonZeroUsize,
@@ -22,6 +23,7 @@ pub use rusty_quest_makepad_mesh_replay::{
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 pub use stimulus_volume_gpu::*;
+pub use stimulus_volume_raymarch_preview::*;
 
 use mesh_replay_source::mesh_replay_runtime_from_config;
 pub use mesh_replay_source::{

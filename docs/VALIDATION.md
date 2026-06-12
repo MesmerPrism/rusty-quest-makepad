@@ -295,3 +295,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Expand-StimulusBrows
 Stage either bundle directory with the Hostess staging helper before launching
 the Quest stereo APK. The helper copies both `makepad-effective-settings.json`
 and the sibling `stimulus/` payload into app-private storage.
+For the bounded Quest Vulkan volume proof, headset evidence should include
+`RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE` with `readbackMatched=true`,
+`mismatchedComponents=0`, `sampleCount=8`, and `queueWaitIdlePerformed=false`,
+followed by `RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW` with
+`previewWidth=4`, `previewHeight=4`, `eyeCount=2`, `pixelCount=32`,
+`componentCount=256`, `volumeRaymarchKernel=true`,
+`lowResolutionStereoOutput=true`, `runtimeTextureBound=false`, and
+`gpuComputeReady=false`. Treat these as bounded compute/readback evidence only;
+they do not claim a production volume renderer or runtime-scale GPU readiness.
