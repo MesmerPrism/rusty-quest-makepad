@@ -1840,6 +1840,87 @@ fn gpu_field_construction_receipt_blocks_boundary_when_readback_mismatches() {
 }
 
 #[test]
+fn gpu_field_sampling_probe_marks_resident_dense_sdf_sampling_without_force_authority() {
+    let probe = synthetic_gpu_mesh_sdf_probe(|_| {});
+    let receipt = QuestMakepadGpuFieldConstructionReceipt::from_mesh_sdf_probe(&probe);
+    let input = probe.input.clone();
+    let mut sample_linear_indices = [0; QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_SAMPLES];
+    let mut output_distances = [0.0; QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_SAMPLES];
+    let mut expected_distances = [0.0; QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_SAMPLES];
+    for index in 0..input.sample_count {
+        sample_linear_indices[index] = input.samples[index].linear_index;
+        output_distances[index] = input.samples[index].expected_distance;
+        expected_distances[index] = input.samples[index].expected_distance;
+    }
+    let field_sample = QuestMakepadGpuFieldSamplingProbe::from_receipt_and_input(
+        &receipt,
+        &input,
+        QuestMakepadGpuFieldSamplingProbeReadback {
+            sample_count: input.sample_count,
+            checked_sample_count: input.sample_count,
+            sample_linear_indices,
+            output_distances,
+            expected_distances,
+            mismatched_samples: 0,
+            max_abs_error: 0.0,
+            tolerance: QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_DEFAULT_TOLERANCE,
+            queue_submit_serial: 13,
+            fence_serial: 13,
+            resource_generation: 1,
+            program_generation: 1,
+            program_reused: true,
+            shader_compiled_this_submit: false,
+            pipeline_created_this_submit: false,
+            source_field_generation: receipt.derived_buffer_generation,
+            source_field_buffer_resident: true,
+            source_field_buffer_bytes: receipt.sdf_distance_buffer_bytes,
+            sample_index_buffer_bytes: 32,
+            sample_output_buffer_bytes: 32,
+            pending_retire_count: 1,
+            retained_resource_count: 1,
+            retired_after_fence_count: 0,
+            queue_wait_idle_performed: false,
+            elapsed_ms: 0.35,
+        },
+    );
+
+    assert!(field_sample.runtime_sampling_boundary_ready());
+    assert!(field_sample.readback.readback_matched());
+
+    let marker = field_sample.marker_line("unit-test");
+    assert!(marker.contains("RUSTY_QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE"));
+    assert!(marker.contains("schema=rusty.quest.makepad.gpu_field_sampling_probe.v1"));
+    assert!(marker.contains("status=ready"));
+    assert!(marker.contains("proofKind=resident-dense-sdf-field-sampling"));
+    assert!(marker.contains("computeStage=dense-sdf-field-sample-readback"));
+    assert!(marker
+        .contains("sourceReceiptSchema=rusty.quest.makepad.gpu_field_construction_receipt.v1"));
+    assert!(marker.contains("fieldKind=dense-sdf"));
+    assert!(marker.contains("resourcePlane=vulkan-compute-resident-dense-sdf-sampler"));
+    assert!(marker.contains("sourceResourcePlane=vulkan-compute-dense-sdf-buffer"));
+    assert!(marker.contains("oracleSampleCount=8"));
+    assert!(marker.contains("sampleCount=8"));
+    assert!(marker.contains("checkedSampleCount=8"));
+    assert!(marker.contains("readbackMatched=true"));
+    assert!(marker.contains("runtimeFieldBoundaryReady=true"));
+    assert!(marker.contains("runtimeSamplingBoundaryReady=true"));
+    assert!(marker.contains("sourceFieldGenerationMatched=true"));
+    assert!(marker.contains("sourceFieldBufferResident=true"));
+    assert!(marker.contains("cpuOracle=matter-mesh-to-sdf-sample-indices"));
+    assert!(marker.contains("cpuOraclePreserved=true"));
+    assert!(marker.contains("recordedInputEquivalent=true"));
+    assert!(marker.contains("residentFieldBufferSampled=true"));
+    assert!(marker.contains("denseSdfConstructedOnGpu=true"));
+    assert!(marker.contains("fieldSamplingKernel=true"));
+    assert!(marker.contains("meshToSdfKernel=false"));
+    assert!(marker.contains("fieldParticleKernel=false"));
+    assert!(marker.contains("gpuComputeReady=false"));
+    assert!(marker.contains("forceAuthorityReady=false"));
+    assert!(marker.contains("runtimeForceAuthority=false"));
+    assert!(marker.contains("highRateJsonPayload=false"));
+}
+
+#[test]
 fn gpu_compute_preflight_identifies_adf_field_cpu_oracle() {
     let replay = enabled_replay();
     let mut runtime = QuestMakepadMatterSurfaceRuntime::new(QuestMakepadMatterSurfaceConfig {
