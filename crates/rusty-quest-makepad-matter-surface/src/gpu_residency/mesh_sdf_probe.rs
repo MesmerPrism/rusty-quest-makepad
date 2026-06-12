@@ -14,14 +14,14 @@ use super::{
 
 /// Number of bounded dense-SDF samples echoed in the mesh-to-SDF proof marker.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES: usize = 4;
-/// Conservative f32 tolerance for tiny dense-SDF readback comparison.
+/// Conservative f32 tolerance for bounded dense-SDF readback comparison.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_DEFAULT_TOLERANCE: f32 = 0.001;
-/// Maximum voxel count for this first source-level dense-SDF construction probe.
-pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS: usize = 64;
-const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_TARGET_AXIS_CELLS: f32 = 2.0;
+/// Maximum voxel count for the current bounded dense-SDF construction probe.
+pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS: usize = 1_024;
+const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_TARGET_AXIS_CELLS: f32 = 6.0;
 const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MIN_VOXEL_SIZE: f32 = 0.001;
 
-/// Tiny Matter-oracle dense SDF grid shape for GPU mesh-to-SDF validation.
+/// Bounded Matter-oracle dense SDF grid shape for GPU mesh-to-SDF validation.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct QuestMakepadGpuMeshSdfProbeGrid {
     /// Matter CPU grid origin.
@@ -34,7 +34,7 @@ pub struct QuestMakepadGpuMeshSdfProbeGrid {
     pub voxel_count: usize,
 }
 
-/// One bounded CPU-oracle sample from the tiny dense SDF grid.
+/// One bounded CPU-oracle sample from the dense SDF grid.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct QuestMakepadGpuMeshSdfProbeSample {
     /// Packed x-fastest dense-grid index.
@@ -64,7 +64,7 @@ pub struct QuestMakepadGpuMeshSdfProbeInput {
     pub vertices: Vec<QuestMakepadGpuSkinningMeshVertex>,
     /// Full triangle index buffer.
     pub triangles: Vec<[u32; 3]>,
-    /// Tiny Matter CPU dense-SDF oracle grid shape.
+    /// Bounded Matter CPU dense-SDF oracle grid shape.
     pub grid: QuestMakepadGpuMeshSdfProbeGrid,
     /// Compact Matter CPU oracle samples for readback comparison.
     pub samples: [QuestMakepadGpuMeshSdfProbeSample; QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES],
@@ -73,7 +73,7 @@ pub struct QuestMakepadGpuMeshSdfProbeInput {
 }
 
 impl QuestMakepadGpuMeshSdfProbeInput {
-    /// Builds a tiny dense-SDF GPU probe input from the full skinning mesh oracle.
+    /// Builds a bounded dense-SDF GPU probe input from the full skinning mesh oracle.
     #[must_use]
     pub fn from_skinning_mesh_input(input: &QuestMakepadGpuSkinningMeshProbeInput) -> Option<Self> {
         if input.topology_vertex_count == 0
@@ -176,7 +176,7 @@ impl QuestMakepadGpuMeshSdfProbeInput {
     }
 }
 
-/// Makepad GPU tiny dense-SDF readback summary.
+/// Makepad GPU bounded dense-SDF readback summary.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct QuestMakepadGpuMeshSdfProbeReadback {
     /// Number of vertices skinned by the GPU command.
@@ -238,19 +238,19 @@ impl QuestMakepadGpuMeshSdfProbeReadback {
     }
 }
 
-/// Tiny recorded-hand GPU mesh-to-dense-SDF construction proof.
+/// Bounded recorded-hand GPU mesh-to-dense-SDF construction proof.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadGpuMeshSdfProbe {
     /// Schema identifier.
     pub schema_id: String,
-    /// Full source-frame skinning and tiny SDF oracle input.
+    /// Full source-frame skinning and bounded SDF oracle input.
     pub input: QuestMakepadGpuMeshSdfProbeInput,
     /// Makepad readback result.
     pub readback: QuestMakepadGpuMeshSdfProbeReadback,
 }
 
 impl QuestMakepadGpuMeshSdfProbe {
-    /// Builds a tiny dense-SDF marker from recorded-hand source-frame input.
+    /// Builds a bounded dense-SDF marker from recorded-hand source-frame input.
     #[must_use]
     pub fn from_input(
         input: &QuestMakepadGpuMeshSdfProbeInput,
@@ -267,7 +267,7 @@ impl QuestMakepadGpuMeshSdfProbe {
     #[must_use]
     pub fn marker_line(&self, phase: &str) -> String {
         format!(
-            "{} schema={} phase={} status={} proofKind=tiny-recorded-hand-mesh-to-dense-sdf computeStage=hand-skinning-to-dense-sdf sourceId={} sourceFrameIndex={} topologyVertexCount={} topologyTriangleCount={} topologyIndexCount={} cpuOracle=matter-mesh-to-sdf cpuOraclePreserved=true recordedInputEquivalent=true validationInputShape=bind-mesh-plus-compact-joint-frame resourcePlane={} computeProbeBackend={} oraclePayload={} gridOriginX={} gridOriginY={} gridOriginZ={} gridVoxelSize={} gridDimX={} gridDimY={} gridDimZ={} voxelCount={} vertexCount={} triangleCount={} indexCount={} sampleCount={} checkedSampleCount={} firstSampleLinearIndex={} lastSampleLinearIndex={} mismatchedSamples={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true skinnedVertexBufferResident=true denseSdfVoxelBufferResident=true denseSdfConstructedOnGpu=true indexBufferConsumedByGpu=true fullSourceMeshConsumedByGpu=true computeDispatchSubmitted=true boundedSampleOnly=false prototypeComputeKernel=false weightedDeltaSkinningKernel=false jointMatrixSkinningKernel=true meshToSdfKernel=true fieldSamplingKernel=false fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=bounded-recorded-hand-mesh-to-dense-sdf computeStage=hand-skinning-to-dense-sdf sourceId={} sourceFrameIndex={} topologyVertexCount={} topologyTriangleCount={} topologyIndexCount={} cpuOracle=matter-mesh-to-sdf cpuOraclePreserved=true recordedInputEquivalent=true validationInputShape=bind-mesh-plus-compact-joint-frame resourcePlane={} computeProbeBackend={} oraclePayload={} gridOriginX={} gridOriginY={} gridOriginZ={} gridVoxelSize={} gridDimX={} gridDimY={} gridDimZ={} voxelCount={} vertexCount={} triangleCount={} indexCount={} sampleCount={} checkedSampleCount={} firstSampleLinearIndex={} lastSampleLinearIndex={} mismatchedSamples={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true skinnedVertexBufferResident=true denseSdfVoxelBufferResident=true denseSdfConstructedOnGpu=true indexBufferConsumedByGpu=true fullSourceMeshConsumedByGpu=true computeDispatchSubmitted=true boundedSampleOnly=false prototypeComputeKernel=false weightedDeltaSkinningKernel=false jointMatrixSkinningKernel=true meshToSdfKernel=true fieldSamplingKernel=false fieldParticleKernel=false computeKernel=true gpuComputeReady=false highRateJsonPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MARKER_PREFIX,
             self.schema_id,
             sanitize_marker_value(phase),

@@ -1561,7 +1561,9 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     )
     .expect("full skinning mesh probe input builds");
     let input = QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input(&skinning_input)
-        .expect("tiny mesh SDF probe input builds");
+        .expect("bounded mesh SDF probe input builds");
+    assert!(input.grid.voxel_count > 64);
+    assert!(input.grid.voxel_count <= QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS);
     let mut sample_linear_indices = [0; QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES];
     let mut expected_distances = [0.0; QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SAMPLES];
     for index in 0..input.sample_count {
@@ -1597,7 +1599,7 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     let marker = probe.marker_line("unit-test");
     assert!(marker.contains("schema=rusty.quest.makepad.gpu_mesh_sdf_probe.v1"));
     assert!(marker.contains("status=ready"));
-    assert!(marker.contains("proofKind=tiny-recorded-hand-mesh-to-dense-sdf"));
+    assert!(marker.contains("proofKind=bounded-recorded-hand-mesh-to-dense-sdf"));
     assert!(marker.contains("computeStage=hand-skinning-to-dense-sdf"));
     assert!(marker.contains("sourceId=recorded-hand-synthetic"));
     assert!(marker.contains("sourceFrameIndex=7"));
@@ -1607,7 +1609,7 @@ fn gpu_mesh_sdf_probe_marker_preserves_matter_cpu_oracle_boundary() {
     assert!(marker.contains("validationInputShape=bind-mesh-plus-compact-joint-frame"));
     assert!(marker
         .contains("computeProbeBackend=makepad-vulkan-compute-skinned-mesh-to-dense-sdf-probe"));
-    assert!(marker.contains("oraclePayload=tiny-dense-sdf-from-recorded-hand-skinned-mesh"));
+    assert!(marker.contains("oraclePayload=bounded-dense-sdf-from-recorded-hand-skinned-mesh"));
     assert!(marker.contains("vertexCount=3"));
     assert!(marker.contains("triangleCount=1"));
     assert!(marker.contains("indexCount=3"));

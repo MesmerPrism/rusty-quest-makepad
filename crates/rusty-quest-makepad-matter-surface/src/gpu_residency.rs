@@ -159,18 +159,18 @@ pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_MEASUREMENT_SOURCE: &str =
 /// Marker payload type for the full recorded-hand skinning mesh residency probe.
 pub const QUEST_MAKEPAD_GPU_SKINNING_MESH_PROBE_PAYLOAD: &str =
     "full-recorded-hand-skinning-mesh-buffer";
-/// Quest Makepad tiny recorded-hand mesh-to-dense-SDF probe schema.
+/// Quest Makepad bounded recorded-hand mesh-to-dense-SDF probe schema.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_SCHEMA_ID: &str =
     "rusty.quest.makepad.gpu_mesh_sdf_probe.v1";
-/// Quest Makepad tiny recorded-hand mesh-to-dense-SDF probe marker prefix.
+/// Quest Makepad bounded recorded-hand mesh-to-dense-SDF probe marker prefix.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MARKER_PREFIX: &str =
     "RUSTY_QUEST_MAKEPAD_GPU_MESH_SDF_PROBE";
-/// Backend used by the tiny recorded-hand mesh-to-dense-SDF probe.
+/// Backend used by the bounded recorded-hand mesh-to-dense-SDF probe.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_BACKEND: &str =
     "makepad-vulkan-compute-skinned-mesh-to-dense-sdf-probe";
-/// Measurement companion for the tiny recorded-hand mesh-to-dense-SDF probe.
+/// Measurement companion for the bounded recorded-hand mesh-to-dense-SDF probe.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MEASUREMENT_SOURCE: &str =
     "RUSTY_QUEST_MAKEPAD_GPU_MESH_SDF_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs";
-/// Marker payload type for the tiny recorded-hand mesh-to-dense-SDF probe.
+/// Marker payload type for the bounded recorded-hand mesh-to-dense-SDF probe.
 pub const QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_PAYLOAD: &str =
-    "tiny-dense-sdf-from-recorded-hand-skinned-mesh";
+    "bounded-dense-sdf-from-recorded-hand-skinned-mesh";

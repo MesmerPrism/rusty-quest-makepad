@@ -172,13 +172,16 @@ mod tests {
         let mesh_sdf_probe = source_frame
             .gpu_mesh_sdf_probe
             .as_ref()
-            .expect("recorded hand source carries tiny GPU mesh SDF probe");
+            .expect("recorded hand source carries bounded GPU mesh SDF probe");
         assert_eq!(mesh_sdf_probe.source_id, "recorded-hand-synthetic");
         assert_eq!(mesh_sdf_probe.source_frame_index, 7);
         assert_eq!(mesh_sdf_probe.topology_vertex_count, 3);
         assert_eq!(mesh_sdf_probe.topology_triangle_count, 1);
         assert!(mesh_sdf_probe.grid.voxel_count > 0);
-        assert!(mesh_sdf_probe.grid.voxel_count <= 64);
+        assert!(mesh_sdf_probe.grid.voxel_count > 64);
+        assert!(
+            mesh_sdf_probe.grid.voxel_count <= crate::QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS
+        );
         assert!(mesh_sdf_probe.grid.voxel_size > 0.0);
         assert_eq!(mesh_sdf_probe.sample_count, 4);
         assert!(mesh_sdf_probe.samples[..mesh_sdf_probe.sample_count]
