@@ -66,6 +66,28 @@ function Convert-EffectiveValueToPropertyString {
     return [string]$Value
 }
 
+function Test-PropertyValueMatchesEffectiveValue {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$PropertyValue,
+        [Parameter(Mandatory=$true)]
+        [string]$EffectiveValue
+    )
+
+    if ($PropertyValue -eq $EffectiveValue) {
+        return $true
+    }
+
+    $numberStyle = [System.Globalization.NumberStyles]::Float
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    $propertyNumber = [decimal]::Zero
+    $effectiveNumber = [decimal]::Zero
+    $propertyIsNumber = [decimal]::TryParse($PropertyValue, $numberStyle, $culture, [ref]$propertyNumber)
+    $effectiveIsNumber = [decimal]::TryParse($EffectiveValue, $numberStyle, $culture, [ref]$effectiveNumber)
+
+    return $propertyIsNumber -and $effectiveIsNumber -and $propertyNumber -eq $effectiveNumber
+}
+
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $resolvedMakepadRoot = if ([string]::IsNullOrWhiteSpace($MakepadRoot)) {
     (Resolve-Path (Join-Path $RepoRoot "..\rusty-makepad")).Path
@@ -163,7 +185,7 @@ foreach ($operation in @($propertyPlan.operations)) {
         throw "Property $($operation.name) references missing effective setting $sourceSettingId"
     }
     $effectiveValue = Convert-EffectiveValueToPropertyString $effectiveById[$sourceSettingId]
-    if ([string]$operation.value -ne $effectiveValue) {
+    if (-not (Test-PropertyValueMatchesEffectiveValue -PropertyValue ([string]$operation.value) -EffectiveValue $effectiveValue)) {
         throw "Property $($operation.name) value $($operation.value) does not match effective setting $sourceSettingId value $effectiveValue"
     }
     $sourceLinks += [ordered]@{
