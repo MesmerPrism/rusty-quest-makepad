@@ -141,6 +141,17 @@ keeps high-rate rows out of settings/control JSON, and points Quest evidence to
 `RUSTY_MAKEPAD_CADENCE` fields such as
 `xrRepaintGeometryUploadBytes`, `xrRepaintInstances`, and `xrRepaintGpuMs`.
 
+Settings changes should be treated as scoped invalidation, not as permission to
+reparse or rebuild every runtime subsystem from the frame loop. Generated
+bundles staged through Hostess include
+`makepad-effective-settings.revision.json` beside the effective settings file.
+Hostess runtime checks compare that tiny global/scoped revision sidecar first
+and read detailed settings JSON only after a relevant scope hash changes;
+path/mtime remains a compatibility fallback for older bundles. Watcher events
+and mtimes are hints. High-rate recorded-hand frames, meshes, SDF/ADF fields,
+particles, and GPU buffers remain data-plane payloads outside settings/control
+JSON.
+
 The compute boundary begins with `QuestMakepadGpuComputePreflight` and
 `rusty.quest.makepad.gpu_compute_preflight.v1`. It is emitted only when a
 Matter frame has a ready SDF or indexed ADF field-force CPU oracle and records

@@ -1,3 +1,4 @@
+use rusty_matter_mesh::HandRigCapture;
 use rusty_matter_model::Vec3;
 use rusty_matter_surface_runtime::MatterSurfaceFrameInput;
 use rusty_quest_makepad_mesh_replay::{
@@ -10,6 +11,109 @@ use crate::{
     QuestMakepadMatterSurfaceProviderShape, QuestMakepadMatterSurfaceSourceFrame,
     QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES,
 };
+
+/// Cached adapter for replay/live-equivalent hand source frames.
+///
+/// The recorded rig is converted to Matter's neutral CPU oracle rig once, then
+/// compact joint frames can be expanded into per-frame source payloads without
+/// rebuilding bind-mesh authority on every submit.
+#[derive(Clone, Debug)]
+pub struct QuestMakepadRecordedHandSourceFrameBuilder {
+    source_id: String,
+    source_id_token: String,
+    rig: RecordedHandRig,
+    matter_rig: HandRigCapture,
+}
+
+impl QuestMakepadRecordedHandSourceFrameBuilder {
+    /// Builds a cached source-frame adapter for one recorded hand rig.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuestMakepadMatterSurfaceError`] when the recorded rig cannot
+    /// be represented by Matter's CPU oracle hand rig.
+    pub fn new(
+        source_id: impl Into<String>,
+        rig: RecordedHandRig,
+    ) -> Result<Self, QuestMakepadMatterSurfaceError> {
+        let source_id = source_id.into();
+        let source_id_token = sanitize_marker_value(&source_id);
+        let matter_rig = rig.to_matter_rig_capture(format!("{source_id_token}.rig"))?;
+        Ok(Self {
+            source_id,
+            source_id_token,
+            rig,
+            matter_rig,
+        })
+    }
+
+    /// Expands one compact joint frame into a Matter source frame and GPU proof payloads.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuestMakepadMatterSurfaceError`] when compact frame expansion,
+    /// Matter CPU skinning, or source-frame bounds extraction fails.
+    pub fn source_frame(
+        &self,
+        compact_frame: &RecordedCompactHandJointFrame,
+    ) -> Result<QuestMakepadMatterSurfaceSourceFrame, QuestMakepadMatterSurfaceError> {
+        let joint_frame = compact_frame.expand_to_matter_joint_frame(
+            &self.rig,
+            format!(
+                "{}.joint_frame.{}",
+                self.source_id_token, compact_frame.frame_index
+            ),
+        )?;
+        let validation_frame = self
+            .matter_rig
+            .skin_to_validation_frame(
+                &joint_frame,
+                format!(
+                    "{}.validation_frame.{}",
+                    self.source_id_token, compact_frame.frame_index
+                ),
+            )
+            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning"))?;
+        let skinning_matrix_samples = self
+            .matter_rig
+            .skinning_matrix_samples(&joint_frame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES)
+            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_matrix_samples"))?;
+        let gpu_skinning_probe = QuestMakepadGpuSkinningProbeInput::from_matter_samples(
+            &self.source_id,
+            compact_frame.frame_index,
+            validation_frame.surface.vertex_count(),
+            validation_frame.surface.triangle_count(),
+            &skinning_matrix_samples,
+        );
+        let skinning_mesh_oracle = self
+            .matter_rig
+            .skinning_mesh_buffer_oracle(&joint_frame)
+            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_mesh_oracle"))?;
+        let gpu_skinning_mesh_probe = QuestMakepadGpuSkinningMeshProbeInput::from_matter_oracle(
+            &self.source_id,
+            compact_frame.frame_index,
+            &skinning_mesh_oracle,
+        );
+        let gpu_mesh_sdf_probe = gpu_skinning_mesh_probe
+            .as_ref()
+            .and_then(QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input);
+        let (bounds_min, bounds_max) = bounds_from_positions(&validation_frame.surface.positions)?;
+        Ok(QuestMakepadMatterSurfaceSourceFrame::new(
+            self.source_id.clone(),
+            MatterSurfaceFrameInput::new(
+                compact_frame.frame_index,
+                compact_frame.timestamp_ns as f32 * 1.0e-9,
+                validation_frame.surface,
+            ),
+            bounds_min,
+            bounds_max,
+        )
+        .with_provider_shape(QuestMakepadMatterSurfaceProviderShape::BindMeshPlusCompactJointFrame)
+        .with_gpu_skinning_probe(gpu_skinning_probe)
+        .with_gpu_skinning_mesh_probe(gpu_skinning_mesh_probe)
+        .with_gpu_mesh_sdf_probe(gpu_mesh_sdf_probe))
+    }
+}
 
 impl QuestMakepadMatterSurfaceSourceFrame {
     /// Creates a source frame from a recorded live-equivalent hand capture.
@@ -28,61 +132,8 @@ impl QuestMakepadMatterSurfaceSourceFrame {
         rig: &RecordedHandRig,
         compact_frame: &RecordedCompactHandJointFrame,
     ) -> Result<Self, QuestMakepadMatterSurfaceError> {
-        let source_id = source_id.into();
-        let source_id_token = sanitize_marker_value(&source_id);
-        let matter_rig = rig.to_matter_rig_capture(format!("{source_id_token}.rig"))?;
-        let joint_frame = compact_frame.expand_to_matter_joint_frame(
-            rig,
-            format!(
-                "{source_id_token}.joint_frame.{}",
-                compact_frame.frame_index
-            ),
-        )?;
-        let validation_frame = matter_rig
-            .skin_to_validation_frame(
-                &joint_frame,
-                format!(
-                    "{source_id_token}.validation_frame.{}",
-                    compact_frame.frame_index
-                ),
-            )
-            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning"))?;
-        let skinning_matrix_samples = matter_rig
-            .skinning_matrix_samples(&joint_frame, QUEST_MAKEPAD_GPU_SKINNING_PROBE_SAMPLES)
-            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_matrix_samples"))?;
-        let gpu_skinning_probe = QuestMakepadGpuSkinningProbeInput::from_matter_samples(
-            &source_id,
-            compact_frame.frame_index,
-            validation_frame.surface.vertex_count(),
-            validation_frame.surface.triangle_count(),
-            &skinning_matrix_samples,
-        );
-        let skinning_mesh_oracle = matter_rig
-            .skinning_mesh_buffer_oracle(&joint_frame)
-            .map_err(|_| MeshReplayError::InvalidValue("recorded_hand_skinning_mesh_oracle"))?;
-        let gpu_skinning_mesh_probe = QuestMakepadGpuSkinningMeshProbeInput::from_matter_oracle(
-            &source_id,
-            compact_frame.frame_index,
-            &skinning_mesh_oracle,
-        );
-        let gpu_mesh_sdf_probe = gpu_skinning_mesh_probe
-            .as_ref()
-            .and_then(QuestMakepadGpuMeshSdfProbeInput::from_skinning_mesh_input);
-        let (bounds_min, bounds_max) = bounds_from_positions(&validation_frame.surface.positions)?;
-        Ok(Self::new(
-            source_id,
-            MatterSurfaceFrameInput::new(
-                compact_frame.frame_index,
-                compact_frame.timestamp_ns as f32 * 1.0e-9,
-                validation_frame.surface,
-            ),
-            bounds_min,
-            bounds_max,
-        )
-        .with_provider_shape(QuestMakepadMatterSurfaceProviderShape::BindMeshPlusCompactJointFrame)
-        .with_gpu_skinning_probe(gpu_skinning_probe)
-        .with_gpu_skinning_mesh_probe(gpu_skinning_mesh_probe)
-        .with_gpu_mesh_sdf_probe(gpu_mesh_sdf_probe))
+        QuestMakepadRecordedHandSourceFrameBuilder::new(source_id, rig.clone())?
+            .source_frame(compact_frame)
     }
 }
 

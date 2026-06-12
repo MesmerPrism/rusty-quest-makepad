@@ -276,6 +276,15 @@ the Hostess app-private path with the Hostess helper. This uses
 `/data/local/tmp` as an ADB-visible staging hop and then `run-as` to copy into
 `files/hostess-t/settings`. Do not use `/sdcard/Android/data/...` as the
 app/ADB handoff path for replay or recorded-hand payloads.
+The Hostess staging helper also writes
+`makepad-effective-settings.revision.json`. New settings work should preserve
+that policy: writers/stagers publish a tiny global/scoped revision sidecar,
+Hostess runtime hotload checks compare the sidecar first, and detailed JSON
+parsing or subsystem rebuilds happen only after a relevant scope hash changes.
+Path/mtime remains a fallback for older bundles. Filesystem watch events,
+mtimes, and long-poll wakeups are invalidation hints, not proof that a setting
+scope changed. Do not put high-rate recorded-hand frames, meshes, SDF/ADF
+fields, particles, or GPU buffers into settings/control JSON.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File S:\Work\repos\active\rusty-hostess\tools\Stage-HostessMakepadSettings.ps1 `

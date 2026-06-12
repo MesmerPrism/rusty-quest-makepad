@@ -101,6 +101,7 @@ pub use gpu_residency::{
     QUEST_MAKEPAD_GPU_STORAGE_PROBE_RESOURCE_PLANE, QUEST_MAKEPAD_GPU_STORAGE_PROBE_SCHEMA_ID,
     QUEST_MAKEPAD_PARTICLE_GPU_RESIDENCY_ROW_STRIDE_BYTES,
 };
+pub use recorded_hand_source::QuestMakepadRecordedHandSourceFrameBuilder;
 pub use runtime::QuestMakepadMatterSurfaceRuntime;
 pub use rusty_matter_surface_runtime::{
     MatterSurfaceContactProbe, MatterSurfaceParticleDistanceRefreshPolicy,
