@@ -1,0 +1,72 @@
+{
+  "schema": "rusty.gui.makepad.settings_profile.v1",
+  "profile_id": "profile.quest_makepad.stimulus_volume_proof",
+  "surface_app_id": "rusty-quest-makepad.camera-shell",
+  "layer": "runtime_profile",
+  "values": [
+    {
+      "setting_id": "makepad.mesh_replay.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.mesh_replay.opacity",
+      "value": 0.0
+    },
+    {
+      "setting_id": "makepad.render.scale",
+      "value": 1.0
+    },
+    {
+      "setting_id": "makepad.camera.streaming.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.collision.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.sdf_adf.overlay_mode",
+      "value": "off"
+    },
+    {
+      "setting_id": "makepad.particles.enabled",
+      "value": false
+    },
+    {
+      "setting_id": "makepad.particles.render.draw_limit",
+      "value": 0
+    },
+    {
+      "setting_id": "makepad.particles.render.animation_mode",
+      "value": "static-ring"
+    },
+    {
+      "setting_id": "makepad.stimulus.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "makepad.stimulus.profile_path",
+      "value": "stimulus/volume_interference_preview_profile.json"
+    },
+    {
+      "setting_id": "makepad.stimulus.profile_sha256",
+      "value": "8f4aefd5c1948b76d85d8eab9f482c6c6bee798ef5e9da56a2246491963fcc3d"
+    },
+    {
+      "setting_id": "makepad.stimulus.profile_schema",
+      "value": "rusty.optics.stimulus.profile.v1"
+    },
+    {
+      "setting_id": "makepad.stimulus.tuning_path",
+      "value": "none"
+    },
+    {
+      "setting_id": "makepad.stimulus.tuning_sha256",
+      "value": "none"
+    },
+    {
+      "setting_id": "makepad.stimulus.presentation_mode",
+      "value": "StereoEyeField"
+    }
+  ]
+}

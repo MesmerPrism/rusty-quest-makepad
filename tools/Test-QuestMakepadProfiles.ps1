@@ -81,3 +81,8 @@ Test-RuntimeBundle `
     -Name "Quest Makepad stimulus interference runtime bundle" `
     -BundlePath "fixtures\profiles\stimulus-interference.bundle.json" `
     -OutDir "local-artifacts\quest-makepad-runtime-bundle-stimulus-interference"
+
+Test-RuntimeBundle `
+    -Name "Quest Makepad stimulus volume proof runtime bundle" `
+    -BundlePath "fixtures\profiles\stimulus-volume-proof.bundle.json" `
+    -OutDir "local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-proof"

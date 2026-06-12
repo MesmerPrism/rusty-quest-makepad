@@ -70,7 +70,12 @@ schema, optional browser-tuning sidecar, and `StereoEyeField` presentation
 mode. The profile JSON remains a sibling `stimulus/` payload. The camera-shell
 adapter can verify the staged file's hash and full-screen stereo presentation
 before a future Quest Vulkan/Makepad stimulus renderer lowers the Optics
-profile to textures, storage buffers, descriptors, and XR submissions.
+profile to textures, storage buffers, descriptors, and XR submissions. For
+volume proof profiles, the adapter also extracts a compact summary of
+`rusty.optics.stimulus.volume.v1` and the selected compute ABI: field kind,
+storage hint, grid bounds, step count, bounded readback sample count, and
+two-layer stereo output. It does not copy the profile body into settings or
+claim GPU compute execution.
 
 `rusty-quest-makepad-mesh-replay` now has two replay lanes. The existing
 `rusty.matter.tools.glb_mesh_surface_sequence.v1` lane stays as the

@@ -271,16 +271,21 @@ start camera capture, open media sockets, decode H.264, or move frame payloads
 through effective settings.
 
 The stimulus interference profile is also included in the dry-run profile
-gate:
+gate, along with a volume-proof profile that uses the same low-rate settings
+handoff:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-interference.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-interference
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-volume-proof.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-proof
 ```
 
-That bundle copies the Optics stimulus profile into
+Those bundles copy the Optics stimulus profile into
 `local-artifacts\quest-makepad-runtime-bundle-stimulus-interference\stimulus`
 and verifies that `makepad.stimulus.profile_path` plus
-`makepad.stimulus.profile_sha256` match the staged file. Browser-created
+`makepad.stimulus.profile_sha256` match the staged file. The volume-proof
+report also records `payloads[].profile_summary.volume_present=true`,
+`volume_readback_probe_samples=512`, `stereo_field_output_layers=2`,
+`gpu_compute_ready=false`, and `compute_kernel_claimed=false`. Browser-created
 profiles use:
 
 ```powershell

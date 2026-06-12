@@ -1,0 +1,112 @@
+{
+  "schema": "rusty.quest.runtime_profile.v1",
+  "profile_id": "profile.quest.makepad.stimulus_volume_proof",
+  "target_platform": "quest",
+  "owned_android_properties": [
+    "debug.rustyquest.makepad.mesh.replay.enabled",
+    "debug.rustyquest.makepad.mesh.replay.opacity",
+    "debug.rustyquest.makepad.render.scale",
+    "debug.rustyquest.makepad.camera.streaming.enabled",
+    "debug.rustyquest.makepad.collision.enabled",
+    "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+    "debug.rustyquest.makepad.particles.enabled",
+    "debug.rustyquest.makepad.particles.render.draw_limit",
+    "debug.rustyquest.makepad.particles.render.animation_mode",
+    "debug.rustyquest.makepad.stimulus.enabled",
+    "debug.rustyquest.makepad.stimulus.profile_path",
+    "debug.rustyquest.makepad.stimulus.profile_sha256",
+    "debug.rustyquest.makepad.stimulus.profile_schema",
+    "debug.rustyquest.makepad.stimulus.tuning_path",
+    "debug.rustyquest.makepad.stimulus.tuning_sha256",
+    "debug.rustyquest.makepad.stimulus.presentation_mode"
+  ],
+  "set_properties": [
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.mesh_replay.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.opacity",
+      "value": "0",
+      "source_setting_id": "makepad.mesh_replay.opacity"
+    },
+    {
+      "name": "debug.rustyquest.makepad.render.scale",
+      "value": "1.0",
+      "source_setting_id": "makepad.render.scale"
+    },
+    {
+      "name": "debug.rustyquest.makepad.camera.streaming.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.camera.streaming.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.collision.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.collision.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+      "value": "off",
+      "source_setting_id": "makepad.sdf_adf.overlay_mode"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.particles.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.render.draw_limit",
+      "value": "0",
+      "source_setting_id": "makepad.particles.render.draw_limit"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.render.animation_mode",
+      "value": "static-ring",
+      "source_setting_id": "makepad.particles.render.animation_mode"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.enabled",
+      "value": "true",
+      "source_setting_id": "makepad.stimulus.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.profile_path",
+      "value": "stimulus/volume_interference_preview_profile.json",
+      "source_setting_id": "makepad.stimulus.profile_path"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.profile_sha256",
+      "value": "8f4aefd5c1948b76d85d8eab9f482c6c6bee798ef5e9da56a2246491963fcc3d",
+      "source_setting_id": "makepad.stimulus.profile_sha256"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.profile_schema",
+      "value": "rusty.optics.stimulus.profile.v1",
+      "source_setting_id": "makepad.stimulus.profile_schema"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.tuning_path",
+      "value": "none",
+      "source_setting_id": "makepad.stimulus.tuning_path"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.tuning_sha256",
+      "value": "none",
+      "source_setting_id": "makepad.stimulus.tuning_sha256"
+    },
+    {
+      "name": "debug.rustyquest.makepad.stimulus.presentation_mode",
+      "value": "StereoEyeField",
+      "source_setting_id": "makepad.stimulus.presentation_mode"
+    }
+  ],
+  "expected_markers": [
+    "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+    "RUSTY_HOSTESS_MAKEPAD_EFFECTIVE_SETTINGS"
+  ],
+  "validation_commands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-QuestMakepadProfiles.ps1"
+  ]
+}

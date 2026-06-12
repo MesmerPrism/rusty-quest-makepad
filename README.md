@@ -122,7 +122,10 @@ browser profile can be staged for the Quest stereo APK without embedding
 renderer-neutral visual payloads in settings JSON. Use
 `tools\Expand-StimulusBrowserHandoff.ps1` for ad hoc browser exports and
 `fixtures\profiles\stimulus-interference.bundle.json` for the committed
-interference fixture.
+interference fixture. `fixtures\profiles\stimulus-volume-proof.bundle.json`
+uses the same boundary for the Optics volume proof profile and records a
+compact volume/compute ABI summary in the dry-run bundle report; this is
+profile adoption evidence, not a Quest Vulkan compute claim.
 
 For the current ADF slice, `makepad.sdf_adf.overlay_mode=adf` enables a
 Matter-backed ADF build from the current Matter SDF grid and resolves the

@@ -2,6 +2,7 @@
 
 mod matter_surface_exports;
 mod mesh_replay_source;
+mod stimulus_volume_gpu;
 
 use std::{
     num::NonZeroUsize,
@@ -20,6 +21,7 @@ pub use rusty_quest_makepad_mesh_replay::{
 };
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+pub use stimulus_volume_gpu::*;
 
 use mesh_replay_source::mesh_replay_runtime_from_config;
 pub use mesh_replay_source::{
@@ -149,6 +151,10 @@ pub const DEFAULT_PARTICLE_RENDER_SIZE_SCALE: f32 = 1.0;
 pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
 /// Default staged Optics stimulus profile schema.
 pub const DEFAULT_STIMULUS_PROFILE_SCHEMA_ID: &str = "rusty.optics.stimulus.profile.v1";
+/// Optics stimulus volume descriptor schema accepted by this adapter boundary.
+pub const STIMULUS_VOLUME_SCHEMA_ID: &str = "rusty.optics.stimulus.volume.v1";
+/// Marker name reserved for future Quest runtime volume-profile adoption evidence.
+pub const STIMULUS_VOLUME_ADOPTION_MARKER: &str = "RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_ADOPTION";
 /// Default full-screen stimulus presentation mode.
 pub const DEFAULT_STIMULUS_PRESENTATION_MODE: StimulusPresentationMode =
     StimulusPresentationMode::StereoEyeField;
@@ -628,6 +634,35 @@ pub struct StimulusProfilePayload {
     pub profile_json: String,
     /// Verified SHA-256 digest of the raw staged profile JSON.
     pub profile_sha256: String,
+    /// Compact volume/compute summary extracted from the Optics profile.
+    pub volume_summary: StimulusVolumeProfileSummary,
+}
+
+/// Compact adapter-facing summary of Optics stimulus volume intent.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct StimulusVolumeProfileSummary {
+    /// Whether the profile declares a volume descriptor.
+    pub volume_present: bool,
+    /// Volume descriptor schema id.
+    pub volume_schema: Option<String>,
+    /// Volume id read from the staged profile.
+    pub volume_id: Option<String>,
+    /// Optics volume field kind.
+    pub field_kind: Option<String>,
+    /// Intended renderer storage class.
+    pub storage_hint: Option<String>,
+    /// Bounded descriptor grid dimensions.
+    pub grid_dimensions: Option<[u64; 3]>,
+    /// Bounded raymarch/probe step count.
+    pub step_count: Option<u64>,
+    /// Kernel ABI id selected by the profile.
+    pub kernel_abi_id: Option<String>,
+    /// Count of declared compute passes in the Optics ABI.
+    pub compute_pass_count: usize,
+    /// Bounded readback samples declared by the volume probe pass.
+    pub volume_readback_probe_samples: Option<u64>,
+    /// Output layers declared by the stereo raymarch pass.
+    pub stereo_field_output_layers: Option<u64>,
 }
 
 /// Load and verify the staged Optics stimulus profile selected by effective
@@ -696,6 +731,7 @@ pub fn stimulus_profile_payload_from_effective_settings_json_with_root(
         .and_then(Value::as_str)
         .unwrap_or("stimulus.profile.unknown")
         .to_string();
+    let volume_summary = stimulus_volume_profile_summary(&profile)?;
 
     Ok(Some(StimulusProfilePayload {
         config,
@@ -704,7 +740,147 @@ pub fn stimulus_profile_payload_from_effective_settings_json_with_root(
         profile_schema: profile_schema.to_string(),
         profile_json,
         profile_sha256,
+        volume_summary,
     }))
+}
+
+fn stimulus_volume_profile_summary(
+    profile: &Value,
+) -> Result<StimulusVolumeProfileSummary, CameraShellConfigError> {
+    let Some(volume) = profile.get("volume") else {
+        return Ok(StimulusVolumeProfileSummary::default());
+    };
+    let volume_schema = required_profile_string(volume, "volume", "schema_id")?;
+    if volume_schema != STIMULUS_VOLUME_SCHEMA_ID {
+        return Err(CameraShellConfigError::StimulusProfileAsset(format!(
+            "unsupported stimulus volume schema: {volume_schema}"
+        )));
+    }
+    let volume_id = required_profile_string(volume, "volume", "volume_id")?;
+    let field_kind = required_profile_string(volume, "volume", "field_kind")?;
+    let storage_hint = required_profile_string(volume, "volume", "storage_hint")?;
+    let grid_dimensions = required_profile_u64_array3(volume, "volume", "grid_dimensions")?;
+    if grid_dimensions
+        .iter()
+        .any(|value| *value == 0 || *value > 512)
+    {
+        return Err(CameraShellConfigError::StimulusProfileAsset(
+            "volume grid_dimensions must be within 1..=512 per axis".to_string(),
+        ));
+    }
+    let step_count = required_profile_u64(volume, "volume", "step_count")?;
+    if !(1..=256).contains(&step_count) {
+        return Err(CameraShellConfigError::StimulusProfileAsset(
+            "volume step_count must be within 1..=256".to_string(),
+        ));
+    }
+
+    let kernel_abi = profile.get("kernel_abi").ok_or_else(|| {
+        CameraShellConfigError::StimulusProfileAsset(
+            "volume profile requires kernel_abi".to_string(),
+        )
+    })?;
+    let kernel_abi_id = required_profile_string(kernel_abi, "kernel_abi", "abi_id")?;
+    let compute_passes = kernel_abi
+        .get("compute_passes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            CameraShellConfigError::StimulusProfileAsset(
+                "kernel_abi.compute_passes must be an array".to_string(),
+            )
+        })?;
+
+    let volume_readback_probe_samples = compute_passes
+        .iter()
+        .find(|pass| pass.get("kind").and_then(Value::as_str) == Some("VolumeReadbackProbe"))
+        .and_then(|pass| pass.get("bounded_readback_samples").and_then(Value::as_u64));
+    let stereo_field_output_layers = compute_passes
+        .iter()
+        .find(|pass| pass.get("kind").and_then(Value::as_str) == Some("VolumeRaymarchStereoField"))
+        .and_then(|pass| pass.get("output_layers").and_then(Value::as_u64));
+
+    if volume_readback_probe_samples
+        .map(|samples| samples == 0 || samples > 512)
+        .unwrap_or(true)
+    {
+        return Err(CameraShellConfigError::StimulusProfileAsset(
+            "volume profile requires a bounded VolumeReadbackProbe pass".to_string(),
+        ));
+    }
+    if stereo_field_output_layers != Some(2) {
+        return Err(CameraShellConfigError::StimulusProfileAsset(
+            "volume profile requires a two-layer VolumeRaymarchStereoField pass".to_string(),
+        ));
+    }
+
+    Ok(StimulusVolumeProfileSummary {
+        volume_present: true,
+        volume_schema: Some(volume_schema),
+        volume_id: Some(volume_id),
+        field_kind: Some(field_kind),
+        storage_hint: Some(storage_hint),
+        grid_dimensions: Some(grid_dimensions),
+        step_count: Some(step_count),
+        kernel_abi_id: Some(kernel_abi_id),
+        compute_pass_count: compute_passes.len(),
+        volume_readback_probe_samples,
+        stereo_field_output_layers,
+    })
+}
+
+fn required_profile_string(
+    object: &Value,
+    context: &str,
+    field: &str,
+) -> Result<String, CameraShellConfigError> {
+    object
+        .get(field)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            CameraShellConfigError::StimulusProfileAsset(format!(
+                "missing or invalid {context}.{field}"
+            ))
+        })
+}
+
+fn required_profile_u64(
+    object: &Value,
+    context: &str,
+    field: &str,
+) -> Result<u64, CameraShellConfigError> {
+    object.get(field).and_then(Value::as_u64).ok_or_else(|| {
+        CameraShellConfigError::StimulusProfileAsset(format!(
+            "missing or invalid {context}.{field}"
+        ))
+    })
+}
+
+fn required_profile_u64_array3(
+    object: &Value,
+    context: &str,
+    field: &str,
+) -> Result<[u64; 3], CameraShellConfigError> {
+    let values = object.get(field).and_then(Value::as_array).ok_or_else(|| {
+        CameraShellConfigError::StimulusProfileAsset(format!(
+            "missing or invalid {context}.{field}"
+        ))
+    })?;
+    if values.len() != 3 {
+        return Err(CameraShellConfigError::StimulusProfileAsset(format!(
+            "{context}.{field} must contain exactly three values"
+        )));
+    }
+    let mut output = [0_u64; 3];
+    for (index, value) in values.iter().enumerate() {
+        output[index] = value.as_u64().ok_or_else(|| {
+            CameraShellConfigError::StimulusProfileAsset(format!(
+                "{context}.{field}[{index}] must be an unsigned integer"
+            ))
+        })?;
+    }
+    Ok(output)
 }
 
 /// Baseline projection reports derived from a Lattice display view set.
@@ -1817,6 +1993,75 @@ mod tests {
         assert_eq!(payload.profile_schema, DEFAULT_STIMULUS_PROFILE_SCHEMA_ID);
         assert_eq!(payload.profile_json, profile_json);
         assert_eq!(payload.config.profile_path, "stimulus/profile.json");
+
+        std::fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn loads_staged_stimulus_volume_profile_summary() {
+        let profile_json = r#"{"profile_id":"stimulus.profile.volume.test","schema_id":"rusty.optics.stimulus.profile.v1","presentation":{"mode":"StereoEyeField","coverage":"FullViewport","eye_count":2},"volume":{"schema_id":"rusty.optics.stimulus.volume.v1","volume_id":"stimulus.volume.test","field_kind":"ProceduralLayerStack3d","storage_hint":"StorageBuffer","grid_dimensions":[32,32,32],"step_count":32},"kernel_abi":{"abi_id":"stimulus.kernel.volume_compute_v1","compute_passes":[{"kind":"VolumeDensityCache","output_layers":1},{"kind":"VolumeReadbackProbe","bounded_readback_samples":512},{"kind":"VolumeRaymarchStereoField","output_layers":2}]}}"#;
+        let profile_sha = sha256_hex(profile_json.as_bytes());
+        let root = unique_temp_dir("stimulus-volume-profile-payload");
+        let stimulus_dir = root.join("stimulus");
+        std::fs::create_dir_all(&stimulus_dir).expect("create stimulus dir");
+        std::fs::write(stimulus_dir.join("volume-profile.json"), profile_json)
+            .expect("write profile");
+        let stimulus = effective_settings_with_appended_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_STIMULUS_ENABLED,
+            serde_json::json!(true),
+        );
+        let stimulus = effective_settings_with_appended_value(
+            &stimulus,
+            SETTING_STIMULUS_PROFILE_PATH,
+            serde_json::json!("stimulus/volume-profile.json"),
+        );
+        let stimulus = effective_settings_with_appended_value(
+            &stimulus,
+            SETTING_STIMULUS_PROFILE_SHA256,
+            serde_json::json!(profile_sha),
+        );
+        let stimulus = effective_settings_with_appended_value(
+            &stimulus,
+            SETTING_STIMULUS_PROFILE_SCHEMA,
+            serde_json::json!(DEFAULT_STIMULUS_PROFILE_SCHEMA_ID),
+        );
+        let stimulus = effective_settings_with_appended_value(
+            &stimulus,
+            SETTING_STIMULUS_PRESENTATION_MODE,
+            serde_json::json!("StereoEyeField"),
+        );
+        let payload =
+            stimulus_profile_payload_from_effective_settings_json_with_root(&stimulus, &root)
+                .unwrap()
+                .expect("stimulus payload");
+
+        assert_eq!(payload.profile_id, "stimulus.profile.volume.test");
+        assert!(payload.volume_summary.volume_present);
+        assert_eq!(
+            payload.volume_summary.volume_schema.as_deref(),
+            Some(STIMULUS_VOLUME_SCHEMA_ID)
+        );
+        assert_eq!(
+            payload.volume_summary.field_kind.as_deref(),
+            Some("ProceduralLayerStack3d")
+        );
+        assert_eq!(
+            payload.volume_summary.storage_hint.as_deref(),
+            Some("StorageBuffer")
+        );
+        assert_eq!(payload.volume_summary.grid_dimensions, Some([32, 32, 32]));
+        assert_eq!(payload.volume_summary.step_count, Some(32));
+        assert_eq!(
+            payload.volume_summary.kernel_abi_id.as_deref(),
+            Some("stimulus.kernel.volume_compute_v1")
+        );
+        assert_eq!(payload.volume_summary.compute_pass_count, 3);
+        assert_eq!(
+            payload.volume_summary.volume_readback_probe_samples,
+            Some(512)
+        );
+        assert_eq!(payload.volume_summary.stereo_field_output_layers, Some(2));
 
         std::fs::remove_dir_all(root).ok();
     }
