@@ -245,6 +245,7 @@ impl QuestMakepadMatterSurfaceRuntime {
                 .sdf_adf_debug_update_interval_frames
                 .get(),
             particle_snapshot,
+            particle_force_oracle_config: self.config.particle_force_oracle_config(),
             particle_step,
             particle_visual_frame,
             particle_upload,

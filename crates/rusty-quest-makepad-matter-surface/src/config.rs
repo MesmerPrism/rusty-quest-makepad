@@ -1,5 +1,6 @@
 use std::num::NonZeroUsize;
 
+use rusty_matter_particles::SurfaceParticleRuntimeConfig;
 use rusty_matter_sdf::{MeshSdfSignMode, MeshToSdfConfig};
 use rusty_matter_surface_runtime::{
     MatterSurfaceParticleDistanceRefreshPolicy, MatterSurfaceParticleForceSource,
@@ -12,6 +13,44 @@ use crate::{
     QuestMakepadAdfDebugConfig, DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE,
     DEFAULT_SDF_ADF_DEBUG_UPDATE_INTERVAL_FRAMES,
 };
+
+/// Compact Matter particle-force equation coefficients used for bounded GPU proofs.
+///
+/// This is evidence/config data only. Matter remains the authority for particle
+/// semantics and CPU reference behavior.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct QuestMakepadMatterParticleForceOracleConfig {
+    /// Target surface distance as a multiplier of particle radius.
+    pub target_distance_radius_scale: f32,
+    /// Minimum target distance in mesh units.
+    pub minimum_target_distance: f32,
+    /// Acceleration scale applied toward the target surface band.
+    pub attraction_strength: f32,
+}
+
+impl QuestMakepadMatterParticleForceOracleConfig {
+    /// Captures Matter particle-force coefficients from the runtime config.
+    #[must_use]
+    pub fn from_matter_config(config: &SurfaceParticleRuntimeConfig) -> Self {
+        Self {
+            target_distance_radius_scale: config.target_distance_radius_scale,
+            minimum_target_distance: config.minimum_target_distance,
+            attraction_strength: config.attraction_strength,
+        }
+    }
+
+    /// Returns the Matter target distance for a particle radius.
+    #[must_use]
+    pub fn target_distance_for_radius(self, radius: f32) -> f32 {
+        (radius * self.target_distance_radius_scale).max(self.minimum_target_distance)
+    }
+}
+
+impl Default for QuestMakepadMatterParticleForceOracleConfig {
+    fn default() -> Self {
+        Self::from_matter_config(&SurfaceParticleRuntimeConfig::default())
+    }
+}
 
 /// Quest Makepad native Matter surface adapter config.
 #[derive(Clone, Debug, PartialEq)]
@@ -127,6 +166,13 @@ impl QuestMakepadMatterSurfaceConfig {
         };
         config.particles.max_frame_delta_seconds = self.particle_max_frame_delta_seconds;
         config
+    }
+
+    /// Compact Matter particle-force equation coefficients for bounded GPU proofs.
+    #[must_use]
+    pub fn particle_force_oracle_config(&self) -> QuestMakepadMatterParticleForceOracleConfig {
+        let matter_config = self.to_matter_config();
+        QuestMakepadMatterParticleForceOracleConfig::from_matter_config(&matter_config.particles)
     }
 
     /// SDF builder config used for optional slice output.

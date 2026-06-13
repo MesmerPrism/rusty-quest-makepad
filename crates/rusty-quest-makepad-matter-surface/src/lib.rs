@@ -31,7 +31,7 @@ pub use adf_world::{
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_EVEN_SELECTION_POLICY,
     QUEST_MAKEPAD_WORLD_ADF_DEBUG_MARKER_PREFIX, QUEST_MAKEPAD_WORLD_ADF_DEBUG_RENDER_MODE,
 };
-pub use config::QuestMakepadMatterSurfaceConfig;
+pub use config::{QuestMakepadMatterParticleForceOracleConfig, QuestMakepadMatterSurfaceConfig};
 pub use constants::{
     DEFAULT_MIN_PARTICLE_RADIUS, DEFAULT_PARTICLE_CLOUD_RADIUS_SCALE,
     DEFAULT_PARTICLE_EXECUTION_BATCH_SIZE, DEFAULT_PARTICLE_RADIUS_SCALE,
@@ -53,9 +53,11 @@ pub use gpu_residency::{
     QuestMakepadGpuComputePreflight, QuestMakepadGpuComputeResourceKind,
     QuestMakepadGpuFieldConstructionReceipt, QuestMakepadGpuFieldForceProbe,
     QuestMakepadGpuFieldForceProbeReadback, QuestMakepadGpuFieldForceSamplingProbe,
-    QuestMakepadGpuFieldForceSamplingProbeReadback, QuestMakepadGpuFieldSamplingProbe,
-    QuestMakepadGpuFieldSamplingProbeReadback, QuestMakepadGpuMeshSdfForceProbeSample,
-    QuestMakepadGpuMeshSdfProbe, QuestMakepadGpuMeshSdfProbeGrid, QuestMakepadGpuMeshSdfProbeInput,
+    QuestMakepadGpuFieldForceSamplingProbeReadback, QuestMakepadGpuFieldParticleForceProbe,
+    QuestMakepadGpuFieldParticleForceProbeInput, QuestMakepadGpuFieldParticleForceProbeSample,
+    QuestMakepadGpuFieldSamplingProbe, QuestMakepadGpuFieldSamplingProbeReadback,
+    QuestMakepadGpuMeshSdfForceProbeSample, QuestMakepadGpuMeshSdfProbe,
+    QuestMakepadGpuMeshSdfProbeGrid, QuestMakepadGpuMeshSdfProbeInput,
     QuestMakepadGpuMeshSdfProbeReadback, QuestMakepadGpuMeshSdfProbeSample,
     QuestMakepadGpuOracleComputeProbe, QuestMakepadGpuOracleComputeProbeReadback,
     QuestMakepadGpuResidencyPayloadKind, QuestMakepadGpuResidencyProof,
@@ -89,6 +91,13 @@ pub use gpu_residency::{
     QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_RESOURCE_PLANE,
     QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_SAMPLES,
     QUEST_MAKEPAD_GPU_FIELD_FORCE_SAMPLING_PROBE_SCHEMA_ID,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_CPU_ORACLE,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_DEFAULT_TOLERANCE,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_MEASUREMENT_SOURCE,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_RESOURCE_PLANE,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES,
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SCHEMA_ID,
     QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_CPU_ORACLE,
     QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_DEFAULT_TOLERANCE,
     QUEST_MAKEPAD_GPU_FIELD_SAMPLING_PROBE_MARKER_PREFIX,

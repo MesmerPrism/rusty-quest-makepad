@@ -1,5 +1,5 @@
 use rusty_matter_model::{TriangleMeshSnapshot, Vec3};
-use rusty_matter_sdf::{build_sdf_from_mesh, MeshSdfSignMode, MeshToSdfConfig};
+use rusty_matter_sdf::{build_sdf_from_mesh, MeshSdfSignMode, MeshToSdfConfig, PackedSdfGrid};
 
 use crate::sanitize_marker_value;
 
@@ -111,42 +111,8 @@ impl QuestMakepadGpuMeshSdfProbeInput {
             return None;
         }
 
-        let positions = input
-            .vertices
-            .iter()
-            .map(|vertex| {
-                Vec3::new(
-                    vertex.expected_position[0],
-                    vertex.expected_position[1],
-                    vertex.expected_position[2],
-                )
-            })
-            .collect::<Vec<_>>();
-        if !positions.iter().copied().all(Vec3::is_finite) {
-            return None;
-        }
-
-        let mesh = TriangleMeshSnapshot::new(
-            format!("{}.gpu_mesh_sdf_oracle", input.source_id),
-            positions,
-            input.triangles.clone(),
-        );
-        mesh.validate().ok()?;
-        let bounds = mesh.bounds().ok()?;
-        let size = bounds.size();
-        let max_extent = size.x.max(size.y).max(size.z);
-        if !max_extent.is_finite() || max_extent <= 0.0 {
-            return None;
-        }
-        let voxel_size = (max_extent / QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_TARGET_AXIS_CELLS)
-            .max(QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MIN_VOXEL_SIZE);
-        let config = MeshToSdfConfig {
-            voxel_size,
-            padding_voxels: 1,
-            max_voxels: QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS,
-            sign_mode: MeshSdfSignMode::TriangleNormal,
-        };
-        let cpu_grid = build_sdf_from_mesh(&mesh, config).ok()?;
+        let cpu_grid = build_cpu_grid_from_skinning_mesh_input(input)?;
+        let voxel_size = cpu_grid.voxel_size;
         let voxel_count = cpu_grid.sample_count();
         if voxel_count == 0 || voxel_count > QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS {
             return None;
@@ -236,6 +202,82 @@ impl QuestMakepadGpuMeshSdfProbeInput {
             .checked_sub(1)
             .map(|index| self.samples[index].linear_index)
     }
+}
+
+pub(super) fn build_cpu_grid_from_mesh_sdf_input(
+    input: &QuestMakepadGpuMeshSdfProbeInput,
+) -> Option<PackedSdfGrid> {
+    let mesh = mesh_from_skinning_vertices(
+        format!("{}.gpu_mesh_sdf_oracle", input.source_id),
+        &input.vertices,
+        &input.triangles,
+    )?;
+    let config = MeshToSdfConfig {
+        voxel_size: input.grid.voxel_size,
+        padding_voxels: 1,
+        max_voxels: QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS,
+        sign_mode: MeshSdfSignMode::TriangleNormal,
+    };
+    let grid = build_sdf_from_mesh(&mesh, config).ok()?;
+    if grid.sample_count() == input.grid.voxel_count
+        && grid.dimensions == input.grid.dimensions
+        && grid.origin.x == input.grid.origin[0]
+        && grid.origin.y == input.grid.origin[1]
+        && grid.origin.z == input.grid.origin[2]
+    {
+        Some(grid)
+    } else {
+        None
+    }
+}
+
+fn build_cpu_grid_from_skinning_mesh_input(
+    input: &QuestMakepadGpuSkinningMeshProbeInput,
+) -> Option<PackedSdfGrid> {
+    let mesh = mesh_from_skinning_vertices(
+        format!("{}.gpu_mesh_sdf_oracle", input.source_id),
+        &input.vertices,
+        &input.triangles,
+    )?;
+    let bounds = mesh.bounds().ok()?;
+    let size = bounds.size();
+    let max_extent = size.x.max(size.y).max(size.z);
+    if !max_extent.is_finite() || max_extent <= 0.0 {
+        return None;
+    }
+    let voxel_size = (max_extent / QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_TARGET_AXIS_CELLS)
+        .max(QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MIN_VOXEL_SIZE);
+    let config = MeshToSdfConfig {
+        voxel_size,
+        padding_voxels: 1,
+        max_voxels: QUEST_MAKEPAD_GPU_MESH_SDF_PROBE_MAX_VOXELS,
+        sign_mode: MeshSdfSignMode::TriangleNormal,
+    };
+    build_sdf_from_mesh(&mesh, config).ok()
+}
+
+fn mesh_from_skinning_vertices(
+    surface_id: String,
+    vertices: &[QuestMakepadGpuSkinningMeshVertex],
+    triangles: &[[u32; 3]],
+) -> Option<TriangleMeshSnapshot> {
+    let positions = vertices
+        .iter()
+        .map(|vertex| {
+            Vec3::new(
+                vertex.expected_position[0],
+                vertex.expected_position[1],
+                vertex.expected_position[2],
+            )
+        })
+        .collect::<Vec<_>>();
+    if !positions.iter().copied().all(Vec3::is_finite) {
+        return None;
+    }
+
+    let mesh = TriangleMeshSnapshot::new(surface_id, positions, triangles.to_vec());
+    mesh.validate().ok()?;
+    Some(mesh)
 }
 
 /// Makepad GPU bounded dense-SDF readback summary.
@@ -420,7 +462,7 @@ impl QuestMakepadGpuMeshSdfProbe {
     }
 }
 
-fn selected_index(count: usize, sample_count: usize, sample_index: usize) -> usize {
+pub(super) fn selected_index(count: usize, sample_count: usize, sample_index: usize) -> usize {
     if sample_count <= 1 {
         0
     } else {
@@ -428,7 +470,7 @@ fn selected_index(count: usize, sample_count: usize, sample_index: usize) -> usi
     }
 }
 
-fn normalize_or(vector: Vec3, fallback: Vec3) -> Vec3 {
+pub(super) fn normalize_or(vector: Vec3, fallback: Vec3) -> Vec3 {
     if !vector.is_finite() {
         return fallback;
     }
