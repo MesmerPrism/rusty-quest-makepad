@@ -206,6 +206,16 @@ steady-state proof count, freshness/cadence readiness, expanded oracle
 comparison readiness, and live-vs-recorded provider A/B readiness. Until all of
 those are true it must keep `runtimeSelectionPermitted=false`, one active
 Matter CPU authority, and `matterCpuFallbackReady=true`.
+The actual exclusive runtime choice is represented by
+`QuestMakepadRuntimeForceAuthoritySelection`: it selects either the active
+Matter CPU authority or the GPU dense-SDF field particle-force equivalent, never
+both. The current bounded proof path passes only cumulative proof ordinals and
+resident/reused buffer facts into that selector, so it keeps
+`activeForceAuthorityKind=matter-cpu`. A future promotion must first prove
+steady-state resident source/derived buffers, freshness, cadence, expanded
+CPU-oracle comparison, and live/recorded provider A/B evidence; only then may
+the selector emit `activeForceAuthorityKind=gpu-dense-sdf-field-particle-force`
+with Matter CPU demoted to oracle/fallback.
 
 The runtime marker also reports `sourceProviderShape`. Positions-only GLB
 surface replay must remain `positions-only-surface` smoke evidence because its

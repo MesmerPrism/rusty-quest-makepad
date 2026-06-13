@@ -14,6 +14,7 @@ mod force_authority_candidate;
 mod force_authority_gate;
 mod force_authority_mode;
 mod force_authority_residency;
+mod force_authority_runtime_selection;
 mod marker;
 mod mesh_sdf_probe;
 mod oracle_probe;
@@ -86,10 +87,15 @@ pub use force_authority_mode::{
     QUEST_MAKEPAD_FORCE_AUTHORITY_MODE_MATTER_CPU,
 };
 pub use force_authority_residency::{
-    QuestMakepadGpuForceAuthorityResidencyHealth, QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_KIND,
+    QuestMakepadGpuForceAuthorityPromotionEvidence, QuestMakepadGpuForceAuthorityResidencyHealth,
+    QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_KIND,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_MARKER_PREFIX,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_SCHEMA_ID,
+};
+pub use force_authority_runtime_selection::{
+    QuestMakepadRuntimeForceAuthorityKind, QuestMakepadRuntimeForceAuthoritySelection,
+    QUEST_MAKEPAD_FORCE_AUTHORITY_ROLLBACK_POLICY,
 };
 pub use mesh_sdf_probe::{
     QuestMakepadGpuMeshSdfForceProbeSample, QuestMakepadGpuMeshSdfProbe,

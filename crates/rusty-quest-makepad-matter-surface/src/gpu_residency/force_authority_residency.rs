@@ -2,7 +2,9 @@ use crate::sanitize_marker_value;
 
 use super::{
     marker::{finite_f32_marker_token, finite_f64_marker_token},
-    QuestMakepadGpuForceAuthorityGate, QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_FIELD_KIND,
+    QuestMakepadGpuForceAuthorityGate, QuestMakepadRuntimeForceAuthoritySelection,
+    QUEST_MAKEPAD_FORCE_AUTHORITY_ROLLBACK_POLICY,
+    QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_FIELD_KIND,
     QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_RESOURCE_PLANE,
     QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_SCHEMA_ID,
     QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_VALIDATION_INPUT_SHAPE,
@@ -40,6 +42,35 @@ const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_FALLBACK_NOT_PROVIDER_AB: &str
 const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_FALLBACK_RUNTIME_GUARD: &str =
     "gpu-runtime-selection-guarded";
 
+/// Promotion evidence that must be present before a GPU force-authority equivalent may be selected.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct QuestMakepadGpuForceAuthorityPromotionEvidence {
+    /// Number of resident GPU field/force proofs observed by the runtime.
+    pub observed_resident_proofs: usize,
+    /// True when GPU data freshness is tracked against current frame adoption.
+    pub freshness_ready: bool,
+    /// True when GPU force cadence is tracked and inside the profile budget.
+    pub cadence_ready: bool,
+    /// True when CPU-oracle comparison covers the steady-state sample set.
+    pub expanded_oracle_comparison_ready: bool,
+    /// True when live OpenXR hands and recorded replay pass through the same provider boundary.
+    pub live_recorded_provider_ab_ready: bool,
+}
+
+impl QuestMakepadGpuForceAuthorityPromotionEvidence {
+    /// Conservative bounded-proof evidence. This never permits runtime GPU authority.
+    #[must_use]
+    pub const fn bounded(observed_resident_proofs: usize) -> Self {
+        Self {
+            observed_resident_proofs,
+            freshness_ready: false,
+            cadence_ready: false,
+            expanded_oracle_comparison_ready: false,
+            live_recorded_provider_ab_ready: false,
+        }
+    }
+}
+
 /// Conservative steady-state health receipt for a GPU force-authority gate.
 ///
 /// This is a low-rate adapter receipt. It records why a selected GPU-backed
@@ -56,6 +87,14 @@ pub struct QuestMakepadGpuForceAuthorityResidencyHealth {
     pub observed_resident_proofs: usize,
     /// Minimum resident-field force proof count required before steady-state promotion.
     pub required_resident_proofs: usize,
+    /// True when GPU data freshness is tracked against current frame adoption.
+    pub freshness_ready: bool,
+    /// True when GPU force cadence is tracked and inside the profile budget.
+    pub cadence_ready: bool,
+    /// True when CPU-oracle comparison covers the steady-state sample set.
+    pub expanded_oracle_comparison_ready: bool,
+    /// True when live OpenXR hands and recorded replay pass through the same provider boundary.
+    pub live_recorded_provider_ab_ready: bool,
 }
 
 impl QuestMakepadGpuForceAuthorityResidencyHealth {
@@ -71,11 +110,27 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
         gate: &QuestMakepadGpuForceAuthorityGate,
         observed_resident_proofs: usize,
     ) -> Self {
+        Self::from_gate_with_promotion_evidence(
+            gate,
+            QuestMakepadGpuForceAuthorityPromotionEvidence::bounded(observed_resident_proofs),
+        )
+    }
+
+    /// Builds health from explicit promotion evidence.
+    #[must_use]
+    pub fn from_gate_with_promotion_evidence(
+        gate: &QuestMakepadGpuForceAuthorityGate,
+        evidence: QuestMakepadGpuForceAuthorityPromotionEvidence,
+    ) -> Self {
         Self {
             schema_id: QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_SCHEMA_ID.to_owned(),
             gate: gate.clone(),
-            observed_resident_proofs,
+            observed_resident_proofs: evidence.observed_resident_proofs,
             required_resident_proofs: QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,
+            freshness_ready: evidence.freshness_ready,
+            cadence_ready: evidence.cadence_ready,
+            expanded_oracle_comparison_ready: evidence.expanded_oracle_comparison_ready,
+            live_recorded_provider_ab_ready: evidence.live_recorded_provider_ab_ready,
         }
     }
 
@@ -99,25 +154,31 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
     /// True once GPU freshness is tracked against runtime frame/adoption cadence.
     #[must_use]
     pub const fn freshness_ready(&self) -> bool {
-        false
+        self.freshness_ready
     }
 
     /// True once GPU force cadence is tracked and within the profile budget.
     #[must_use]
     pub const fn cadence_ready(&self) -> bool {
-        false
+        self.cadence_ready
     }
 
     /// True once validation exceeds the current bounded proof samples.
     #[must_use]
     pub const fn expanded_oracle_comparison_ready(&self) -> bool {
-        false
+        self.expanded_oracle_comparison_ready
     }
 
     /// True once live Quest hands and recorded replay prove the same provider boundary.
     #[must_use]
     pub const fn live_recorded_provider_ab_ready(&self) -> bool {
-        false
+        self.live_recorded_provider_ab_ready
+    }
+
+    /// Exclusive runtime selection derived from this health receipt.
+    #[must_use]
+    pub fn runtime_selection(&self) -> QuestMakepadRuntimeForceAuthoritySelection {
+        QuestMakepadRuntimeForceAuthoritySelection::from_residency_health(self)
     }
 
     /// Runtime selection stays blocked until every promotion prerequisite is met.
@@ -168,9 +229,19 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
         let expanded_oracle_ready = self.expanded_oracle_comparison_ready();
         let provider_ab_ready = self.live_recorded_provider_ab_ready();
         let runtime_selection_permitted = self.runtime_selection_permitted();
+        let selection = self.runtime_selection();
+        let candidate_selected = selection.gpu_authority_selected();
         let active_force_source = self.gate.active_force_source.marker_value();
+        let active_force_authority_source = if candidate_selected {
+            "quest-makepad-gpu-runtime-selector"
+        } else {
+            "matter-runtime-profile"
+        };
+        let active_matter_force_authority = selection.active_matter_force_authority_marker();
+        let force_authority_ready = candidate_selected;
+        let bounded_proof_only = !runtime_selection_permitted;
         format!(
-            "{} schema={} phase={} status={} healthKind={} requestedForceAuthority={} candidateForceAuthority={} candidateSchema={} activeForceAuthorityKind=matter-cpu activeForceAuthoritySource=matter-runtime-profile activeMatterForceAuthority={} activeForceAuthorityChanged=false activeForceAuthorityPreserved=matter-cpu-runtime singleActiveForceAuthorityPreserved=true forceAuthoritySlotCount=1 activeForceAuthorityCount=1 profileGate={} profileGateSatisfied={} gpuForceAuthorityProfileKnown=true gpuForceAuthorityProfileEnabled={} candidateEligible={} candidateSelected=false candidatePromoted=false observedResidentProofs={} requiredResidentProofs={} boundedProofOnly=true steadyStateResidencyReady={} freshnessReady={} cadenceReady={} expandedOracleComparisonReady={} liveRecordedProviderAbReady={} runtimeSelectionPermitted={} fallbackForceAuthority={} fallbackReason={} matterCpuFallbackReady=true rollbackPolicy=matter-cpu-oracle-on-gpu-freshness-or-cadence-failure sourceReceiptSchema={} sourceId={} sourceFrameIndex={} fieldResourceId={} fieldKind={} validationInputShape={} candidateResourcePlane={} sourceResourcePlane={} particleSampleSource=matter-particle-snapshot sourceParticleSetId={} particleRows={} requestedParticleSampleCount={} sampledParticleCount={} rejectedParticleCount={} sampleCount={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} runtimeFieldBoundaryReady={} runtimeParticleForceComparisonReady={} sourceFieldGeneration={} expectedSourceFieldGeneration={} sourceFieldGenerationMatched={} sourceFieldBufferResident={} sourceFieldBufferBytes={} expectedSourceFieldBufferBytes={} sampleInputBufferBytes={} sampleOutputBufferBytes={} cpuOracle={} cpuOraclePreserved=true recordedInputEquivalent=true residentFieldBufferSampled=true denseSdfConstructedOnGpu=true matterCpuParticleIntegration=true matterParticleForceEquation=true fieldSamplingKernel=true fieldForceSamplingKernel=true fieldParticleKernel=true computeKernel=true commandEncoderSubmitted=true computeDispatchSubmitted=true gpuComputeCandidateReady={} forceAuthorityCandidateReady={} forceAuthorityReady=false runtimeForceAuthority=false runtimeParticleIntegration=false gpuComputeReady=false highRateJsonPayload=false settingsControlPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} programGeneration={} programReused={} shaderCompiledThisSubmit={} pipelineCreatedThisSubmit={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy=RUSTY_QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs",
+            "{} schema={} phase={} status={} healthKind={} requestedForceAuthority={} candidateForceAuthority={} candidateSchema={} activeForceAuthorityKind={} activeForceAuthoritySource={} activeMatterForceAuthority={} matterCpuOracleForceAuthority={} activeForceAuthorityChanged=false activeForceAuthorityPreserved={} singleActiveForceAuthorityPreserved=true forceAuthoritySlotCount=1 activeForceAuthorityCount={} profileGate={} profileGateSatisfied={} gpuForceAuthorityProfileKnown=true gpuForceAuthorityProfileEnabled={} candidateEligible={} candidateSelected={} candidatePromoted={} observedResidentProofs={} requiredResidentProofs={} boundedProofOnly={} steadyStateResidencyReady={} freshnessReady={} cadenceReady={} expandedOracleComparisonReady={} liveRecordedProviderAbReady={} runtimeSelectionPermitted={} fallbackForceAuthority={} fallbackReason={} matterCpuFallbackReady={} rollbackPolicy={} sourceReceiptSchema={} sourceId={} sourceFrameIndex={} fieldResourceId={} fieldKind={} validationInputShape={} candidateResourcePlane={} sourceResourcePlane={} particleSampleSource=matter-particle-snapshot sourceParticleSetId={} particleRows={} requestedParticleSampleCount={} sampledParticleCount={} rejectedParticleCount={} sampleCount={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} runtimeFieldBoundaryReady={} runtimeParticleForceComparisonReady={} sourceFieldGeneration={} expectedSourceFieldGeneration={} sourceFieldGenerationMatched={} sourceFieldBufferResident={} sourceFieldBufferBytes={} expectedSourceFieldBufferBytes={} sampleInputBufferBytes={} sampleOutputBufferBytes={} cpuOracle={} cpuOraclePreserved=true recordedInputEquivalent=true residentFieldBufferSampled=true denseSdfConstructedOnGpu=true matterCpuParticleIntegration=true matterParticleForceEquation=true fieldSamplingKernel=true fieldForceSamplingKernel=true fieldParticleKernel=true computeKernel=true commandEncoderSubmitted=true computeDispatchSubmitted=true sourceMeshBuffersResident={} sourceMeshBuffersReused={} derivedBuffersResident={} derivedBuffersReused={} gpuComputeCandidateReady={} forceAuthorityCandidateReady={} forceAuthorityReady={} runtimeForceAuthority={} runtimeParticleIntegration={} gpuComputeReady={} highRateJsonPayload=false settingsControlPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} programGeneration={} programReused={} shaderCompiledThisSubmit={} pipelineCreatedThisSubmit={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy=RUSTY_QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs",
             QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_MARKER_PREFIX,
             self.schema_id,
             sanitize_marker_value(phase),
@@ -185,13 +256,25 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
             self.gate.requested_authority.as_str(),
             QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE_KIND,
             QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE_SCHEMA_ID,
+            selection.active_authority.as_str(),
+            active_force_authority_source,
+            active_matter_force_authority,
             active_force_source,
+            if candidate_selected {
+                "gpu-backed-runtime"
+            } else {
+                "matter-cpu-runtime"
+            },
+            selection.active_authority_count,
             QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE_POLICY,
             self.gate.profile_gate_satisfied(),
             self.gate.requested_authority.gpu_profile_enabled(),
             evidence_ready,
+            candidate_selected,
+            candidate_selected,
             self.observed_resident_proofs,
             self.required_resident_proofs,
+            bounded_proof_only,
             steady_state_ready,
             freshness_ready,
             cadence_ready,
@@ -199,7 +282,9 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
             provider_ab_ready,
             runtime_selection_permitted,
             active_force_source,
-            self.fallback_reason(),
+            selection.decision_reason,
+            selection.matter_cpu_fallback_ready,
+            QUEST_MAKEPAD_FORCE_AUTHORITY_ROLLBACK_POLICY,
             QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_SCHEMA_ID,
             sanitize_marker_value(&receipt.source_id),
             receipt.source_frame_index,
@@ -230,8 +315,16 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
             readback.sample_input_buffer_bytes,
             readback.sample_output_buffer_bytes,
             QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_CPU_ORACLE,
+            receipt.source_mesh_buffers_resident,
+            receipt.source_mesh_buffers_reused,
+            receipt.derived_buffers_resident,
+            receipt.derived_buffers_reused,
             evidence_ready,
             evidence_ready,
+            force_authority_ready,
+            runtime_selection_permitted,
+            runtime_selection_permitted,
+            runtime_selection_permitted,
             readback.queue_submit_serial,
             readback.fence_serial,
             readback.resource_generation,
