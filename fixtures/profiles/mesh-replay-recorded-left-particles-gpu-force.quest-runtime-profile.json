@@ -1,0 +1,210 @@
+{
+  "schema": "rusty.quest.runtime_profile.v1",
+  "profile_id": "profile.quest.makepad.mesh_replay_recorded_left_particles_gpu_force",
+  "target_platform": "quest",
+  "owned_android_properties": [
+    "debug.rustyquest.makepad.mesh.replay.enabled",
+    "debug.rustyquest.makepad.mesh.replay.speed",
+    "debug.rustyquest.makepad.mesh.replay.source",
+    "debug.rustyquest.makepad.mesh.replay.opacity",
+    "debug.rustyquest.makepad.render.scale",
+    "debug.rustyquest.makepad.camera.streaming.enabled",
+    "debug.rustyquest.makepad.projection.depth.meters",
+    "debug.rustyquest.makepad.projection.runtime.resolution.enabled",
+    "debug.rustyquest.makepad.collision.enabled",
+    "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+    "debug.rustyquest.makepad.adf.debug.max_depth",
+    "debug.rustyquest.makepad.adf.debug.max_cells",
+    "debug.rustyquest.makepad.adf.debug.error_tolerance",
+    "debug.rustyquest.makepad.sdf_adf.debug.update_interval_frames",
+    "debug.rustyquest.makepad.particles.enabled",
+    "debug.rustyquest.makepad.particles.render.draw_limit",
+    "debug.rustyquest.makepad.particles.render.animation_mode",
+    "debug.rustyquest.makepad.particles.render.size_scale",
+    "debug.rustyquest.makepad.matter.surface.leaf_triangle_count",
+    "debug.rustyquest.makepad.particles.count",
+    "debug.rustyquest.makepad.particles.seed",
+    "debug.rustyquest.makepad.particles.distance_refresh_policy",
+    "debug.rustyquest.makepad.particles.force.source",
+    "debug.rustyquest.makepad.particles.force.authority",
+    "debug.rustyquest.makepad.particles.force.update_interval_frames",
+    "debug.rustyquest.makepad.particles.force.compare_probe_count",
+    "debug.rustyquest.makepad.particles.execution.backend",
+    "debug.rustyquest.makepad.particles.execution.batch_size",
+    "debug.rustyquest.makepad.particles.execution.max_threads",
+    "debug.rustyquest.makepad.particles.simulation.max_frame_delta_seconds",
+    "debug.rustyquest.makepad.sdf.slice.voxel_size",
+    "debug.rustyquest.makepad.sdf.slice.max_cells"
+  ],
+  "set_properties": [
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.enabled",
+      "value": "true",
+      "source_setting_id": "makepad.mesh_replay.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.speed",
+      "value": "1.0",
+      "source_setting_id": "makepad.mesh_replay.speed"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.source",
+      "value": "recorded-meta-quest-hand-left",
+      "source_setting_id": "makepad.mesh_replay.source"
+    },
+    {
+      "name": "debug.rustyquest.makepad.mesh.replay.opacity",
+      "value": "0.75",
+      "source_setting_id": "makepad.mesh_replay.opacity"
+    },
+    {
+      "name": "debug.rustyquest.makepad.render.scale",
+      "value": "0.9",
+      "source_setting_id": "makepad.render.scale"
+    },
+    {
+      "name": "debug.rustyquest.makepad.camera.streaming.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.camera.streaming.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.projection.depth.meters",
+      "value": "0.5",
+      "source_setting_id": "makepad.projection.depth_meters"
+    },
+    {
+      "name": "debug.rustyquest.makepad.projection.runtime.resolution.enabled",
+      "value": "true",
+      "source_setting_id": "makepad.projection.runtime_resolution.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.collision.enabled",
+      "value": "false",
+      "source_setting_id": "makepad.collision.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf_adf.overlay_mode",
+      "value": "off",
+      "source_setting_id": "makepad.sdf_adf.overlay_mode"
+    },
+    {
+      "name": "debug.rustyquest.makepad.adf.debug.max_depth",
+      "value": "4",
+      "source_setting_id": "makepad.adf.debug.max_depth"
+    },
+    {
+      "name": "debug.rustyquest.makepad.adf.debug.max_cells",
+      "value": "4096",
+      "source_setting_id": "makepad.adf.debug.max_cells"
+    },
+    {
+      "name": "debug.rustyquest.makepad.adf.debug.error_tolerance",
+      "value": "0.025",
+      "source_setting_id": "makepad.adf.debug.error_tolerance"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf_adf.debug.update_interval_frames",
+      "value": "1",
+      "source_setting_id": "makepad.sdf_adf.debug.update_interval_frames"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.enabled",
+      "value": "true",
+      "source_setting_id": "makepad.particles.enabled"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.render.draw_limit",
+      "value": "64",
+      "source_setting_id": "makepad.particles.render.draw_limit"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.render.animation_mode",
+      "value": "procedural-morph-ring",
+      "source_setting_id": "makepad.particles.render.animation_mode"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.render.size_scale",
+      "value": "1.0",
+      "source_setting_id": "makepad.particles.render.size_scale"
+    },
+    {
+      "name": "debug.rustyquest.makepad.matter.surface.leaf_triangle_count",
+      "value": "8",
+      "source_setting_id": "makepad.matter.surface_runtime.leaf_triangle_count"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.count",
+      "value": "64",
+      "source_setting_id": "makepad.particles.count"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.seed",
+      "value": "23",
+      "source_setting_id": "makepad.particles.seed"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.distance_refresh_policy",
+      "value": "step-only",
+      "source_setting_id": "makepad.particles.distance_refresh_policy"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.source",
+      "value": "sdf-field",
+      "source_setting_id": "makepad.particles.force.source"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.authority",
+      "value": "gpu-dense-sdf-field-particle-force",
+      "source_setting_id": "makepad.particles.force.authority"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.update_interval_frames",
+      "value": "1",
+      "source_setting_id": "makepad.particles.force.update_interval_frames"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.compare_probe_count",
+      "value": "0",
+      "source_setting_id": "makepad.particles.force.compare_probe_count"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.execution.backend",
+      "value": "serial",
+      "source_setting_id": "makepad.particles.execution.backend"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.execution.batch_size",
+      "value": "256",
+      "source_setting_id": "makepad.particles.execution.batch_size"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.execution.max_threads",
+      "value": "0",
+      "source_setting_id": "makepad.particles.execution.max_threads"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.simulation.max_frame_delta_seconds",
+      "value": "0",
+      "source_setting_id": "makepad.particles.simulation.max_frame_delta_seconds"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf.slice.voxel_size",
+      "value": "0.1",
+      "source_setting_id": "makepad.sdf.slice.voxel_size"
+    },
+    {
+      "name": "debug.rustyquest.makepad.sdf.slice.max_cells",
+      "value": "4096",
+      "source_setting_id": "makepad.sdf.slice.max_cells"
+    }
+  ],
+  "expected_markers": [
+    "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+    "RUSTY_QUEST_MAKEPAD_MATTER_SURFACE_RUNTIME",
+    "RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE",
+    "RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY"
+  ],
+  "validation_commands": [
+    "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Test-QuestMakepadProfiles.ps1"
+  ]
+}

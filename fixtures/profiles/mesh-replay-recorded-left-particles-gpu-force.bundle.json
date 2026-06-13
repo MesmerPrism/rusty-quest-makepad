@@ -1,0 +1,10 @@
+{
+  "schema": "rusty.quest.makepad.runtime_profile.v1",
+  "bundle_id": "bundle.quest_makepad.mesh_replay_recorded_left_particles_gpu_force",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "settings_surface": "fixtures/settings/quest-makepad-camera-shell.settings.json",
+  "settings_profile": "fixtures/profiles/mesh-replay-recorded-left-particles-gpu-force.settings-profile.json",
+  "quest_runtime_profile": "fixtures/profiles/mesh-replay-recorded-left-particles-gpu-force.quest-runtime-profile.json",
+  "effective_settings_marker": "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+  "notes": "Recorded left-hand replay with explicit gpu-dense-sdf-field-particle-force authority request. The Matter CPU sdf-field source remains the oracle and rollback fallback until steady-state residency, freshness, cadence, expanded oracle comparison, and live/recorded provider A/B evidence all pass."
+}

@@ -178,24 +178,28 @@ That is still not runtime promotion: validation must continue to require
 `candidatePromoted=false`, `runtimeForceAuthority=false`,
 `gpuComputeReady=false`, `matterCpuFallbackReady=true`, and
 `rollbackPolicy=matter-cpu-oracle-on-gpu-freshness-or-cadence-failure`.
+Use `fixtures\profiles\mesh-replay-recorded-left-particles-gpu-force.bundle.json`
+for explicit profile-gate evidence; it keeps `sdf-field` as the Matter CPU
+oracle/fallback while requesting the GPU-backed force authority.
 Runs that exercise the next residency-health slice should also require
 `RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY` and verify
 the exclusive selector fields `activeForceAuthoritySource=matter-runtime-profile`,
 `activeMatterForceAuthority=<Matter CPU source>`,
 `matterCpuOracleForceAuthority=<Matter CPU source>`,
 `activeForceAuthorityPreserved=matter-cpu-runtime`, `boundedProofOnly=true`,
-`steadyStateResidencyReady=false`,
-`freshnessReady=false`, `cadenceReady=false`,
-`expandedOracleComparisonReady=false`,
-`liveRecordedProviderAbReady=false`, and `runtimeSelectionPermitted=false`.
+`freshnessReady=...`, `cadenceReady=...`,
+`expandedOracleComparisonReady=...`, `liveRecordedProviderAbReady=...`, and
+`runtimeSelectionPermitted=false`. Steady-state residency and cadence may
+become true before promotion, but freshness, expanded oracle comparison, and
+live/recorded A/B must still keep Matter CPU fallback active until all are true.
 The marker should also carry `observedResidentProofs` as the cumulative proof
 ordinal plus `sourceMeshBuffersResident`, `sourceMeshBuffersReused`,
 `derivedBuffersResident`, and `derivedBuffersReused`; the first setup proof may
-show reuse false, while later reused proofs should show reuse true. These
-fields are the checklist for future promotion work. They must not flip the
-runtime selector to GPU until the steady-state resident GPU field/force cadence,
-broader CPU-oracle comparisons, and live-vs-recorded hand-provider A/B evidence
-exist.
+show reuse false, while the four later reused proofs should show reuse true.
+These fields are the checklist for future promotion work. They must not flip
+the runtime selector to GPU until the steady-state resident GPU field/force
+cadence, broader CPU-oracle comparisons, and live-vs-recorded hand-provider A/B
+evidence exist.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

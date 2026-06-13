@@ -71,3 +71,8 @@ Test-RuntimeBundle `
     -Name "Quest Makepad recorded-left-particles runtime bundle" `
     -BundlePath "fixtures\profiles\mesh-replay-recorded-left-particles.bundle.json" `
     -OutDir "local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles"
+
+Test-RuntimeBundle `
+    -Name "Quest Makepad recorded-left-particles GPU force runtime bundle" `
+    -BundlePath "fixtures\profiles\mesh-replay-recorded-left-particles-gpu-force.bundle.json" `
+    -OutDir "local-artifacts\quest-makepad-runtime-bundle-recorded-left-particles-gpu-force"

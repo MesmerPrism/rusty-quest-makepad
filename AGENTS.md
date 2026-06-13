@@ -223,8 +223,8 @@ Matter CPU oracle/fallback (`mesh-distance`, `none`, `sdf-field`, or
 profile gate and currently defaults to `matter-cpu`; the only GPU-backed
 request token is `gpu-dense-sdf-field-particle-force`, which may make a ready
 GPU candidate profile-satisfied but must still leave Matter CPU active until
-steady-state GPU residency, freshness, cadence, and rollback evidence are in
-place.
+steady-state GPU residency, freshness, cadence, expanded CPU-oracle comparison,
+live/recorded provider A/B, and rollback evidence are in place.
 Field values must report `particleForceSourceStatus=ready` when
 their Matter CPU reference field builds, must not fall back to mesh-distance,
 and must not claim `sdfAdfDebugParticleAuthority=true`. `adf-field` now uses
@@ -289,11 +289,10 @@ profile explicitly promotes a GPU-backed equivalent with rollback evidence.
 `RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY` is the promotion health
 receipt after that gate: it must keep `activeForceAuthorityKind=matter-cpu`,
 `activeForceAuthorityCount=1`, `runtimeSelectionPermitted=false`,
-`boundedProofOnly=true`, `steadyStateResidencyReady=false`,
-`freshnessReady=false`, `cadenceReady=false`,
-`expandedOracleComparisonReady=false`, and
-`liveRecordedProviderAbReady=false` until steady-state resident GPU field/force
-cadence plus live-vs-recorded provider A/B evidence are proven. Treat it as the
+`boundedProofOnly=true`, and `matterCpuFallbackReady=true` until every promotion
+gate is true. Steady-state residency and cadence may become true first, but
+freshness, expanded CPU-oracle comparison, and live-vs-recorded provider A/B
+must still keep rollback/fallback on Matter CPU. Treat this marker as the
 rollback/fallback decision point, not as `gpuComputeReady=true`.
 
 The 2026-06-11 indexed ADF pre-GPU sweep at

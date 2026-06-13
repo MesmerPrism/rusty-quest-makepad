@@ -198,6 +198,10 @@ freshness/cadence evidence, expanded CPU-oracle comparisons, and rollback to
 Matter CPU are implemented; markers must keep exactly one active authority and
 continue to report `runtimeForceAuthority=false` and `gpuComputeReady=false`
 until that promotion happens.
+The committed `mesh-replay-recorded-left-particles-gpu-force` bundle is the
+explicit profile-gate fixture for this path: it requests the GPU-backed force
+authority while keeping `makepad.particles.force.source=sdf-field` as the
+Matter CPU oracle/fallback.
 The follow-on residency-health receipt
 (`QuestMakepadGpuForceAuthorityResidencyHealth` /
 `RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY`) is the explicit rollback
@@ -209,13 +213,13 @@ Matter CPU authority, and `matterCpuFallbackReady=true`.
 The actual exclusive runtime choice is represented by
 `QuestMakepadRuntimeForceAuthoritySelection`: it selects either the active
 Matter CPU authority or the GPU dense-SDF field particle-force equivalent, never
-both. The current bounded proof path passes only cumulative proof ordinals and
-resident/reused buffer facts into that selector, so it keeps
-`activeForceAuthorityKind=matter-cpu`. A future promotion must first prove
-steady-state resident source/derived buffers, freshness, cadence, expanded
-CPU-oracle comparison, and live/recorded provider A/B evidence; only then may
-the selector emit `activeForceAuthorityKind=gpu-dense-sdf-field-particle-force`
-with Matter CPU demoted to oracle/fallback.
+both. Recorded and live proof schedules now target one setup submit plus four
+reused resident mesh-SDF/field-force proofs so steady-state residency can become
+true before promotion. A future promotion must still prove freshness, cadence,
+expanded CPU-oracle comparison, and live/recorded provider A/B evidence; only
+then may the selector emit
+`activeForceAuthorityKind=gpu-dense-sdf-field-particle-force` with Matter CPU
+demoted to oracle/fallback.
 
 The runtime marker also reports `sourceProviderShape`. Positions-only GLB
 surface replay must remain `positions-only-surface` smoke evidence because its
