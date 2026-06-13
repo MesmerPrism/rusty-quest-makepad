@@ -2136,6 +2136,50 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(marker.contains("forceAuthorityReady=false"));
     assert!(marker.contains("runtimeForceAuthority=false"));
     assert!(marker.contains("highRateJsonPayload=false"));
+
+    let candidate =
+        QuestMakepadGpuForceAuthorityCandidate::from_particle_force_probe(&field_particle_force)
+            .expect("ready particle-force proof becomes non-authoritative candidate");
+    assert!(candidate.force_authority_candidate_ready());
+
+    let candidate_marker = candidate.marker_line("unit-test");
+    assert!(candidate_marker.contains("RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE"));
+    assert!(
+        candidate_marker.contains("schema=rusty.quest.makepad.gpu_force_authority_candidate.v1")
+    );
+    assert!(candidate_marker.contains("status=candidate-ready"));
+    assert!(candidate_marker.contains("proofKind=non-authoritative-gpu-force-authority-candidate"));
+    assert!(candidate_marker.contains("candidateForceAuthority=gpu-dense-sdf-field-particle-force"));
+    assert!(candidate_marker.contains("activeForceAuthoritySource=matter-runtime-profile"));
+    assert!(candidate_marker.contains("activeForceAuthorityChanged=false"));
+    assert!(candidate_marker.contains("activeForceAuthorityPreserved=matter-cpu-runtime"));
+    assert!(candidate_marker.contains("singleActiveForceAuthorityPreserved=true"));
+    assert!(candidate_marker
+        .contains("sourceProbeSchema=rusty.quest.makepad.gpu_field_particle_force_probe.v1"));
+    assert!(candidate_marker.contains(
+        "candidateResourcePlane=vulkan-compute-resident-dense-sdf-particle-force-sampling"
+    ));
+    assert!(candidate_marker.contains("sourceResourcePlane=vulkan-compute-dense-sdf-buffer"));
+    assert!(candidate_marker.contains("sampledParticleCount=4"));
+    assert!(candidate_marker.contains("readbackMatched=true"));
+    assert!(candidate_marker.contains("runtimeParticleForceComparisonReady=true"));
+    assert!(candidate_marker.contains("sourceFieldGenerationMatched=true"));
+    assert!(candidate_marker.contains("cpuOracle=matter-particle-snapshot-dense-sdf-force-sampler"));
+    assert!(candidate_marker.contains("cpuOraclePreserved=true"));
+    assert!(candidate_marker.contains("residentFieldBufferSampled=true"));
+    assert!(candidate_marker.contains("denseSdfConstructedOnGpu=true"));
+    assert!(candidate_marker.contains("matterCpuParticleIntegration=true"));
+    assert!(candidate_marker.contains("matterParticleForceEquation=true"));
+    assert!(candidate_marker.contains("gpuComputeCandidateReady=true"));
+    assert!(candidate_marker.contains("forceAuthorityCandidateReady=true"));
+    assert!(candidate_marker.contains("candidateSelected=false"));
+    assert!(candidate_marker.contains("candidatePromoted=false"));
+    assert!(candidate_marker.contains("forceAuthorityReady=false"));
+    assert!(candidate_marker.contains("runtimeForceAuthority=false"));
+    assert!(candidate_marker.contains("runtimeParticleIntegration=false"));
+    assert!(candidate_marker.contains("gpuComputeReady=false"));
+    assert!(candidate_marker.contains("highRateJsonPayload=false"));
+    assert!(candidate_marker.contains("settingsControlPayload=false"));
 }
 
 #[test]
