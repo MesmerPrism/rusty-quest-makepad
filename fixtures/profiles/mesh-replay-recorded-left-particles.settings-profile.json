@@ -97,6 +97,10 @@
       "value": "mesh-distance"
     },
     {
+      "setting_id": "makepad.particles.force.authority",
+      "value": "matter-cpu"
+    },
+    {
       "setting_id": "makepad.particles.force.update_interval_frames",
       "value": 1
     },

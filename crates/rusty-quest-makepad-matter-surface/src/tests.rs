@@ -2184,9 +2184,11 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     let gate = QuestMakepadGpuForceAuthorityGate::from_candidate(
         &candidate,
         MatterSurfaceParticleForceSource::MeshDistance,
+        QuestMakepadForceAuthorityMode::GpuDenseSdfFieldParticleForce,
     )
     .expect("ready candidate enters profile gate receipt");
     assert!(gate.profile_gate_ready());
+    assert!(gate.profile_gate_satisfied());
 
     let gate_marker = gate.marker_line("unit-test");
     assert!(gate_marker.contains("RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE"));
@@ -2197,6 +2199,7 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(gate_marker.contains("candidateForceAuthority=gpu-dense-sdf-field-particle-force"));
     assert!(gate_marker
         .contains("candidateSchema=rusty.quest.makepad.gpu_force_authority_candidate.v1"));
+    assert!(gate_marker.contains("activeForceAuthorityKind=matter-cpu"));
     assert!(gate_marker.contains("activeForceAuthoritySource=matter-runtime-profile"));
     assert!(gate_marker.contains("activeMatterForceAuthority=mesh-distance"));
     assert!(gate_marker.contains("activeForceAuthorityChanged=false"));
@@ -2204,13 +2207,16 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(gate_marker.contains("forceAuthoritySlotCount=1"));
     assert!(gate_marker.contains("activeForceAuthorityCount=1"));
     assert!(gate_marker.contains("profileGate=explicit-profile-required"));
-    assert!(gate_marker.contains("profileGateSatisfied=false"));
+    assert!(gate_marker.contains("profileGateSatisfied=true"));
     assert!(gate_marker.contains("runtimeSelectionPermitted=false"));
-    assert!(gate_marker.contains("gpuForceAuthorityProfileEnabled=false"));
+    assert!(gate_marker.contains("gpuForceAuthorityProfileEnabled=true"));
     assert!(gate_marker.contains("candidateEligible=true"));
     assert!(gate_marker.contains("candidateSelected=false"));
     assert!(gate_marker.contains("candidatePromoted=false"));
     assert!(gate_marker.contains("fallbackForceAuthority=mesh-distance"));
+    assert!(gate_marker.contains("fallbackReason=gpu-steady-state-residency-not-ready"));
+    assert!(gate_marker
+        .contains("rollbackPolicy=matter-cpu-oracle-on-gpu-freshness-or-cadence-failure"));
     assert!(gate_marker.contains("matterCpuFallbackReady=true"));
     assert!(gate_marker.contains("cpuOracle=matter-particle-snapshot-dense-sdf-force-sampler"));
     assert!(gate_marker.contains("cpuOraclePreserved=true"));

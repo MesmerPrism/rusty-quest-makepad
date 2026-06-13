@@ -398,6 +398,16 @@
       "readback_field": "particlesForceSource"
     },
     {
+      "setting_id": "makepad.particles.force.authority",
+      "value": "matter-cpu",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "readback_field": "particlesForceAuthority"
+    },
+    {
       "setting_id": "makepad.particles.force.update_interval_frames",
       "value": 1,
       "winning_layer": "runtime_profile",

@@ -76,6 +76,8 @@ pub const SETTING_MATTER_PARTICLE_DISTANCE_REFRESH_POLICY: &str =
     "makepad.particles.distance_refresh_policy";
 /// Native Matter particle force-source setting id.
 pub const SETTING_MATTER_PARTICLE_FORCE_SOURCE: &str = "makepad.particles.force.source";
+/// Adapter-level particle force-authority setting id.
+pub const SETTING_PARTICLE_FORCE_AUTHORITY: &str = "makepad.particles.force.authority";
 /// Native Matter particle force-source refresh interval setting id.
 pub const SETTING_MATTER_PARTICLE_FORCE_UPDATE_INTERVAL_FRAMES: &str =
     "makepad.particles.force.update_interval_frames";
@@ -162,6 +164,8 @@ pub struct CameraShellEffectiveConfig {
     pub sdf_adf_overlay_mode: SdfAdfOverlayMode,
     /// Whether particle behavior is enabled.
     pub particles_enabled: bool,
+    /// Adapter-level force authority requested by the profile.
+    pub particle_force_authority: QuestMakepadForceAuthorityMode,
     /// Makepad-side particle render draw cap; does not change Matter truth.
     pub particle_render_draw_limit: usize,
     /// Render-side particle animation mode; does not change Matter truth.
@@ -187,6 +191,11 @@ impl CameraShellEffectiveConfig {
         let collision_enabled = parse_bool_setting(settings, SETTING_COLLISION_ENABLED)?;
         let sdf_adf_overlay_mode = parse_sdf_adf_overlay_mode(settings)?;
         let particles_enabled = parse_bool_setting(settings, SETTING_PARTICLES_ENABLED)?;
+        let particle_force_authority = parse_particle_force_authority_or_default(
+            settings,
+            SETTING_PARTICLE_FORCE_AUTHORITY,
+            QuestMakepadForceAuthorityMode::default(),
+        )?;
         let particle_render_draw_limit = parse_usize_setting_or_default(
             settings,
             SETTING_PARTICLE_RENDER_DRAW_LIMIT,
@@ -218,6 +227,7 @@ impl CameraShellEffectiveConfig {
             collision_enabled,
             sdf_adf_overlay_mode,
             particles_enabled,
+            particle_force_authority,
             particle_render_draw_limit,
             particle_render_animation_mode,
             particle_render_size_scale,
@@ -841,6 +851,20 @@ fn parse_particle_force_source(value: &str) -> Option<MatterSurfaceParticleForce
     }
 }
 
+fn parse_particle_force_authority_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: QuestMakepadForceAuthorityMode,
+) -> Result<QuestMakepadForceAuthorityMode, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_str()
+            .and_then(QuestMakepadForceAuthorityMode::parse)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
 fn parse_particle_render_animation_mode_or_default(
     settings: &[Value],
     setting_id: &'static str,
@@ -989,6 +1013,10 @@ mod tests {
         assert_eq!(config.sdf_adf_overlay_mode, SdfAdfOverlayMode::Sdf);
         assert_eq!(config.sdf_adf_overlay_mode.as_str(), "sdf");
         assert!(config.particles_enabled);
+        assert_eq!(
+            config.particle_force_authority,
+            QuestMakepadForceAuthorityMode::MatterCpu
+        );
         assert_eq!(config.particle_render_draw_limit, 192);
         assert_eq!(
             config.particle_render_animation_mode,
@@ -1048,6 +1076,10 @@ mod tests {
             SdfAdfOverlayMode::Sdf
         );
         assert!(bundle.effective_config.particles_enabled);
+        assert_eq!(
+            bundle.effective_config.particle_force_authority,
+            QuestMakepadForceAuthorityMode::MatterCpu
+        );
         assert_eq!(bundle.effective_config.particle_render_draw_limit, 192);
         assert_eq!(
             bundle.effective_config.particle_render_animation_mode,
@@ -1311,6 +1343,45 @@ mod tests {
         assert_eq!(
             config.matter_surface.particle_force_source,
             MatterSurfaceParticleForceSource::AdfField
+        );
+    }
+
+    #[test]
+    fn parses_gpu_force_authority_without_changing_matter_force_source() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_PARTICLE_FORCE_AUTHORITY,
+            serde_json::json!("gpu-dense-sdf-field-particle-force"),
+        );
+        let custom = effective_settings_with_value(
+            &custom,
+            SETTING_MATTER_PARTICLE_FORCE_SOURCE,
+            serde_json::json!("sdf-field"),
+        );
+
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(
+            config.particle_force_authority,
+            QuestMakepadForceAuthorityMode::GpuDenseSdfFieldParticleForce
+        );
+        assert_eq!(
+            config.matter_surface.particle_force_source,
+            MatterSurfaceParticleForceSource::SdfField
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_gpu_force_authority() {
+        let invalid = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_PARTICLE_FORCE_AUTHORITY,
+            serde_json::json!("both"),
+        );
+
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(SETTING_PARTICLE_FORCE_AUTHORITY)
         );
     }
 

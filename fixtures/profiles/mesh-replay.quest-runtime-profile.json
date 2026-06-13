@@ -26,6 +26,7 @@
     "debug.rustyquest.makepad.particles.seed",
     "debug.rustyquest.makepad.particles.distance_refresh_policy",
     "debug.rustyquest.makepad.particles.force.source",
+    "debug.rustyquest.makepad.particles.force.authority",
     "debug.rustyquest.makepad.particles.force.update_interval_frames",
     "debug.rustyquest.makepad.particles.force.compare_probe_count",
     "debug.rustyquest.makepad.particles.execution.backend",
@@ -150,6 +151,11 @@
       "name": "debug.rustyquest.makepad.particles.force.source",
       "value": "mesh-distance",
       "source_setting_id": "makepad.particles.force.source"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.authority",
+      "value": "matter-cpu",
+      "source_setting_id": "makepad.particles.force.authority"
     },
     {
       "name": "debug.rustyquest.makepad.particles.force.update_interval_frames",

@@ -188,6 +188,17 @@ separate setup/allocation cost from reused compute dispatch. Those fields do
 not make Makepad an SDF authority: Matter still owns the CPU oracle, grid
 semantics, and sample comparison.
 
+GPU force authority is selected through a separate low-rate adapter gate, not
+through Matter's CPU force-source enum. `makepad.particles.force.source`
+continues to select the Matter CPU oracle/fallback, while
+`makepad.particles.force.authority` defaults to `matter-cpu` and may explicitly
+request `gpu-dense-sdf-field-particle-force`. A profile-satisfied GPU gate is
+still non-authoritative until steady-state GPU field/force residency,
+freshness/cadence evidence, expanded CPU-oracle comparisons, and rollback to
+Matter CPU are implemented; markers must keep exactly one active authority and
+continue to report `runtimeForceAuthority=false` and `gpuComputeReady=false`
+until that promotion happens.
+
 The runtime marker also reports `sourceProviderShape`. Positions-only GLB
 surface replay must remain `positions-only-surface` smoke evidence because its
 bind mesh, skinning weights, compact joints, tip lengths, and tracking metadata

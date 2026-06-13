@@ -168,6 +168,16 @@ also carry `derivedBufferGeneration`, `derivedBuffersResident`,
 `derivedBuffersReused`, `skinnedPositionBufferBytes`, and
 `sdfDistanceBufferBytes` so evidence can require renderer-lifetime reuse of
 the derived skinned-position and dense-SDF distance buffers.
+For force-authority gate evidence, runs may show
+`profileGateSatisfied=true` and `gpuForceAuthorityProfileEnabled=true` only
+when the effective settings explicitly select
+`makepad.particles.force.authority=gpu-dense-sdf-field-particle-force`.
+That is still not runtime promotion: validation must continue to require
+`activeForceAuthorityKind=matter-cpu`, `activeForceAuthorityCount=1`,
+`runtimeSelectionPermitted=false`, `candidateSelected=false`,
+`candidatePromoted=false`, `runtimeForceAuthority=false`,
+`gpuComputeReady=false`, `matterCpuFallbackReady=true`, and
+`rollbackPolicy=matter-cpu-oracle-on-gpu-freshness-or-cadence-failure`.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

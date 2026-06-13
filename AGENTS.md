@@ -214,9 +214,17 @@ Particle integration/render cadence, selected force-source refresh cadence,
 hand-surface update cadence, and SDF/ADF field-build cadence are separate
 clocks. The low-rate settings are
 `makepad.particles.force.source`,
+`makepad.particles.force.authority`,
 `makepad.particles.force.update_interval_frames`, and
 `makepad.particles.force.compare_probe_count`. Normal profiles select exactly
-one force authority: `mesh-distance`, `none`, `sdf-field`, or `adf-field`.
+one runtime force authority. `makepad.particles.force.source` selects the
+Matter CPU oracle/fallback (`mesh-distance`, `none`, `sdf-field`, or
+`adf-field`). `makepad.particles.force.authority` is the Quest-Makepad adapter
+profile gate and currently defaults to `matter-cpu`; the only GPU-backed
+request token is `gpu-dense-sdf-field-particle-force`, which may make a ready
+GPU candidate profile-satisfied but must still leave Matter CPU active until
+steady-state GPU residency, freshness, cadence, and rollback evidence are in
+place.
 Field values must report `particleForceSourceStatus=ready` when
 their Matter CPU reference field builds, must not fall back to mesh-distance,
 and must not claim `sdfAdfDebugParticleAuthority=true`. `adf-field` now uses
@@ -268,7 +276,10 @@ oracle. `QuestMakepadGpuForceAuthorityGate` /
 `RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE` records the next adapter
 boundary: candidate eligible, explicit profile gate required, runtime
 selection not permitted, exactly one Matter CPU force authority still active,
-and Matter CPU fallback ready. Both markers must keep
+and Matter CPU fallback ready. `profileGateSatisfied` and
+`gpuForceAuthorityProfileEnabled` may become `true` only when
+`makepad.particles.force.authority=gpu-dense-sdf-field-particle-force`, but
+both markers must still keep
 `candidateSelected=false`, `candidatePromoted=false`,
 `forceAuthorityReady=false`, `runtimeForceAuthority=false`,
 `runtimeParticleIntegration=false`, `gpuComputeReady=false`,
