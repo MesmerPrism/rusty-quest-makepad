@@ -331,9 +331,8 @@ pub fn expected_stimulus_volume_probe_output(
     );
     let interference = (1.0 - (wave_a - wave_b).abs()).clamp(0.0, 1.0);
     let density = (interference * opacity).clamp(0.0, 1.0);
-    let eye_gain = 0.65 + 0.35 * uv[2].clamp(0.0, 1.0);
     QuestMakepadStimulusVolumeProbeOutput {
-        rgba: [density, density * eye_gain, 1.0 - density, density],
+        rgba: [density, density, density, density],
         density_depth_status: [density, depth, 1.0, 0.0],
     }
 }

@@ -390,7 +390,6 @@ pub fn expected_stimulus_volume_raymarch_preview_output(
     ];
     let step_count = pixel.ray_direction_step[3].clamp(1.0, 32.0);
     let step_alpha_scale = pixel.volume_params[3].clamp(0.001, 4.0);
-    let eye_gain = 0.65 + 0.35 * uv[2].clamp(0.0, 1.0);
     let mut accum_rgb = [0.0_f32; 3];
     let mut accum_alpha = 0.0_f32;
     let mut first_depth = 0.0_f32;
@@ -407,7 +406,7 @@ pub fn expected_stimulus_volume_raymarch_preview_output(
             ];
             let density = volume_density(p, uv, pixel.volume_params);
             let sample_alpha = (density * step_alpha_scale / step_count).clamp(0.0, 1.0);
-            let sample_rgb = [density, density * eye_gain, 1.0 - density];
+            let sample_rgb = [density, density, density];
             let contribution = (1.0 - accum_alpha) * sample_alpha;
             accum_rgb[0] += sample_rgb[0] * contribution;
             accum_rgb[1] += sample_rgb[1] * contribution;
