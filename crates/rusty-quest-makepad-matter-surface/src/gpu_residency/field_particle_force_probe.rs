@@ -13,8 +13,11 @@ use super::{
     QUEST_MAKEPAD_GPU_FIELD_CONSTRUCTION_RECEIPT_VALIDATION_INPUT_SHAPE,
 };
 
-/// Number of bounded Matter particle rows sampled by the resident field-force proof.
-pub const QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES: usize = 4;
+/// Number of Matter particle rows sampled by the resident field-force proof.
+pub const QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES: usize = 16;
+/// Minimum matching particle rows required before the oracle comparison is treated as expanded.
+pub const QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_EXPANDED_ORACLE_SAMPLES: usize =
+    QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES;
 /// Conservative f32 tolerance for bounded resident-field particle-force comparison.
 pub const QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_DEFAULT_TOLERANCE: f32 = 0.001;
 /// Quest Makepad GPU resident dense-SDF particle-force schema.
@@ -200,6 +203,16 @@ impl QuestMakepadGpuFieldParticleForceProbe {
             && self.readback.source_field_generation == self.receipt.derived_buffer_generation
             && self.readback.source_field_buffer_bytes == self.receipt.sdf_distance_buffer_bytes
             && self.readback.sample_count == self.input.sample_count
+    }
+
+    /// True when the CPU oracle comparison covers the steady-state particle sample set.
+    #[must_use]
+    pub fn expanded_oracle_comparison_ready(&self) -> bool {
+        self.runtime_particle_force_comparison_ready()
+            && self.input.sample_count
+                >= QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_EXPANDED_ORACLE_SAMPLES
+            && self.readback.sample_count
+                >= QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_EXPANDED_ORACLE_SAMPLES
     }
 
     /// Builds a compact marker without logging particle rows, field buffers, or GPU buffers.

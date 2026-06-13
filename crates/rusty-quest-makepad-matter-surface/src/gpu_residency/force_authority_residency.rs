@@ -269,6 +269,11 @@ impl QuestMakepadGpuForceAuthorityResidencyTracker {
             && program_generation_matched
             && queue_submit_serial_monotonic
             && fence_serial_monotonic;
+        let expanded_oracle_comparison_ready = runtime_readiness.expanded_oracle_comparison_ready
+            || gate
+                .candidate
+                .source_probe
+                .expanded_oracle_comparison_ready();
         QuestMakepadGpuForceAuthorityResidencyHealth::from_gate_with_promotion_evidence(
             gate,
             QuestMakepadGpuForceAuthorityPromotionEvidence {
@@ -283,8 +288,7 @@ impl QuestMakepadGpuForceAuthorityResidencyTracker {
                 fence_serial_monotonic,
                 freshness_ready: runtime_readiness.freshness_ready,
                 cadence_ready: runtime_readiness.cadence_ready,
-                expanded_oracle_comparison_ready: runtime_readiness
-                    .expanded_oracle_comparison_ready,
+                expanded_oracle_comparison_ready,
                 live_recorded_provider_ab_ready: runtime_readiness.live_recorded_provider_ab_ready,
                 ..QuestMakepadGpuForceAuthorityPromotionEvidence::default()
             },

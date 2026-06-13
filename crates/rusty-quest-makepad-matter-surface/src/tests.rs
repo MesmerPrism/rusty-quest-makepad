@@ -1787,16 +1787,23 @@ fn synthetic_gpu_mesh_sdf_probe(
 }
 
 fn synthetic_particle_snapshot() -> MatterSurfaceParticleSnapshot {
+    let samples = (0..QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES)
+        .map(|index| {
+            let id = format!("p{index}");
+            let column = (index % 4) as f32;
+            let row = (index / 4) as f32;
+            synthetic_particle_sample(
+                &id,
+                Vec3::new(0.1 + column * 0.2, 0.1 + row * 0.18, -0.02 - column * 0.03),
+                0.011 + (index % 4) as f32 * 0.001,
+            )
+        })
+        .collect();
     MatterSurfaceParticleSnapshot {
         schema_id: "rusty.matter.surface_particle_snapshot.v1".to_owned(),
         source_set_id: "synthetic.matter.particles".to_owned(),
         time_seconds: 0.25,
-        samples: vec![
-            synthetic_particle_sample("p0", Vec3::new(0.1, 0.1, 0.02), 0.012),
-            synthetic_particle_sample("p1", Vec3::new(0.35, 0.2, -0.03), 0.011),
-            synthetic_particle_sample("p2", Vec3::new(0.7, 0.45, -0.08), 0.013),
-            synthetic_particle_sample("p3", Vec3::new(0.9, 0.8, -0.2), 0.014),
-        ],
+        samples,
         distance_diagnostics: SurfaceDistanceQueryDiagnostics::default(),
     }
 }
@@ -2050,8 +2057,14 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
         )
         .expect("particle force probe input builds");
 
-    assert_eq!(input.particle_rows, 4);
-    assert_eq!(input.requested_sample_count, 4);
+    assert_eq!(
+        input.particle_rows,
+        QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES
+    );
+    assert_eq!(
+        input.requested_sample_count,
+        QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES
+    );
     assert_eq!(
         input.sample_count,
         QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_SAMPLES
@@ -2098,6 +2111,7 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     );
 
     assert!(field_particle_force.runtime_particle_force_comparison_ready());
+    assert!(field_particle_force.expanded_oracle_comparison_ready());
 
     let marker = field_particle_force.marker_line("unit-test");
     assert!(marker.contains("RUSTY_QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE"));
@@ -2111,12 +2125,12 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     );
     assert!(marker.contains("sourceResourcePlane=vulkan-compute-dense-sdf-buffer"));
     assert!(marker.contains("particleSampleSource=matter-particle-snapshot"));
-    assert!(marker.contains("particleRows=4"));
-    assert!(marker.contains("requestedParticleSampleCount=4"));
-    assert!(marker.contains("sampledParticleCount=4"));
+    assert!(marker.contains("particleRows=16"));
+    assert!(marker.contains("requestedParticleSampleCount=16"));
+    assert!(marker.contains("sampledParticleCount=16"));
     assert!(marker.contains("rejectedParticleCount=0"));
-    assert!(marker.contains("sampleCount=4"));
-    assert!(marker.contains("componentCount=12"));
+    assert!(marker.contains("sampleCount=16"));
+    assert!(marker.contains("componentCount=48"));
     assert!(marker.contains("readbackMatched=true"));
     assert!(marker.contains("runtimeFieldBoundaryReady=true"));
     assert!(marker.contains("runtimeParticleForceComparisonReady=true"));
@@ -2160,7 +2174,7 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
         "candidateResourcePlane=vulkan-compute-resident-dense-sdf-particle-force-sampling"
     ));
     assert!(candidate_marker.contains("sourceResourcePlane=vulkan-compute-dense-sdf-buffer"));
-    assert!(candidate_marker.contains("sampledParticleCount=4"));
+    assert!(candidate_marker.contains("sampledParticleCount=16"));
     assert!(candidate_marker.contains("readbackMatched=true"));
     assert!(candidate_marker.contains("runtimeParticleForceComparisonReady=true"));
     assert!(candidate_marker.contains("sourceFieldGenerationMatched=true"));
@@ -2347,6 +2361,7 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(tracked_marker.contains("boundedProofOnly=false"));
     assert!(tracked_marker.contains("steadyStateResidencyReady=true"));
     assert!(tracked_marker.contains("freshnessReady=false"));
+    assert!(tracked_marker.contains("expandedOracleComparisonReady=true"));
     assert!(tracked_marker.contains("runtimeSelectionPermitted=false"));
     assert!(tracked_marker.contains("activeForceAuthorityKind=matter-cpu"));
     assert!(tracked_marker.contains("fallbackReason=gpu-freshness-not-proven"));
@@ -2445,10 +2460,53 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(cadence_fallback_marker.contains("steadyStateResidencyReady=true"));
     assert!(cadence_fallback_marker.contains("freshnessReady=true"));
     assert!(cadence_fallback_marker.contains("cadenceReady=false"));
+    assert!(cadence_fallback_marker.contains("expandedOracleComparisonReady=true"));
     assert!(cadence_fallback_marker.contains("runtimeSelectionPermitted=false"));
     assert!(cadence_fallback_marker.contains("activeForceAuthorityKind=matter-cpu"));
     assert!(cadence_fallback_marker.contains("fallbackReason=gpu-cadence-not-proven"));
     assert!(cadence_fallback_marker.contains("gpuComputeReady=false"));
+
+    let mut provider_ab_fallback_gate = gate.clone();
+    provider_ab_fallback_gate
+        .candidate
+        .source_probe
+        .readback
+        .queue_submit_serial = 25;
+    provider_ab_fallback_gate
+        .candidate
+        .source_probe
+        .readback
+        .fence_serial = 25;
+    let provider_ab_fallback_health = tracker.observe_gate_with_runtime_readiness(
+        &provider_ab_fallback_gate,
+        QuestMakepadGpuForceAuthorityRuntimeReadiness {
+            freshness_ready: true,
+            cadence_ready: true,
+            expanded_oracle_comparison_ready: false,
+            live_recorded_provider_ab_ready: false,
+        },
+    );
+    assert!(provider_ab_fallback_health.steady_state_residency_ready());
+    assert!(provider_ab_fallback_health.freshness_ready());
+    assert!(provider_ab_fallback_health.cadence_ready());
+    assert!(provider_ab_fallback_health.expanded_oracle_comparison_ready());
+    assert!(!provider_ab_fallback_health.live_recorded_provider_ab_ready());
+    assert!(!provider_ab_fallback_health.runtime_selection_permitted());
+    assert_eq!(
+        provider_ab_fallback_health.fallback_reason(),
+        "gpu-live-recorded-provider-ab-not-proven"
+    );
+    let provider_ab_fallback_marker = provider_ab_fallback_health.marker_line("unit-test");
+    assert!(provider_ab_fallback_marker.contains("steadyStateResidencyReady=true"));
+    assert!(provider_ab_fallback_marker.contains("freshnessReady=true"));
+    assert!(provider_ab_fallback_marker.contains("cadenceReady=true"));
+    assert!(provider_ab_fallback_marker.contains("expandedOracleComparisonReady=true"));
+    assert!(provider_ab_fallback_marker.contains("liveRecordedProviderAbReady=false"));
+    assert!(provider_ab_fallback_marker.contains("runtimeSelectionPermitted=false"));
+    assert!(provider_ab_fallback_marker.contains("activeForceAuthorityKind=matter-cpu"));
+    assert!(provider_ab_fallback_marker
+        .contains("fallbackReason=gpu-live-recorded-provider-ab-not-proven"));
+    assert!(provider_ab_fallback_marker.contains("gpuComputeReady=false"));
 
     let mut continuity_break_gate = gate.clone();
     continuity_break_gate
