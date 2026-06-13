@@ -27,6 +27,7 @@
     "debug.rustyquest.makepad.particles.distance_refresh_policy",
     "debug.rustyquest.makepad.particles.force.source",
     "debug.rustyquest.makepad.particles.force.authority",
+    "debug.rustyquest.makepad.particles.force.provider_ab_receipt",
     "debug.rustyquest.makepad.particles.force.update_interval_frames",
     "debug.rustyquest.makepad.particles.force.compare_probe_count",
     "debug.rustyquest.makepad.particles.execution.backend",
@@ -156,6 +157,11 @@
       "name": "debug.rustyquest.makepad.particles.force.authority",
       "value": "matter-cpu",
       "source_setting_id": "makepad.particles.force.authority"
+    },
+    {
+      "name": "debug.rustyquest.makepad.particles.force.provider_ab_receipt",
+      "value": "none",
+      "source_setting_id": "makepad.particles.force.live_recorded_provider_ab_receipt"
     },
     {
       "name": "debug.rustyquest.makepad.particles.force.update_interval_frames",

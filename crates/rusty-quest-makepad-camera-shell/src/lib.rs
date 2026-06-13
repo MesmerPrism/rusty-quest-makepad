@@ -1,10 +1,12 @@
 //! Profile-driven Quest Makepad camera shell adapter.
 
+mod gpu_force_promotion;
 mod matter_surface_exports;
 mod mesh_replay_source;
 
 use std::{num::NonZeroUsize, path::Path};
 
+pub use gpu_force_promotion::*;
 pub use matter_surface_exports::*;
 use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
 use rusty_optics_model::{
@@ -166,6 +168,8 @@ pub struct CameraShellEffectiveConfig {
     pub particles_enabled: bool,
     /// Adapter-level force authority requested by the profile.
     pub particle_force_authority: QuestMakepadForceAuthorityMode,
+    /// Low-rate receipt for the live-vs-recorded provider A/B promotion gate.
+    pub gpu_force_provider_ab_receipt: QuestMakepadGpuForceProviderAbReceipt,
     /// Makepad-side particle render draw cap; does not change Matter truth.
     pub particle_render_draw_limit: usize,
     /// Render-side particle animation mode; does not change Matter truth.
@@ -195,6 +199,11 @@ impl CameraShellEffectiveConfig {
             settings,
             SETTING_PARTICLE_FORCE_AUTHORITY,
             QuestMakepadForceAuthorityMode::default(),
+        )?;
+        let gpu_force_provider_ab_receipt = parse_gpu_force_provider_ab_receipt_or_default(
+            settings,
+            SETTING_GPU_FORCE_LIVE_RECORDED_PROVIDER_AB_RECEIPT,
+            QuestMakepadGpuForceProviderAbReceipt::default(),
         )?;
         let particle_render_draw_limit = parse_usize_setting_or_default(
             settings,
@@ -228,6 +237,7 @@ impl CameraShellEffectiveConfig {
             sdf_adf_overlay_mode,
             particles_enabled,
             particle_force_authority,
+            gpu_force_provider_ab_receipt,
             particle_render_draw_limit,
             particle_render_animation_mode,
             particle_render_size_scale,
@@ -865,6 +875,20 @@ fn parse_particle_force_authority_or_default(
     }
 }
 
+fn parse_gpu_force_provider_ab_receipt_or_default(
+    settings: &[Value],
+    setting_id: &'static str,
+    default: QuestMakepadGpuForceProviderAbReceipt,
+) -> Result<QuestMakepadGpuForceProviderAbReceipt, CameraShellConfigError> {
+    match optional_setting_value(settings, setting_id) {
+        Some(value) => value
+            .as_str()
+            .and_then(QuestMakepadGpuForceProviderAbReceipt::parse)
+            .ok_or(CameraShellConfigError::InvalidSettingValue(setting_id)),
+        None => Ok(default),
+    }
+}
+
 fn parse_particle_render_animation_mode_or_default(
     settings: &[Value],
     setting_id: &'static str,
@@ -1017,6 +1041,10 @@ mod tests {
             config.particle_force_authority,
             QuestMakepadForceAuthorityMode::MatterCpu
         );
+        assert_eq!(
+            config.gpu_force_provider_ab_receipt,
+            QuestMakepadGpuForceProviderAbReceipt::None
+        );
         assert_eq!(config.particle_render_draw_limit, 192);
         assert_eq!(
             config.particle_render_animation_mode,
@@ -1079,6 +1107,10 @@ mod tests {
         assert_eq!(
             bundle.effective_config.particle_force_authority,
             QuestMakepadForceAuthorityMode::MatterCpu
+        );
+        assert_eq!(
+            bundle.effective_config.gpu_force_provider_ab_receipt,
+            QuestMakepadGpuForceProviderAbReceipt::None
         );
         assert_eq!(bundle.effective_config.particle_render_draw_limit, 192);
         assert_eq!(
@@ -1368,6 +1400,45 @@ mod tests {
         assert_eq!(
             config.matter_surface.particle_force_source,
             MatterSurfaceParticleForceSource::SdfField
+        );
+    }
+
+    #[test]
+    fn parses_gpu_force_provider_ab_receipt_without_payload_data() {
+        let custom = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_GPU_FORCE_LIVE_RECORDED_PROVIDER_AB_RECEIPT,
+            serde_json::json!("live-recorded-provider-ab-check-v1"),
+        );
+
+        let config = CameraShellEffectiveConfig::from_effective_settings_json(&custom).unwrap();
+
+        assert_eq!(
+            config.gpu_force_provider_ab_receipt,
+            QuestMakepadGpuForceProviderAbReceipt::LiveRecordedProviderAbCheckV1
+        );
+        assert!(config
+            .gpu_force_provider_ab_receipt
+            .live_recorded_provider_ab_ready());
+        assert_eq!(
+            config.gpu_force_provider_ab_receipt.as_str(),
+            "live-recorded-provider-ab-check-v1"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_gpu_force_provider_ab_receipt() {
+        let invalid = effective_settings_with_value(
+            EFFECTIVE_SETTINGS_FIXTURE,
+            SETTING_GPU_FORCE_LIVE_RECORDED_PROVIDER_AB_RECEIPT,
+            serde_json::json!("topology-inferred"),
+        );
+
+        assert_eq!(
+            CameraShellEffectiveConfig::from_effective_settings_json(&invalid).unwrap_err(),
+            CameraShellConfigError::InvalidSettingValue(
+                SETTING_GPU_FORCE_LIVE_RECORDED_PROVIDER_AB_RECEIPT
+            )
         );
     }
 

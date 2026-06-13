@@ -101,6 +101,10 @@
       "value": "gpu-dense-sdf-field-particle-force"
     },
     {
+      "setting_id": "makepad.particles.force.live_recorded_provider_ab_receipt",
+      "value": "live-recorded-provider-ab-check-v1"
+    },
+    {
       "setting_id": "makepad.particles.force.update_interval_frames",
       "value": 1
     },

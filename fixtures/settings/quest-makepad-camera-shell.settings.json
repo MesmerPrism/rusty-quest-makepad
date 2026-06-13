@@ -426,6 +426,23 @@
       "readback_field": "particlesForceAuthority"
     },
     {
+      "id": "makepad.particles.force.live_recorded_provider_ab_receipt",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.gpu_residency",
+      "value_type": "enum",
+      "enum_values": ["none", "live-recorded-provider-ab-check-v1"],
+      "default": "none",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "session_hotload",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "particles-force-provider-ab-receipt" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PARTICLES_FORCE_PROVIDER_AB_RECEIPT" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.particles.force.provider_ab_receipt" }
+      ],
+      "readback_field": "particlesForceProviderAbReceipt"
+    },
+    {
       "id": "makepad.particles.force.update_interval_frames",
       "owner_repo": "rusty-quest-makepad",
       "owner_module": "camera_shell.matter_surface",
