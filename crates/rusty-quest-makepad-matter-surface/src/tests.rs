@@ -2260,8 +2260,18 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(health_marker.contains("candidateEligible=true"));
     assert!(health_marker.contains("candidateSelected=false"));
     assert!(health_marker.contains("candidatePromoted=false"));
+    assert!(health_marker
+        .contains("residencyTrackerSource=quest-makepad-gpu-force-authority-residency-tracker"));
     assert!(health_marker.contains("observedResidentProofs=1"));
+    assert!(health_marker.contains("reusedResidentProofs=0"));
     assert!(health_marker.contains("requiredResidentProofs=4"));
+    assert!(health_marker.contains("residencyContinuityReady=false"));
+    assert!(health_marker.contains("residencyContinuityBroken=false"));
+    assert!(health_marker.contains("residencyContinuityBreakCount=0"));
+    assert!(health_marker.contains("sourceMeshBufferGenerationMatched=true"));
+    assert!(health_marker.contains("derivedBufferGenerationMatched=true"));
+    assert!(health_marker.contains("queueSubmitSerialMonotonic=true"));
+    assert!(health_marker.contains("fenceSerialMonotonic=true"));
     assert!(health_marker.contains("boundedProofOnly=true"));
     assert!(health_marker.contains("steadyStateResidencyReady=false"));
     assert!(health_marker.contains("freshnessReady=false"));
@@ -2301,8 +2311,70 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert_eq!(second_health.observed_resident_proofs, 2);
     let second_health_marker = second_health.marker_line("unit-test");
     assert!(second_health_marker.contains("observedResidentProofs=2"));
+    assert!(second_health_marker.contains("reusedResidentProofs=0"));
     assert!(second_health_marker.contains("activeForceAuthorityKind=matter-cpu"));
     assert!(second_health_marker.contains("runtimeSelectionPermitted=false"));
+
+    let mut tracker = QuestMakepadGpuForceAuthorityResidencyTracker::default();
+    let mut tracked_health = None;
+    for serial in 20..24 {
+        let mut tracked_gate = gate.clone();
+        tracked_gate
+            .candidate
+            .source_probe
+            .readback
+            .queue_submit_serial = serial;
+        tracked_gate.candidate.source_probe.readback.fence_serial = serial;
+        tracked_health = Some(tracker.observe_gate(&tracked_gate));
+    }
+    let tracked_health = tracked_health.expect("tracker observes four resident proofs");
+    assert_eq!(
+        tracker.observed_resident_proofs(),
+        QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS
+    );
+    assert_eq!(
+        tracker.reused_resident_proofs(),
+        QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS
+    );
+    assert_eq!(tracker.residency_continuity_break_count(), 0);
+    assert!(tracked_health.steady_state_residency_ready());
+    assert!(!tracked_health.runtime_selection_permitted());
+    assert_eq!(tracked_health.fallback_reason(), "gpu-freshness-not-proven");
+    let tracked_marker = tracked_health.marker_line("unit-test");
+    assert!(tracked_marker.contains("observedResidentProofs=4"));
+    assert!(tracked_marker.contains("reusedResidentProofs=4"));
+    assert!(tracked_marker.contains("residencyContinuityReady=true"));
+    assert!(tracked_marker.contains("steadyStateResidencyReady=true"));
+    assert!(tracked_marker.contains("freshnessReady=false"));
+    assert!(tracked_marker.contains("runtimeSelectionPermitted=false"));
+    assert!(tracked_marker.contains("activeForceAuthorityKind=matter-cpu"));
+    assert!(tracked_marker.contains("fallbackReason=gpu-freshness-not-proven"));
+    assert!(tracked_marker.contains("gpuComputeReady=false"));
+
+    let mut continuity_break_gate = gate.clone();
+    continuity_break_gate
+        .candidate
+        .source_probe
+        .readback
+        .queue_submit_serial = 23;
+    continuity_break_gate
+        .candidate
+        .source_probe
+        .readback
+        .fence_serial = 23;
+    let continuity_break_health = tracker.observe_gate(&continuity_break_gate);
+    assert_eq!(tracker.observed_resident_proofs(), 1);
+    assert_eq!(tracker.reused_resident_proofs(), 1);
+    assert_eq!(tracker.residency_continuity_break_count(), 1);
+    assert!(!continuity_break_health.steady_state_residency_ready());
+    let continuity_break_marker = continuity_break_health.marker_line("unit-test");
+    assert!(continuity_break_marker.contains("observedResidentProofs=1"));
+    assert!(continuity_break_marker.contains("reusedResidentProofs=1"));
+    assert!(continuity_break_marker.contains("residencyContinuityBroken=true"));
+    assert!(continuity_break_marker.contains("queueSubmitSerialMonotonic=false"));
+    assert!(
+        continuity_break_marker.contains("fallbackReason=gpu-residency-health-not-steady-state")
+    );
 
     let promoted_health =
         QuestMakepadGpuForceAuthorityResidencyHealth::from_gate_with_promotion_evidence(
@@ -2310,10 +2382,18 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
             QuestMakepadGpuForceAuthorityPromotionEvidence {
                 observed_resident_proofs:
                     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,
+                reused_resident_proofs: QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,
+                residency_continuity_ready: true,
+                residency_continuity_broken: false,
+                source_mesh_buffer_generation_matched: true,
+                derived_buffer_generation_matched: true,
+                queue_submit_serial_monotonic: true,
+                fence_serial_monotonic: true,
                 freshness_ready: true,
                 cadence_ready: true,
                 expanded_oracle_comparison_ready: true,
                 live_recorded_provider_ab_ready: true,
+                ..QuestMakepadGpuForceAuthorityPromotionEvidence::default()
             },
         );
     assert!(promoted_health.runtime_selection_permitted());
@@ -2339,6 +2419,9 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(promoted_marker.contains("activeForceAuthorityCount=1"));
     assert!(promoted_marker.contains("candidateSelected=true"));
     assert!(promoted_marker.contains("candidatePromoted=true"));
+    assert!(promoted_marker.contains("reusedResidentProofs=4"));
+    assert!(promoted_marker.contains("residencyContinuityReady=true"));
+    assert!(promoted_marker.contains("residencyContinuityBroken=false"));
     assert!(promoted_marker.contains("boundedProofOnly=false"));
     assert!(promoted_marker.contains("steadyStateResidencyReady=true"));
     assert!(promoted_marker.contains("freshnessReady=true"));

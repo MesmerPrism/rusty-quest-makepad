@@ -88,10 +88,12 @@ pub use force_authority_mode::{
 };
 pub use force_authority_residency::{
     QuestMakepadGpuForceAuthorityPromotionEvidence, QuestMakepadGpuForceAuthorityResidencyHealth,
+    QuestMakepadGpuForceAuthorityResidencyTracker,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_KIND,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_MARKER_PREFIX,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_SCHEMA_ID,
+    QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_TRACKER_SOURCE,
 };
 pub use force_authority_runtime_selection::{
     QuestMakepadRuntimeForceAuthorityKind, QuestMakepadRuntimeForceAuthoritySelection,

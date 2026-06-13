@@ -26,6 +26,9 @@ pub const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_KIND: &str =
     "steady-state-gpu-force-authority-residency-health";
 /// Minimum reused resident proofs before a GPU force path can be considered steady-state.
 pub const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS: usize = 4;
+/// Evidence source for the steady-state GPU force-authority residency tracker.
+pub const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_TRACKER_SOURCE: &str =
+    "quest-makepad-gpu-force-authority-residency-tracker";
 
 const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_FALLBACK_NOT_REQUESTED: &str =
     "profile-prefers-matter-cpu";
@@ -47,6 +50,22 @@ const QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_FALLBACK_RUNTIME_GUARD: &str =
 pub struct QuestMakepadGpuForceAuthorityPromotionEvidence {
     /// Number of resident GPU field/force proofs observed by the runtime.
     pub observed_resident_proofs: usize,
+    /// Number of resident proofs that reused source, derived, and program resources.
+    pub reused_resident_proofs: usize,
+    /// True when repeated resident proofs preserve the expected resource continuity.
+    pub residency_continuity_ready: bool,
+    /// True when the latest observed proof broke continuity and forced fallback.
+    pub residency_continuity_broken: bool,
+    /// Number of continuity breaks observed by the tracker for the current epoch.
+    pub residency_continuity_break_count: usize,
+    /// True when the latest reused proof kept the source-mesh buffer generation stable.
+    pub source_mesh_buffer_generation_matched: bool,
+    /// True when the latest reused proof kept the derived field-buffer generation stable.
+    pub derived_buffer_generation_matched: bool,
+    /// True when submit serials moved forward across the tracked proof stream.
+    pub queue_submit_serial_monotonic: bool,
+    /// True when fence serials moved forward across the tracked proof stream.
+    pub fence_serial_monotonic: bool,
     /// True when GPU data freshness is tracked against current frame adoption.
     pub freshness_ready: bool,
     /// True when GPU force cadence is tracked and inside the profile budget.
@@ -63,11 +82,184 @@ impl QuestMakepadGpuForceAuthorityPromotionEvidence {
     pub const fn bounded(observed_resident_proofs: usize) -> Self {
         Self {
             observed_resident_proofs,
+            reused_resident_proofs: 0,
+            residency_continuity_ready: false,
+            residency_continuity_broken: false,
+            residency_continuity_break_count: 0,
+            source_mesh_buffer_generation_matched: true,
+            derived_buffer_generation_matched: true,
+            queue_submit_serial_monotonic: true,
+            fence_serial_monotonic: true,
             freshness_ready: false,
             cadence_ready: false,
             expanded_oracle_comparison_ready: false,
             live_recorded_provider_ab_ready: false,
         }
+    }
+}
+
+impl Default for QuestMakepadGpuForceAuthorityPromotionEvidence {
+    fn default() -> Self {
+        Self::bounded(0)
+    }
+}
+
+/// Stateful low-rate tracker for GPU force-authority residency continuity.
+///
+/// This tracks evidence metadata only. It never owns Matter truth, particles,
+/// dense fields, or GPU buffers.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct QuestMakepadGpuForceAuthorityResidencyTracker {
+    observed_resident_proofs: usize,
+    reused_resident_proofs: usize,
+    residency_continuity_break_count: usize,
+    last_signature: Option<QuestMakepadGpuForceAuthorityResidencySignature>,
+    last_source_mesh_buffer_generation: Option<u64>,
+    last_derived_buffer_generation: Option<u64>,
+    last_program_generation: Option<u64>,
+    last_queue_submit_serial: Option<u64>,
+    last_fence_serial: Option<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct QuestMakepadGpuForceAuthorityResidencySignature {
+    source_id: String,
+    topology_vertex_count: usize,
+    topology_triangle_count: usize,
+    topology_index_count: usize,
+    voxel_count: usize,
+    source_vertex_buffer_bytes: u64,
+    source_triangle_buffer_bytes: u64,
+    skinned_position_buffer_bytes: u64,
+    sdf_distance_buffer_bytes: u64,
+}
+
+impl QuestMakepadGpuForceAuthorityResidencyTracker {
+    /// Clears the current proof epoch.
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    /// Number of resident GPU field/force proofs observed in this epoch.
+    #[must_use]
+    pub const fn observed_resident_proofs(&self) -> usize {
+        self.observed_resident_proofs
+    }
+
+    /// Number of proofs that reused the resident source, derived, and program resources.
+    #[must_use]
+    pub const fn reused_resident_proofs(&self) -> usize {
+        self.reused_resident_proofs
+    }
+
+    /// Number of detected continuity breaks in this epoch.
+    #[must_use]
+    pub const fn residency_continuity_break_count(&self) -> usize {
+        self.residency_continuity_break_count
+    }
+
+    /// Observes one profile-gated candidate and returns the current health receipt.
+    #[must_use]
+    pub fn observe_gate(
+        &mut self,
+        gate: &QuestMakepadGpuForceAuthorityGate,
+    ) -> QuestMakepadGpuForceAuthorityResidencyHealth {
+        let receipt = &gate.candidate.source_probe.receipt;
+        let readback = gate.candidate.source_probe.readback;
+        let signature = QuestMakepadGpuForceAuthorityResidencySignature {
+            source_id: receipt.source_id.clone(),
+            topology_vertex_count: receipt.topology_vertex_count,
+            topology_triangle_count: receipt.topology_triangle_count,
+            topology_index_count: receipt.topology_index_count,
+            voxel_count: receipt.voxel_count,
+            source_vertex_buffer_bytes: receipt.source_vertex_buffer_bytes,
+            source_triangle_buffer_bytes: receipt.source_triangle_buffer_bytes,
+            skinned_position_buffer_bytes: receipt.skinned_position_buffer_bytes,
+            sdf_distance_buffer_bytes: receipt.sdf_distance_buffer_bytes,
+        };
+        let signature_matched = self
+            .last_signature
+            .as_ref()
+            .map_or(true, |last| last == &signature);
+        let source_mesh_buffer_generation_matched = self
+            .last_source_mesh_buffer_generation
+            .map_or(true, |last| last == receipt.source_mesh_buffer_generation);
+        let derived_buffer_generation_matched = self
+            .last_derived_buffer_generation
+            .map_or(true, |last| last == receipt.derived_buffer_generation);
+        let program_generation_matched = self
+            .last_program_generation
+            .map_or(true, |last| last == readback.program_generation);
+        let queue_submit_serial_monotonic = self
+            .last_queue_submit_serial
+            .map_or(true, |last| readback.queue_submit_serial > last);
+        let fence_serial_monotonic = self
+            .last_fence_serial
+            .map_or(true, |last| readback.fence_serial > last);
+        let current_ready = gate.profile_gate_ready()
+            && gate
+                .candidate
+                .source_probe
+                .runtime_particle_force_comparison_ready()
+            && receipt.runtime_field_boundary_ready()
+            && readback.source_field_buffer_resident
+            && readback.source_field_generation == receipt.derived_buffer_generation
+            && readback.source_field_buffer_bytes == receipt.sdf_distance_buffer_bytes;
+        let current_reused = current_ready
+            && receipt.source_mesh_buffers_reused
+            && receipt.derived_buffers_reused
+            && receipt.program_reused
+            && readback.program_reused;
+        let continuity_broken = self.observed_resident_proofs > 0
+            && (!signature_matched
+                || !source_mesh_buffer_generation_matched
+                || !derived_buffer_generation_matched
+                || !program_generation_matched
+                || !queue_submit_serial_monotonic
+                || !fence_serial_monotonic);
+
+        if continuity_broken {
+            self.residency_continuity_break_count =
+                self.residency_continuity_break_count.saturating_add(1);
+            self.observed_resident_proofs = usize::from(current_ready);
+            self.reused_resident_proofs = usize::from(current_reused);
+        } else if current_ready {
+            self.observed_resident_proofs = self.observed_resident_proofs.saturating_add(1);
+            if current_reused {
+                self.reused_resident_proofs = self.reused_resident_proofs.saturating_add(1);
+            }
+        }
+
+        self.last_signature = Some(signature);
+        self.last_source_mesh_buffer_generation = Some(receipt.source_mesh_buffer_generation);
+        self.last_derived_buffer_generation = Some(receipt.derived_buffer_generation);
+        self.last_program_generation = Some(readback.program_generation);
+        self.last_queue_submit_serial = Some(readback.queue_submit_serial);
+        self.last_fence_serial = Some(readback.fence_serial);
+
+        let residency_continuity_ready = current_reused
+            && !continuity_broken
+            && signature_matched
+            && source_mesh_buffer_generation_matched
+            && derived_buffer_generation_matched
+            && program_generation_matched
+            && queue_submit_serial_monotonic
+            && fence_serial_monotonic;
+        QuestMakepadGpuForceAuthorityResidencyHealth::from_gate_with_promotion_evidence(
+            gate,
+            QuestMakepadGpuForceAuthorityPromotionEvidence {
+                observed_resident_proofs: self.observed_resident_proofs,
+                reused_resident_proofs: self.reused_resident_proofs,
+                residency_continuity_ready,
+                residency_continuity_broken: continuity_broken,
+                residency_continuity_break_count: self.residency_continuity_break_count,
+                source_mesh_buffer_generation_matched,
+                derived_buffer_generation_matched,
+                queue_submit_serial_monotonic,
+                fence_serial_monotonic,
+                ..QuestMakepadGpuForceAuthorityPromotionEvidence::default()
+            },
+        )
     }
 }
 
@@ -85,8 +277,24 @@ pub struct QuestMakepadGpuForceAuthorityResidencyHealth {
     pub gate: QuestMakepadGpuForceAuthorityGate,
     /// Number of bounded resident-field force proofs represented by this health receipt.
     pub observed_resident_proofs: usize,
+    /// Number of resident-field force proofs that reused resident resources.
+    pub reused_resident_proofs: usize,
     /// Minimum resident-field force proof count required before steady-state promotion.
     pub required_resident_proofs: usize,
+    /// True when repeated resident proofs preserve resource continuity.
+    pub residency_continuity_ready: bool,
+    /// True when the latest proof broke continuity and forced fallback.
+    pub residency_continuity_broken: bool,
+    /// Number of continuity breaks observed by the tracker for the current epoch.
+    pub residency_continuity_break_count: usize,
+    /// True when the latest reused proof kept the source-mesh buffer generation stable.
+    pub source_mesh_buffer_generation_matched: bool,
+    /// True when the latest reused proof kept the derived field-buffer generation stable.
+    pub derived_buffer_generation_matched: bool,
+    /// True when submit serials moved forward across tracked proofs.
+    pub queue_submit_serial_monotonic: bool,
+    /// True when fence serials moved forward across tracked proofs.
+    pub fence_serial_monotonic: bool,
     /// True when GPU data freshness is tracked against current frame adoption.
     pub freshness_ready: bool,
     /// True when GPU force cadence is tracked and inside the profile budget.
@@ -126,7 +334,15 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
             schema_id: QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_SCHEMA_ID.to_owned(),
             gate: gate.clone(),
             observed_resident_proofs: evidence.observed_resident_proofs,
+            reused_resident_proofs: evidence.reused_resident_proofs,
             required_resident_proofs: QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,
+            residency_continuity_ready: evidence.residency_continuity_ready,
+            residency_continuity_broken: evidence.residency_continuity_broken,
+            residency_continuity_break_count: evidence.residency_continuity_break_count,
+            source_mesh_buffer_generation_matched: evidence.source_mesh_buffer_generation_matched,
+            derived_buffer_generation_matched: evidence.derived_buffer_generation_matched,
+            queue_submit_serial_monotonic: evidence.queue_submit_serial_monotonic,
+            fence_serial_monotonic: evidence.fence_serial_monotonic,
             freshness_ready: evidence.freshness_ready,
             cadence_ready: evidence.cadence_ready,
             expanded_oracle_comparison_ready: evidence.expanded_oracle_comparison_ready,
@@ -146,6 +362,13 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
         self.evidence_ready()
             && self.gate.profile_gate_satisfied()
             && self.observed_resident_proofs >= self.required_resident_proofs
+            && self.reused_resident_proofs >= self.required_resident_proofs
+            && self.residency_continuity_ready
+            && !self.residency_continuity_broken
+            && self.source_mesh_buffer_generation_matched
+            && self.derived_buffer_generation_matched
+            && self.queue_submit_serial_monotonic
+            && self.fence_serial_monotonic
             && self.source_probe_reused()
             && self.derived_probe_reused()
             && self.gate.candidate.source_probe.readback.program_reused
@@ -241,7 +464,7 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
         let force_authority_ready = candidate_selected;
         let bounded_proof_only = !runtime_selection_permitted;
         format!(
-            "{} schema={} phase={} status={} healthKind={} requestedForceAuthority={} candidateForceAuthority={} candidateSchema={} activeForceAuthorityKind={} activeForceAuthoritySource={} activeMatterForceAuthority={} matterCpuOracleForceAuthority={} activeForceAuthorityChanged=false activeForceAuthorityPreserved={} singleActiveForceAuthorityPreserved=true forceAuthoritySlotCount=1 activeForceAuthorityCount={} profileGate={} profileGateSatisfied={} gpuForceAuthorityProfileKnown=true gpuForceAuthorityProfileEnabled={} candidateEligible={} candidateSelected={} candidatePromoted={} observedResidentProofs={} requiredResidentProofs={} boundedProofOnly={} steadyStateResidencyReady={} freshnessReady={} cadenceReady={} expandedOracleComparisonReady={} liveRecordedProviderAbReady={} runtimeSelectionPermitted={} fallbackForceAuthority={} fallbackReason={} matterCpuFallbackReady={} rollbackPolicy={} sourceReceiptSchema={} sourceId={} sourceFrameIndex={} fieldResourceId={} fieldKind={} validationInputShape={} candidateResourcePlane={} sourceResourcePlane={} particleSampleSource=matter-particle-snapshot sourceParticleSetId={} particleRows={} requestedParticleSampleCount={} sampledParticleCount={} rejectedParticleCount={} sampleCount={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} runtimeFieldBoundaryReady={} runtimeParticleForceComparisonReady={} sourceFieldGeneration={} expectedSourceFieldGeneration={} sourceFieldGenerationMatched={} sourceFieldBufferResident={} sourceFieldBufferBytes={} expectedSourceFieldBufferBytes={} sampleInputBufferBytes={} sampleOutputBufferBytes={} cpuOracle={} cpuOraclePreserved=true recordedInputEquivalent=true residentFieldBufferSampled=true denseSdfConstructedOnGpu=true matterCpuParticleIntegration=true matterParticleForceEquation=true fieldSamplingKernel=true fieldForceSamplingKernel=true fieldParticleKernel=true computeKernel=true commandEncoderSubmitted=true computeDispatchSubmitted=true sourceMeshBuffersResident={} sourceMeshBuffersReused={} derivedBuffersResident={} derivedBuffersReused={} gpuComputeCandidateReady={} forceAuthorityCandidateReady={} forceAuthorityReady={} runtimeForceAuthority={} runtimeParticleIntegration={} gpuComputeReady={} highRateJsonPayload=false settingsControlPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} programGeneration={} programReused={} shaderCompiledThisSubmit={} pipelineCreatedThisSubmit={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy=RUSTY_QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs",
+            "{} schema={} phase={} status={} healthKind={} requestedForceAuthority={} candidateForceAuthority={} candidateSchema={} activeForceAuthorityKind={} activeForceAuthoritySource={} activeMatterForceAuthority={} matterCpuOracleForceAuthority={} activeForceAuthorityChanged=false activeForceAuthorityPreserved={} singleActiveForceAuthorityPreserved=true forceAuthoritySlotCount=1 activeForceAuthorityCount={} profileGate={} profileGateSatisfied={} gpuForceAuthorityProfileKnown=true gpuForceAuthorityProfileEnabled={} candidateEligible={} candidateSelected={} candidatePromoted={} residencyTrackerSource={} observedResidentProofs={} reusedResidentProofs={} requiredResidentProofs={} residencyContinuityReady={} residencyContinuityBroken={} residencyContinuityBreakCount={} sourceMeshBufferGenerationMatched={} derivedBufferGenerationMatched={} queueSubmitSerialMonotonic={} fenceSerialMonotonic={} boundedProofOnly={} steadyStateResidencyReady={} freshnessReady={} cadenceReady={} expandedOracleComparisonReady={} liveRecordedProviderAbReady={} runtimeSelectionPermitted={} fallbackForceAuthority={} fallbackReason={} matterCpuFallbackReady={} rollbackPolicy={} sourceReceiptSchema={} sourceId={} sourceFrameIndex={} fieldResourceId={} fieldKind={} validationInputShape={} candidateResourcePlane={} sourceResourcePlane={} particleSampleSource=matter-particle-snapshot sourceParticleSetId={} particleRows={} requestedParticleSampleCount={} sampledParticleCount={} rejectedParticleCount={} sampleCount={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} runtimeFieldBoundaryReady={} runtimeParticleForceComparisonReady={} sourceFieldGeneration={} expectedSourceFieldGeneration={} sourceFieldGenerationMatched={} sourceFieldBufferResident={} sourceFieldBufferBytes={} expectedSourceFieldBufferBytes={} sampleInputBufferBytes={} sampleOutputBufferBytes={} cpuOracle={} cpuOraclePreserved=true recordedInputEquivalent=true residentFieldBufferSampled=true denseSdfConstructedOnGpu=true matterCpuParticleIntegration=true matterParticleForceEquation=true fieldSamplingKernel=true fieldForceSamplingKernel=true fieldParticleKernel=true computeKernel=true commandEncoderSubmitted=true computeDispatchSubmitted=true sourceMeshBufferGeneration={} sourceMeshBuffersResident={} sourceMeshBuffersReused={} derivedBufferGeneration={} derivedBuffersResident={} derivedBuffersReused={} gpuComputeCandidateReady={} forceAuthorityCandidateReady={} forceAuthorityReady={} runtimeForceAuthority={} runtimeParticleIntegration={} gpuComputeReady={} highRateJsonPayload=false settingsControlPayload=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} programGeneration={} programReused={} shaderCompiledThisSubmit={} pipelineCreatedThisSubmit={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy=RUSTY_QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE.elapsedMs,RUSTY_MAKEPAD_CADENCE.xrRepaintGpuMs",
             QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_MARKER_PREFIX,
             self.schema_id,
             sanitize_marker_value(phase),
@@ -272,8 +495,17 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
             evidence_ready,
             candidate_selected,
             candidate_selected,
+            QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_TRACKER_SOURCE,
             self.observed_resident_proofs,
+            self.reused_resident_proofs,
             self.required_resident_proofs,
+            self.residency_continuity_ready,
+            self.residency_continuity_broken,
+            self.residency_continuity_break_count,
+            self.source_mesh_buffer_generation_matched,
+            self.derived_buffer_generation_matched,
+            self.queue_submit_serial_monotonic,
+            self.fence_serial_monotonic,
             bounded_proof_only,
             steady_state_ready,
             freshness_ready,
@@ -315,8 +547,10 @@ impl QuestMakepadGpuForceAuthorityResidencyHealth {
             readback.sample_input_buffer_bytes,
             readback.sample_output_buffer_bytes,
             QUEST_MAKEPAD_GPU_FIELD_PARTICLE_FORCE_PROBE_CPU_ORACLE,
+            receipt.source_mesh_buffer_generation,
             receipt.source_mesh_buffers_resident,
             receipt.source_mesh_buffers_reused,
+            receipt.derived_buffer_generation,
             receipt.derived_buffers_resident,
             receipt.derived_buffers_reused,
             evidence_ready,
