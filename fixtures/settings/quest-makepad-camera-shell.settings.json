@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 8,
+  "version": 10,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -109,6 +109,312 @@
         { "kind": "ui_control", "name": "control.quest_makepad.camera.streaming.enabled" }
       ],
       "readback_field": "cameraStreamingEnabled"
+    },
+    {
+      "id": "makepad.stimulus.enabled",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.enabled" },
+        { "kind": "ui_control", "name": "control.quest_makepad.stimulus.enabled" }
+      ],
+      "readback_field": "stimulusEnabled"
+    },
+    {
+      "id": "makepad.stimulus.profile_path",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "string",
+      "default": "none",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-profile-path" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_PROFILE_PATH" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.profile_path" }
+      ],
+      "readback_field": "stimulusProfilePath"
+    },
+    {
+      "id": "makepad.stimulus.profile_sha256",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "string",
+      "default": "none",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-profile-sha256" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_PROFILE_SHA256" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.profile_sha256" }
+      ],
+      "readback_field": "stimulusProfileSha256"
+    },
+    {
+      "id": "makepad.stimulus.profile_schema",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "string",
+      "default": "rusty.optics.stimulus.profile.v1",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-profile-schema" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_PROFILE_SCHEMA" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.profile_schema" }
+      ],
+      "readback_field": "stimulusProfileSchema"
+    },
+    {
+      "id": "makepad.stimulus.tuning_path",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "string",
+      "default": "none",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-tuning-path" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_TUNING_PATH" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.tuning_path" }
+      ],
+      "readback_field": "stimulusTuningPath"
+    },
+    {
+      "id": "makepad.stimulus.tuning_sha256",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "string",
+      "default": "none",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-tuning-sha256" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_TUNING_SHA256" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.tuning_sha256" }
+      ],
+      "readback_field": "stimulusTuningSha256"
+    },
+    {
+      "id": "makepad.stimulus.presentation_mode",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.stimulus",
+      "value_type": "enum",
+      "enum_values": ["StereoEyeField"],
+      "default": "StereoEyeField",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "stimulus-presentation-mode" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_STIMULUS_PRESENTATION_MODE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.stimulus.presentation_mode" }
+      ],
+      "readback_field": "stimulusPresentationMode"
+    },
+    {
+      "id": "quest.remote_camera.enabled",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.enabled" },
+        { "kind": "ui_control", "name": "control.quest_makepad.remote_camera.enabled" }
+      ],
+      "readback_field": "remoteCameraEnabled"
+    },
+    {
+      "id": "quest.remote_camera.session_id",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "string",
+      "default": "none",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-session-id" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_SESSION_ID" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.session_id" }
+      ],
+      "readback_field": "remoteCameraSessionId"
+    },
+    {
+      "id": "quest.remote_camera.topology_id",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "enum",
+      "enum_values": ["none", "quest_to_quest_two_way", "quest_android_phone_duplex"],
+      "default": "none",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-topology-id" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_TOPOLOGY_ID" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.topology_id" }
+      ],
+      "readback_field": "remoteCameraTopologyId"
+    },
+    {
+      "id": "quest.remote_camera.endpoint_device_id",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "string",
+      "default": "none",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-endpoint-device-id" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_ENDPOINT_DEVICE_ID" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.endpoint_device_id" }
+      ],
+      "readback_field": "remoteCameraEndpointDeviceId"
+    },
+    {
+      "id": "quest.remote_camera.endpoint_device_kind",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "enum",
+      "enum_values": ["none", "quest", "android_phone"],
+      "default": "none",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-endpoint-device-kind" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_ENDPOINT_DEVICE_KIND" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.endpoint_device_kind" }
+      ],
+      "readback_field": "remoteCameraEndpointDeviceKind"
+    },
+    {
+      "id": "quest.remote_camera.endpoint_role",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "enum",
+      "enum_values": ["disabled", "sender", "receiver", "sender_receiver"],
+      "default": "disabled",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-endpoint-role" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_ENDPOINT_ROLE" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.endpoint_role" }
+      ],
+      "readback_field": "remoteCameraEndpointRole"
+    },
+    {
+      "id": "quest.remote_camera.privacy_tier",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "enum",
+      "enum_values": [
+        "local_lan_diagnostic",
+        "trusted_relay_transport_encrypted",
+        "untrusted_relay_end_to_end_encrypted_candidate"
+      ],
+      "default": "local_lan_diagnostic",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-privacy-tier" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_PRIVACY_TIER" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.privacy_tier" }
+      ],
+      "readback_field": "remoteCameraPrivacyTier"
+    },
+    {
+      "id": "quest.remote_camera.lane_count",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "integer",
+      "minimum": 0,
+      "maximum": 16,
+      "default": 0,
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-lane-count" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_LANE_COUNT" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.lane_count" }
+      ],
+      "readback_field": "remoteCameraLaneCount"
+    },
+    {
+      "id": "quest.remote_camera.incoming_lane_count",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "integer",
+      "minimum": 0,
+      "maximum": 16,
+      "default": 0,
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-incoming-lane-count" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_INCOMING_LANE_COUNT" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.incoming_lane_count" }
+      ],
+      "readback_field": "remoteCameraIncomingLaneCount"
+    },
+    {
+      "id": "quest.remote_camera.outgoing_lane_count",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "integer",
+      "minimum": 0,
+      "maximum": 16,
+      "default": 0,
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-outgoing-lane-count" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_OUTGOING_LANE_COUNT" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.outgoing_lane_count" }
+      ],
+      "readback_field": "remoteCameraOutgoingLaneCount"
+    },
+    {
+      "id": "quest.remote_camera.transport_kind",
+      "owner_repo": "rusty-quest",
+      "owner_module": "remote_camera.session",
+      "value_type": "enum",
+      "enum_values": ["none", "lan_tcp", "relay_tls", "mixed"],
+      "default": "none",
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "remote-camera-transport-kind" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_REMOTE_CAMERA_TRANSPORT_KIND" },
+        { "kind": "android_property", "name": "debug.rustyquest.remote_camera.transport_kind" }
+      ],
+      "readback_field": "remoteCameraTransportKind"
     },
     {
       "id": "makepad.projection.depth_meters",

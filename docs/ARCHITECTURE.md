@@ -56,6 +56,37 @@ constants as the app-facing boundary. Hostess and other active Makepad shells
 should consume that adapter surface instead of depending on the lower replay
 crate directly or reparsing replay settings locally.
 
+Remote camera settings use the same effective-settings boundary, but only for
+low-rate session handoff. `quest.remote_camera.*` values identify the accepted
+Quest remote-camera session, this endpoint, role, lane counts, privacy tier,
+and transport kind. Manifold remains command/session authority for start
+receiver, start sender, status, and stop, while binary H.264 packets stay on
+the media plane.
+
+Procedural stimulus settings also use the effective-settings boundary only for
+low-rate identity and selection. `makepad.stimulus.*` enables a staged Optics
+stimulus profile, records its app-private relative path, expected SHA-256,
+schema, optional browser-tuning sidecar, and `StereoEyeField` presentation
+mode. The profile JSON remains a sibling `stimulus/` payload. The camera-shell
+adapter can verify the staged file's hash and full-screen stereo presentation
+before a future Quest Vulkan/Makepad stimulus renderer lowers the Optics
+profile to textures, storage buffers, descriptors, and XR submissions. For
+volume proof profiles, the adapter also extracts a compact summary of
+`rusty.optics.stimulus.volume.v1` and the selected compute ABI: field kind,
+storage hint, grid bounds, step count, bounded readback sample count, and
+two-layer stereo output. It does not copy the profile body into settings or
+claim GPU compute execution.
+The first GPU-backed stimulus-volume markers are bounded readback proofs over
+that summary. `QuestMakepadStimulusVolumeProbe` covers eight point samples, and
+`QuestMakepadStimulusVolumeRaymarchPreview` covers a 4x4-per-eye stereo output
+buffer. Both compare a Makepad XR/Vulkan storage-buffer compute result against
+the shared Optics bounded-volume CPU oracle while preserving the Quest marker
+and readback boundary. The raymarch preview reports `runtimeTextureBound=false`
+because it is an image-shaped buffer proof, not a texture or render-target
+adoption path. Keep new deterministic stimulus profile summaries and oracle
+math in `rusty-optics-stimulus`; this crate adapts them into Quest-Makepad
+marker, staging, and Vulkan proof shapes only.
+
 `rusty-quest-makepad-mesh-replay` now has two replay lanes. The existing
 `rusty.matter.tools.glb_mesh_surface_sequence.v1` lane stays as the
 positions-only visual smoke path: it emits `TriangleMeshSurface` frames after

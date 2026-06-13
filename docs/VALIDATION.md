@@ -290,3 +290,52 @@ The profile validation runs through
 property set operation references an effective setting and carries the same
 value. This keeps profile, property, and app readback preparation on one
 deterministic surface instead of a hand-edited ADB launch sequence.
+
+The remote-camera Q2Q profile is included in the same dry-run profile gate:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\remote-camera-q2q.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-remote-camera-q2q
+```
+
+That bundle carries only `quest.remote_camera.*` session handoff settings and
+matching `debug.rustyquest.remote_camera.*` property plan entries. It does not
+start camera capture, open media sockets, decode H.264, or move frame payloads
+through effective settings.
+
+The stimulus interference profile is also included in the dry-run profile
+gate, along with a volume-proof profile that uses the same low-rate settings
+handoff:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-interference.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-interference
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-volume-proof.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-proof
+```
+
+Those bundles copy the Optics stimulus profile into
+`local-artifacts\quest-makepad-runtime-bundle-stimulus-interference\stimulus`
+and verifies that `makepad.stimulus.profile_path` plus
+`makepad.stimulus.profile_sha256` match the staged file. The volume-proof
+report also records `payloads[].profile_summary.volume_present=true`,
+`volume_readback_probe_samples=512`, `stereo_field_output_layers=2`,
+`gpu_compute_ready=false`, and `compute_kernel_claimed=false`. Browser-created
+profiles use:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Expand-StimulusBrowserHandoff.ps1 -HandoffPath <downloaded-quest-handoff.json> -OutDir local-artifacts\quest-makepad-browser-stimulus-handoff
+```
+
+Stage either bundle directory with the Hostess staging helper before launching
+the Quest stereo APK. The helper copies both `makepad-effective-settings.json`
+and the sibling `stimulus/` payload into app-private storage.
+For the bounded Quest Vulkan volume proof, headset evidence should include
+`RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE` with `readbackMatched=true`,
+`mismatchedComponents=0`, `sampleCount=8`, and `queueWaitIdlePerformed=false`,
+followed by `RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW` with
+`previewWidth=4`, `previewHeight=4`, `eyeCount=2`, `pixelCount=32`,
+`componentCount=256`, `volumeRaymarchKernel=true`,
+`lowResolutionStereoOutput=true`, `runtimeTextureBound=false`, and
+`gpuComputeReady=false`. The expected values for those checks come from the
+shared `rusty-optics-stimulus` bounded-volume oracle; Quest-Makepad owns only
+the marker/readback adapter. Treat these as bounded compute/readback evidence
+only; they do not claim a production volume renderer or runtime-scale GPU
+readiness.

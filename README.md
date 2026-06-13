@@ -107,6 +107,32 @@ and configures mesh replay, render scale, collision, SDF/ADF overlay, and
 particle toggles without depending on the previous source repo or hand-authored
 launch values.
 
+The same surface now carries remote-camera handoff settings under
+`quest.remote_camera.*`. Those settings identify a validated Quest
+remote-camera session and endpoint role for the Makepad app; they do not carry
+camera frames. Manifold owns the remote-camera start/status/stop command
+handoff, and Quest owns the platform session/profile contract.
+
+The camera-shell surface also carries procedural-stimulus handoff settings
+under `makepad.stimulus.*`. These settings only select a staged Optics
+`rusty.optics.stimulus.profile.v1` JSON file by app-private relative path,
+schema, SHA-256 digest, optional browser-tuning sidecar, and presentation mode.
+The profile body remains a sibling payload under `stimulus/` so the same tuned
+browser profile can be staged for the Quest stereo APK without embedding
+renderer-neutral visual payloads in settings JSON. Use
+`tools\Expand-StimulusBrowserHandoff.ps1` for ad hoc browser exports and
+`fixtures\profiles\stimulus-interference.bundle.json` for the committed
+interference fixture. `fixtures\profiles\stimulus-volume-proof.bundle.json`
+uses the same boundary for the Optics volume proof profile and records a
+compact volume/compute ABI summary in the dry-run bundle report; this is
+profile adoption evidence, not a Quest Vulkan compute claim.
+Hostess can validate that volume profile through bounded Makepad XR/Vulkan
+readback markers: a point-sample probe and a 4x4-per-eye stereo raymarch
+preview. These markers consume the shared Optics bounded-volume CPU oracle and
+keep Quest-Makepad responsible only for staging, markers, and Vulkan readback
+evidence. They keep `gpuComputeReady=false`; the raymarch preview is a
+storage-buffer output proof, not a runtime-bound texture renderer.
+
 For the current ADF slice, `makepad.sdf_adf.overlay_mode=adf` enables a
 Matter-backed ADF build from the current Matter SDF grid and resolves the
 Optics `rusty.optics.adf.debug.visual.v1` payload. Runtime markers report

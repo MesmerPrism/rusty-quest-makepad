@@ -1,0 +1,56 @@
+{
+  "schema": "rusty.gui.makepad.settings_profile.v1",
+  "profile_id": "profile.quest_makepad.remote_camera.q2q_two_way.quest_a",
+  "surface_app_id": "rusty-quest-makepad.camera-shell",
+  "layer": "runtime_profile",
+  "values": [
+    {
+      "setting_id": "makepad.camera.streaming.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "quest.remote_camera.enabled",
+      "value": true
+    },
+    {
+      "setting_id": "quest.remote_camera.session_id",
+      "value": "session.remote_camera.q2q_two_way_lan_smoke"
+    },
+    {
+      "setting_id": "quest.remote_camera.topology_id",
+      "value": "quest_to_quest_two_way"
+    },
+    {
+      "setting_id": "quest.remote_camera.endpoint_device_id",
+      "value": "quest-a"
+    },
+    {
+      "setting_id": "quest.remote_camera.endpoint_device_kind",
+      "value": "quest"
+    },
+    {
+      "setting_id": "quest.remote_camera.endpoint_role",
+      "value": "sender_receiver"
+    },
+    {
+      "setting_id": "quest.remote_camera.privacy_tier",
+      "value": "local_lan_diagnostic"
+    },
+    {
+      "setting_id": "quest.remote_camera.lane_count",
+      "value": 4
+    },
+    {
+      "setting_id": "quest.remote_camera.incoming_lane_count",
+      "value": 2
+    },
+    {
+      "setting_id": "quest.remote_camera.outgoing_lane_count",
+      "value": 2
+    },
+    {
+      "setting_id": "quest.remote_camera.transport_kind",
+      "value": "lan_tcp"
+    }
+  ]
+}

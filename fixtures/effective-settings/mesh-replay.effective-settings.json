@@ -2,9 +2,9 @@
   "schema": "rusty.gui.makepad.effective_settings.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
   "surface_schema": "rusty.gui.makepad.app_settings_surface.v1",
-  "surface_version": 8,
+  "surface_version": 10,
   "revision": 1,
-  "generated_at": "SystemTime { intervals: 134256485002635980 }",
+  "generated_at": "SystemTime { intervals: 134257682650340204 }",
   "settings": [
     {
       "setting_id": "makepad.mesh_replay.enabled",
@@ -107,6 +107,186 @@
       "hotload_policy": "scene_rebuild",
       "writer_policy": "session_hotload",
       "readback_field": "cameraStreamingEnabled"
+    },
+    {
+      "setting_id": "makepad.stimulus.enabled",
+      "value": false,
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusEnabled"
+    },
+    {
+      "setting_id": "makepad.stimulus.profile_path",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusProfilePath"
+    },
+    {
+      "setting_id": "makepad.stimulus.profile_sha256",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusProfileSha256"
+    },
+    {
+      "setting_id": "makepad.stimulus.profile_schema",
+      "value": "rusty.optics.stimulus.profile.v1",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusProfileSchema"
+    },
+    {
+      "setting_id": "makepad.stimulus.tuning_path",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusTuningPath"
+    },
+    {
+      "setting_id": "makepad.stimulus.tuning_sha256",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusTuningSha256"
+    },
+    {
+      "setting_id": "makepad.stimulus.presentation_mode",
+      "value": "StereoEyeField",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "stimulusPresentationMode"
+    },
+    {
+      "setting_id": "quest.remote_camera.enabled",
+      "value": false,
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraEnabled"
+    },
+    {
+      "setting_id": "quest.remote_camera.session_id",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraSessionId"
+    },
+    {
+      "setting_id": "quest.remote_camera.topology_id",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraTopologyId"
+    },
+    {
+      "setting_id": "quest.remote_camera.endpoint_device_id",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraEndpointDeviceId"
+    },
+    {
+      "setting_id": "quest.remote_camera.endpoint_device_kind",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraEndpointDeviceKind"
+    },
+    {
+      "setting_id": "quest.remote_camera.endpoint_role",
+      "value": "disabled",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraEndpointRole"
+    },
+    {
+      "setting_id": "quest.remote_camera.privacy_tier",
+      "value": "local_lan_diagnostic",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraPrivacyTier"
+    },
+    {
+      "setting_id": "quest.remote_camera.lane_count",
+      "value": 0,
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraLaneCount"
+    },
+    {
+      "setting_id": "quest.remote_camera.incoming_lane_count",
+      "value": 0,
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraIncomingLaneCount"
+    },
+    {
+      "setting_id": "quest.remote_camera.outgoing_lane_count",
+      "value": 0,
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraOutgoingLaneCount"
+    },
+    {
+      "setting_id": "quest.remote_camera.transport_kind",
+      "value": "none",
+      "winning_layer": "schema_default",
+      "winning_source_id": "rusty-quest-makepad.camera-shell.default",
+      "rejected_layers": [],
+      "hotload_policy": "startup_only",
+      "writer_policy": "profile_owned",
+      "readback_field": "remoteCameraTransportKind"
     },
     {
       "setting_id": "makepad.projection.depth_meters",
