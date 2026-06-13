@@ -80,9 +80,12 @@ The first GPU-backed stimulus-volume markers are bounded readback proofs over
 that summary. `QuestMakepadStimulusVolumeProbe` covers eight point samples, and
 `QuestMakepadStimulusVolumeRaymarchPreview` covers a 4x4-per-eye stereo output
 buffer. Both compare a Makepad XR/Vulkan storage-buffer compute result against
-a Quest-Makepad CPU oracle while preserving the Optics profile boundary. The
-raymarch preview reports `runtimeTextureBound=false` because it is an
-image-shaped buffer proof, not a texture or render-target adoption path.
+the shared Optics bounded-volume CPU oracle while preserving the Quest marker
+and readback boundary. The raymarch preview reports `runtimeTextureBound=false`
+because it is an image-shaped buffer proof, not a texture or render-target
+adoption path. Keep new deterministic stimulus profile summaries and oracle
+math in `rusty-optics-stimulus`; this crate adapts them into Quest-Makepad
+marker, staging, and Vulkan proof shapes only.
 
 `rusty-quest-makepad-mesh-replay` now has two replay lanes. The existing
 `rusty.matter.tools.glb_mesh_surface_sequence.v1` lane stays as the

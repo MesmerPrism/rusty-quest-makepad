@@ -302,5 +302,8 @@ followed by `RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW` with
 `previewWidth=4`, `previewHeight=4`, `eyeCount=2`, `pixelCount=32`,
 `componentCount=256`, `volumeRaymarchKernel=true`,
 `lowResolutionStereoOutput=true`, `runtimeTextureBound=false`, and
-`gpuComputeReady=false`. Treat these as bounded compute/readback evidence only;
-they do not claim a production volume renderer or runtime-scale GPU readiness.
+`gpuComputeReady=false`. The expected values for those checks come from the
+shared `rusty-optics-stimulus` bounded-volume oracle; Quest-Makepad owns only
+the marker/readback adapter. Treat these as bounded compute/readback evidence
+only; they do not claim a production volume renderer or runtime-scale GPU
+readiness.

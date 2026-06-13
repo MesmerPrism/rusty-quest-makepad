@@ -234,7 +234,7 @@ version = "0.1.0"
 [[package]]
 name = "rusty-optics-model"
 version = "0.1.0"
-source = "git+https://github.com/MesmerPrism/rusty-optics.git?rev=55e340e6698c993f2de81d7bbb650697906a4846#55e340e6698c993f2de81d7bbb650697906a4846"
+source = "git+https://github.com/MesmerPrism/rusty-optics.git?rev=2ff51fd2e43654de4b253714e17eacb40655cf8f#2ff51fd2e43654de4b253714e17eacb40655cf8f"
 dependencies = [
  "serde",
 ]
@@ -249,11 +249,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusty-optics-stimulus"
+version = "0.1.0"
+source = "git+https://github.com/MesmerPrism/rusty-optics.git?rev=2ff51fd2e43654de4b253714e17eacb40655cf8f#2ff51fd2e43654de4b253714e17eacb40655cf8f"
+dependencies = [
+ "rusty-optics-model 0.1.0 (git+https://github.com/MesmerPrism/rusty-optics.git?rev=2ff51fd2e43654de4b253714e17eacb40655cf8f)",
+ "serde",
+]
+
+[[package]]
 name = "rusty-quest-makepad-camera-shell"
 version = "0.1.0"
 dependencies = [
  "rusty-lattice-model",
- "rusty-optics-model 0.1.0 (git+https://github.com/MesmerPrism/rusty-optics.git?rev=55e340e6698c993f2de81d7bbb650697906a4846)",
+ "rusty-optics-model 0.1.0 (git+https://github.com/MesmerPrism/rusty-optics.git?rev=2ff51fd2e43654de4b253714e17eacb40655cf8f)",
+ "rusty-optics-stimulus",
  "rusty-quest-makepad-matter-surface",
  "rusty-quest-makepad-mesh-replay",
  "serde_json",

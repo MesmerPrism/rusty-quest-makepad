@@ -128,9 +128,10 @@ compact volume/compute ABI summary in the dry-run bundle report; this is
 profile adoption evidence, not a Quest Vulkan compute claim.
 Hostess can validate that volume profile through bounded Makepad XR/Vulkan
 readback markers: a point-sample probe and a 4x4-per-eye stereo raymarch
-preview. These markers preserve the Quest-Makepad CPU oracle and keep
-`gpuComputeReady=false`; the raymarch preview is a storage-buffer output proof,
-not a runtime-bound texture renderer.
+preview. These markers consume the shared Optics bounded-volume CPU oracle and
+keep Quest-Makepad responsible only for staging, markers, and Vulkan readback
+evidence. They keep `gpuComputeReady=false`; the raymarch preview is a
+storage-buffer output proof, not a runtime-bound texture renderer.
 
 For the current ADF slice, `makepad.sdf_adf.overlay_mode=adf` enables a
 Matter-backed ADF build from the current Matter SDF grid and resolves the

@@ -8,6 +8,17 @@ use crate::{
     stimulus_volume_gpu::QuestMakepadStimulusVolumeProbeInput, StimulusVolumeProfileSummary,
     STIMULUS_VOLUME_SCHEMA_ID,
 };
+use rusty_optics_stimulus::{
+    deterministic_bounded_stimulus_volume_raymarch_preview_pixel,
+    expected_bounded_stimulus_volume_raymarch_preview_output,
+    BoundedStimulusVolumeRaymarchPreviewOutput as OpticsStimulusVolumeRaymarchPreviewOutput,
+    BoundedStimulusVolumeRaymarchPreviewPixel as OpticsStimulusVolumeRaymarchPreviewPixel,
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_DEFAULT_TOLERANCE,
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT,
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT,
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_PIXELS,
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH,
+};
 
 /// Marker emitted after bounded stereo raymarch output readback evidence.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_MARKER_PREFIX: &str =
@@ -28,18 +39,20 @@ pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_PAYLOAD: &str =
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_MEASUREMENT_SOURCE: &str =
     "quest-makepad-stimulus-volume-raymarch-preview";
 /// Low-resolution preview width per eye.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH: usize = 4;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH: usize =
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH;
 /// Low-resolution preview height per eye.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT: usize = 4;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT: usize =
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT;
 /// Current bounded stereo output layer count.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT: usize = 2;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT: usize =
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT;
 /// Current bounded stereo pixel count.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_PIXELS: usize =
-    QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT;
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_PIXELS;
 /// Conservative f32 tolerance for CPU-oracle comparison.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_DEFAULT_TOLERANCE: f32 = 0.002;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_DEFAULT_TOLERANCE: f32 =
+    BOUNDED_STIMULUS_VOLUME_RAYMARCH_PREVIEW_DEFAULT_TOLERANCE;
 
 /// Vec4-aligned pixel input submitted to the generic Makepad raymarch preview.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -325,7 +338,7 @@ impl QuestMakepadStimulusVolumeRaymarchPreview {
     #[must_use]
     pub fn marker_line(&self, phase: &str) -> String {
         format!(
-            "{} schema={} phase={} status={} proofKind=stimulus-volume-raymarch-preview-v1 computeStage=optics-stimulus-volume-raymarch-preview profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} stereoFieldOutputLayers={} previewWidth={} previewHeight={} eyeCount={} pixelCount={} firstPixelIndex={} lastPixelIndex={} outputTextureShape=stereo-rgba-lowres-buffer resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=std430-vec4 componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} lowResolutionStereoOutput=true runtimeTextureBound=false commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=true fieldParticleKernel=false computeKernel=true cpuOracle=quest-makepad-deterministic-volume-raymarch-preview cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=stimulus-volume-raymarch-preview-v1 computeStage=optics-stimulus-volume-raymarch-preview profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} stereoFieldOutputLayers={} previewWidth={} previewHeight={} eyeCount={} pixelCount={} firstPixelIndex={} lastPixelIndex={} outputTextureShape=stereo-rgba-lowres-buffer resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=std430-vec4 componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} lowResolutionStereoOutput=true runtimeTextureBound=false commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=true fieldParticleKernel=false computeKernel=true cpuOracle=optics-bounded-volume-raymarch-preview cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_MARKER_PREFIX,
             self.schema_id,
             marker_token(phase),
@@ -377,52 +390,11 @@ impl QuestMakepadStimulusVolumeRaymarchPreview {
 pub fn expected_stimulus_volume_raymarch_preview_output(
     pixel: QuestMakepadStimulusVolumeRaymarchPreviewPixel,
 ) -> QuestMakepadStimulusVolumeRaymarchPreviewOutput {
-    let uv = pixel.uv_eye_time;
-    let origin = [
-        pixel.ray_origin[0],
-        pixel.ray_origin[1],
-        pixel.ray_origin[2],
-    ];
-    let direction = [
-        pixel.ray_direction_step[0],
-        pixel.ray_direction_step[1],
-        pixel.ray_direction_step[2],
-    ];
-    let step_count = pixel.ray_direction_step[3].clamp(1.0, 32.0);
-    let step_alpha_scale = pixel.volume_params[3].clamp(0.001, 4.0);
-    let mut accum_rgb = [0.0_f32; 3];
-    let mut accum_alpha = 0.0_f32;
-    let mut first_depth = 0.0_f32;
-    let mut hit = 0.0_f32;
-
-    for step in 0..32 {
-        let step_f = step as f32;
-        if step_f < step_count {
-            let unit_depth = (step_f + 0.5) / step_count;
-            let p = [
-                origin[0] + direction[0] * unit_depth,
-                origin[1] + direction[1] * unit_depth,
-                origin[2] + direction[2] * unit_depth,
-            ];
-            let density = volume_density(p, uv, pixel.volume_params);
-            let sample_alpha = (density * step_alpha_scale / step_count).clamp(0.0, 1.0);
-            let sample_rgb = [density, density, density];
-            let contribution = (1.0 - accum_alpha) * sample_alpha;
-            accum_rgb[0] += sample_rgb[0] * contribution;
-            accum_rgb[1] += sample_rgb[1] * contribution;
-            accum_rgb[2] += sample_rgb[2] * contribution;
-            if hit < 0.5 && density > 0.05 {
-                first_depth = unit_depth;
-                hit = 1.0;
-            }
-            accum_alpha = (accum_alpha + contribution).clamp(0.0, 1.0);
-        }
-    }
-
-    QuestMakepadStimulusVolumeRaymarchPreviewOutput {
-        rgba: [accum_rgb[0], accum_rgb[1], accum_rgb[2], accum_alpha],
-        density_depth_status: [accum_alpha, first_depth, hit, step_count],
-    }
+    quest_volume_raymarch_preview_output_from_optics(
+        expected_bounded_stimulus_volume_raymarch_preview_output(
+            optics_volume_raymarch_preview_pixel_from_quest(pixel),
+        ),
+    )
 }
 
 fn deterministic_volume_raymarch_preview_pixel(
@@ -430,55 +402,48 @@ fn deterministic_volume_raymarch_preview_pixel(
     grid_dimensions: [u64; 3],
     step_count: u64,
 ) -> QuestMakepadStimulusVolumeRaymarchPreviewPixel {
-    let pixels_per_eye = QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT;
-    let eye_index = (index / pixels_per_eye)
-        .min(QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT.saturating_sub(1));
-    let local = index % pixels_per_eye;
-    let x = local % QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH;
-    let y = local / QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH;
-    let u = (x as f32 + 0.5) / QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH as f32;
-    let v = (y as f32 + 0.5) / QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT as f32;
-    let eye = eye_index as f32;
-    let eye_offset = (eye - 0.5) * 0.08;
-    let max_grid_axis = grid_dimensions.iter().copied().max().unwrap_or(32).max(1) as f32;
-    let frequency = (max_grid_axis / 8.0).clamp(1.0, 32.0);
-    let phase = 0.37 + step_count as f32 * 0.003;
-    let preview_steps = (step_count as f32).clamp(4.0, 32.0);
-    let mut pixel = QuestMakepadStimulusVolumeRaymarchPreviewPixel {
-        uv_eye_time: [u, v, eye, 0.125 + index as f32 * 0.0125],
-        ray_origin: [u - 0.5 + eye_offset, v - 0.5, -0.72, 0.0],
-        ray_direction_step: [
-            (u - 0.5) * 0.42 + eye_offset * 0.25,
-            (v - 0.5) * 0.32,
-            1.0,
-            preview_steps,
-        ],
-        volume_params: [frequency, phase, 0.72, 1.25],
-        expected_rgba: [0.0; 4],
-        expected_density_depth_status: [0.0; 4],
-    };
-    let expected = expected_stimulus_volume_raymarch_preview_output(pixel);
-    pixel.expected_rgba = expected.rgba;
-    pixel.expected_density_depth_status = expected.density_depth_status;
-    pixel
+    quest_volume_raymarch_preview_pixel_from_optics(
+        deterministic_bounded_stimulus_volume_raymarch_preview_pixel(
+            index,
+            grid_dimensions,
+            step_count,
+        ),
+    )
 }
 
-fn volume_density(p: [f32; 3], uv: [f32; 4], params: [f32; 4]) -> f32 {
-    let frequency = params[0].max(0.001);
-    let phase = params[1];
-    let opacity = params[2].clamp(0.0, 4.0);
-    let wave_a =
-        triangle_wave((p[0] + uv[0] * 0.25 + p[2] * 0.5) * frequency + uv[3] * 0.07 + phase);
-    let wave_b = triangle_wave(
-        (p[1] - p[2] * 0.35 + uv[1] * 0.25) * frequency * 0.75 - uv[3] * 0.11 + phase * 0.5,
-    );
-    let interference = (1.0 - (wave_a - wave_b).abs()).clamp(0.0, 1.0);
-    (interference * opacity).clamp(0.0, 1.0)
+pub(crate) fn quest_volume_raymarch_preview_pixel_from_optics(
+    pixel: OpticsStimulusVolumeRaymarchPreviewPixel,
+) -> QuestMakepadStimulusVolumeRaymarchPreviewPixel {
+    QuestMakepadStimulusVolumeRaymarchPreviewPixel {
+        uv_eye_time: pixel.uv_eye_time,
+        ray_origin: pixel.ray_origin,
+        ray_direction_step: pixel.ray_direction_step,
+        volume_params: pixel.volume_params,
+        expected_rgba: pixel.expected_rgba,
+        expected_density_depth_status: pixel.expected_density_depth_status,
+    }
 }
 
-fn triangle_wave(value: f32) -> f32 {
-    ((value - value.floor()) * 2.0 - 1.0).abs()
+pub(crate) fn optics_volume_raymarch_preview_pixel_from_quest(
+    pixel: QuestMakepadStimulusVolumeRaymarchPreviewPixel,
+) -> OpticsStimulusVolumeRaymarchPreviewPixel {
+    OpticsStimulusVolumeRaymarchPreviewPixel {
+        uv_eye_time: pixel.uv_eye_time,
+        ray_origin: pixel.ray_origin,
+        ray_direction_step: pixel.ray_direction_step,
+        volume_params: pixel.volume_params,
+        expected_rgba: pixel.expected_rgba,
+        expected_density_depth_status: pixel.expected_density_depth_status,
+    }
+}
+
+fn quest_volume_raymarch_preview_output_from_optics(
+    output: OpticsStimulusVolumeRaymarchPreviewOutput,
+) -> QuestMakepadStimulusVolumeRaymarchPreviewOutput {
+    QuestMakepadStimulusVolumeRaymarchPreviewOutput {
+        rgba: output.rgba,
+        density_depth_status: output.density_depth_status,
+    }
 }
 
 fn marker_token(value: &str) -> String {

@@ -6,15 +6,27 @@
 
 use crate::{
     stimulus_volume_raymarch_preview::{
-        expected_stimulus_volume_raymarch_preview_output,
+        optics_volume_raymarch_preview_pixel_from_quest,
+        quest_volume_raymarch_preview_pixel_from_optics,
         QuestMakepadStimulusVolumeRaymarchPreviewInput,
         QuestMakepadStimulusVolumeRaymarchPreviewPixel,
         QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_DEFAULT_TOLERANCE,
         QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT,
-        QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT,
-        QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH,
     },
     StimulusVolumeProfileSummary,
+};
+use rusty_optics_stimulus::{
+    deterministic_bounded_stimulus_volume_image_preview_pixel,
+    expected_bounded_stimulus_volume_image_preview_output,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_HEIGHT,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_WIDTH,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_FORMAT,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_HEIGHT,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_LAYERS,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_WIDTH,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_PIXELS,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT,
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH,
 };
 
 /// Marker emitted after bounded sampled-image readback evidence.
@@ -36,37 +48,38 @@ pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_PAYLOAD: &str =
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_MEASUREMENT_SOURCE: &str =
     "quest-makepad-stimulus-volume-image-preview";
 /// Default generated eye tile width for the scalable stereo atlas.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_WIDTH: usize = 64;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_WIDTH: usize =
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_WIDTH;
 /// Default generated eye tile height for the scalable stereo atlas.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_HEIGHT: usize = 64;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_HEIGHT: usize =
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_HEIGHT;
 /// Current bounded stereo eye count.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_COUNT: usize =
     QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_EYE_COUNT;
 /// Stereo atlas image width.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_WIDTH: usize =
-    QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_WIDTH
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_COUNT;
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_WIDTH;
 /// Stereo atlas image height.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_HEIGHT: usize =
-    QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_TILE_HEIGHT;
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_HEIGHT;
 /// Stereo atlas image layers.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_LAYERS: usize = 1;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_LAYERS: usize =
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_IMAGE_LAYERS;
 /// Bounded sample grid width used for GPU-vs-CPU readback checks.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH: usize =
-    QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_WIDTH;
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH;
 /// Bounded sample grid height used for GPU-vs-CPU readback checks.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT: usize =
-    QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_HEIGHT;
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT;
 /// Current bounded stereo readback sample count.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_PIXELS: usize =
-    QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_COUNT;
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_PIXELS;
 /// Conservative f32 tolerance for CPU-oracle comparison.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_DEFAULT_TOLERANCE: f32 =
     QUEST_MAKEPAD_STIMULUS_VOLUME_RAYMARCH_PREVIEW_DEFAULT_TOLERANCE;
 /// Initial image format used by the generic Makepad Vulkan proof.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_FORMAT: &str = "R32G32B32A32_SFLOAT";
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_FORMAT: &str =
+    BOUNDED_STIMULUS_VOLUME_IMAGE_PREVIEW_FORMAT;
 
 /// Vec4-aligned pixel input submitted to the generic Makepad image preview.
 pub type QuestMakepadStimulusVolumeImagePreviewPixel =
@@ -312,7 +325,7 @@ impl QuestMakepadStimulusVolumeImagePreview {
     pub fn marker_line(&self, phase: &str) -> String {
         let profile = &self.input.raymarch_input;
         format!(
-            "{} schema={} phase={} status={} proofKind=stimulus-volume-scalable-image-atlas-v1 computeStage=optics-stimulus-volume-scalable-image-atlas profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} stereoFieldOutputLayers={} imageWidth={} imageHeight={} imageLayers={} eyeTileWidth={} eyeTileHeight={} eyeCount={} pixelCount={} sampleGrid={} firstPixelIndex={} lastPixelIndex={} imageFormat={} outputTextureShape=stereo-rgba-scalable-atlas resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=rgba32float-atlas componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} lowResolutionStereoOutput=false scalableStereoAtlas=true runtimeTextureBound=false storageImageResident=true storageImageWritten={} transferReadbackPerformed={} sampledImageUsage={} sampledTextureBound={} sampledTextureResident={} commandEncoderSubmitted=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=true volumeImageKernel=true fieldParticleKernel=false computeKernel=true cpuOracle=quest-makepad-deterministic-volume-scalable-image-samples cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=true frameCriticalComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=stimulus-volume-scalable-image-atlas-v1 computeStage=optics-stimulus-volume-scalable-image-atlas profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} stereoFieldOutputLayers={} imageWidth={} imageHeight={} imageLayers={} eyeTileWidth={} eyeTileHeight={} eyeCount={} pixelCount={} sampleGrid={} firstPixelIndex={} lastPixelIndex={} imageFormat={} outputTextureShape=stereo-rgba-scalable-atlas resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=rgba32float-atlas componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} lowResolutionStereoOutput=false scalableStereoAtlas=true runtimeTextureBound=false storageImageResident=true storageImageWritten={} transferReadbackPerformed={} sampledImageUsage={} sampledTextureBound={} sampledTextureResident={} commandEncoderSubmitted=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=true volumeImageKernel=true fieldParticleKernel=false computeKernel=true cpuOracle=optics-bounded-volume-scalable-image-samples cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=true frameCriticalComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_MARKER_PREFIX,
             self.schema_id,
             marker_token(phase),
@@ -375,7 +388,10 @@ pub fn expected_stimulus_volume_image_preview_output(
     pixel: QuestMakepadStimulusVolumeImagePreviewPixel,
 ) -> QuestMakepadStimulusVolumeImagePreviewOutput {
     QuestMakepadStimulusVolumeImagePreviewOutput {
-        rgba: expected_stimulus_volume_raymarch_preview_output(pixel).rgba,
+        rgba: expected_bounded_stimulus_volume_image_preview_output(
+            optics_volume_raymarch_preview_pixel_from_quest(pixel),
+        )
+        .rgba,
     }
 }
 
@@ -386,59 +402,15 @@ fn deterministic_volume_image_preview_pixel(
     eye_tile_width: usize,
     eye_tile_height: usize,
 ) -> QuestMakepadStimulusVolumeImagePreviewPixel {
-    let samples_per_eye = QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH
-        * QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT;
-    let eye_index = (index / samples_per_eye)
-        .min(QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_EYE_COUNT.saturating_sub(1));
-    let local = index % samples_per_eye;
-    let sample_x = local % QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH;
-    let sample_y = local / QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH;
-    let tile_width =
-        eye_tile_width.max(QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH);
-    let tile_height =
-        eye_tile_height.max(QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT);
-    let pixel_x = scalable_sample_coordinate(
-        sample_x,
-        QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_WIDTH,
-        tile_width,
-    );
-    let pixel_y = scalable_sample_coordinate(
-        sample_y,
-        QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SAMPLE_GRID_HEIGHT,
-        tile_height,
-    );
-    let u = (pixel_x as f32 + 0.5) / tile_width as f32;
-    let v = (pixel_y as f32 + 0.5) / tile_height as f32;
-    let eye = eye_index as f32;
-    let eye_offset = (eye - 0.5) * 0.08;
-    let max_grid_axis = grid_dimensions.iter().copied().max().unwrap_or(32).max(1) as f32;
-    let frequency = (max_grid_axis / 8.0).clamp(1.0, 32.0);
-    let phase = 0.37 + step_count as f32 * 0.003;
-    let preview_steps = (step_count as f32).clamp(4.0, 32.0);
-    let mut pixel = QuestMakepadStimulusVolumeImagePreviewPixel {
-        uv_eye_time: [u, v, eye, 0.125],
-        ray_origin: [u - 0.5 + eye_offset, v - 0.5, -0.72, 0.0],
-        ray_direction_step: [
-            (u - 0.5) * 0.42 + eye_offset * 0.25,
-            (v - 0.5) * 0.32,
-            1.0,
-            preview_steps,
-        ],
-        volume_params: [frequency, phase, 0.72, 1.25],
-        expected_rgba: [0.0; 4],
-        expected_density_depth_status: [0.0; 4],
-    };
-    let expected = expected_stimulus_volume_raymarch_preview_output(pixel);
-    pixel.expected_rgba = expected.rgba;
-    pixel.expected_density_depth_status = expected.density_depth_status;
-    pixel
-}
-
-fn scalable_sample_coordinate(sample: usize, sample_count: usize, tile_size: usize) -> usize {
-    let sample_count = sample_count.max(1);
-    let tile_size = tile_size.max(1);
-    let center = tile_size / (sample_count * 2);
-    ((sample * tile_size) / sample_count + center).min(tile_size.saturating_sub(1))
+    quest_volume_raymarch_preview_pixel_from_optics(
+        deterministic_bounded_stimulus_volume_image_preview_pixel(
+            index,
+            grid_dimensions,
+            step_count,
+            eye_tile_width,
+            eye_tile_height,
+        ),
+    )
 }
 
 fn marker_token(value: &str) -> String {

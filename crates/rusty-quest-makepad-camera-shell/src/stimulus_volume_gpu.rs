@@ -5,6 +5,13 @@
 //! storage-buffer volume probe.
 
 use crate::{StimulusVolumeProfileSummary, STIMULUS_VOLUME_SCHEMA_ID};
+use rusty_optics_stimulus::{
+    deterministic_bounded_stimulus_volume_probe_sample,
+    expected_bounded_stimulus_volume_probe_output,
+    BoundedStimulusVolumeProbeOutput as OpticsStimulusVolumeProbeOutput,
+    BoundedStimulusVolumeProbeSample as OpticsStimulusVolumeProbeSample,
+    BOUNDED_STIMULUS_VOLUME_PROBE_DEFAULT_TOLERANCE, BOUNDED_STIMULUS_VOLUME_PROBE_SAMPLES,
+};
 
 /// Marker emitted after bounded stimulus volume compute/readback evidence.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_MARKER_PREFIX: &str =
@@ -25,9 +32,11 @@ pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_PAYLOAD: &str =
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_MEASUREMENT_SOURCE: &str =
     "quest-makepad-stimulus-volume-proof";
 /// Current bounded Quest Vulkan sample count for the proof command.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_SAMPLES: usize = 8;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_SAMPLES: usize =
+    BOUNDED_STIMULUS_VOLUME_PROBE_SAMPLES;
 /// Conservative f32 tolerance for CPU-oracle comparison.
-pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_DEFAULT_TOLERANCE: f32 = 0.001;
+pub const QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_DEFAULT_TOLERANCE: f32 =
+    BOUNDED_STIMULUS_VOLUME_PROBE_DEFAULT_TOLERANCE;
 
 /// Vec4-aligned CPU-oracle sample submitted to the generic Makepad volume probe.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -255,7 +264,7 @@ impl QuestMakepadStimulusVolumeProbe {
     #[must_use]
     pub fn marker_line(&self, phase: &str) -> String {
         format!(
-            "{} schema={} phase={} status={} proofKind=stimulus-volume-compute-proof-v1 computeStage=optics-stimulus-volume-probe profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} questProofSamples={} firstSampleIndex={} lastSampleIndex={} resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=std430-vec4 sampleCount={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=false fieldParticleKernel=false computeKernel=true cpuOracle=quest-makepad-deterministic-volume-probe cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=stimulus-volume-compute-proof-v1 computeStage=optics-stimulus-volume-probe profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} questProofSamples={} firstSampleIndex={} lastSampleIndex={} resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=std430-vec4 sampleCount={} componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} commandEncoderSubmitted=true storageBufferResident=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=false fieldParticleKernel=false computeKernel=true cpuOracle=optics-bounded-volume-probe cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_STIMULUS_VOLUME_GPU_PROBE_MARKER_PREFIX,
             self.schema_id,
             marker_token(phase),
@@ -304,37 +313,9 @@ impl QuestMakepadStimulusVolumeProbe {
 pub fn expected_stimulus_volume_probe_output(
     sample: QuestMakepadStimulusVolumeProbeSample,
 ) -> QuestMakepadStimulusVolumeProbeOutput {
-    let uv = sample.uv_eye_time;
-    let origin = [
-        sample.ray_origin_depth[0],
-        sample.ray_origin_depth[1],
-        sample.ray_origin_depth[2],
-    ];
-    let depth = sample.ray_origin_depth[3];
-    let direction = [
-        sample.ray_direction_step[0],
-        sample.ray_direction_step[1],
-        sample.ray_direction_step[2],
-    ];
-    let p = [
-        origin[0] + direction[0] * depth,
-        origin[1] + direction[1] * depth,
-        origin[2] + direction[2] * depth,
-    ];
-    let frequency = sample.volume_params[0].max(0.001);
-    let phase = sample.volume_params[1];
-    let opacity = sample.volume_params[2].clamp(0.0, 4.0);
-    let wave_a =
-        triangle_wave((p[0] + uv[0] * 0.25 + p[2] * 0.5) * frequency + uv[3] * 0.07 + phase);
-    let wave_b = triangle_wave(
-        (p[1] - p[2] * 0.35 + uv[1] * 0.25) * frequency * 0.75 - uv[3] * 0.11 + phase * 0.5,
-    );
-    let interference = (1.0 - (wave_a - wave_b).abs()).clamp(0.0, 1.0);
-    let density = (interference * opacity).clamp(0.0, 1.0);
-    QuestMakepadStimulusVolumeProbeOutput {
-        rgba: [density, density, density, density],
-        density_depth_status: [density, depth, 1.0, 0.0],
-    }
+    quest_volume_probe_output_from_optics(expected_bounded_stimulus_volume_probe_output(
+        optics_volume_probe_sample_from_quest(sample),
+    ))
 }
 
 fn deterministic_volume_sample(
@@ -342,37 +323,46 @@ fn deterministic_volume_sample(
     grid_dimensions: [u64; 3],
     step_count: u64,
 ) -> QuestMakepadStimulusVolumeProbeSample {
-    let eye = (index % 2) as f32;
-    let column = (index / 2) as f32;
-    let u = (0.18 + column * 0.19).clamp(0.0, 1.0);
-    let v = (0.22 + (index as f32 % 4.0) * 0.15).clamp(0.0, 1.0);
-    let time = 0.125 * index as f32;
-    let depth = 0.12 + 0.055 * index as f32;
-    let max_grid_axis = grid_dimensions.iter().copied().max().unwrap_or(32).max(1) as f32;
-    let frequency = (max_grid_axis / 8.0).clamp(1.0, 32.0);
-    let phase = 0.37 + step_count as f32 * 0.003;
-    let opacity = 0.72;
-    let mut sample = QuestMakepadStimulusVolumeProbeSample {
-        uv_eye_time: [u, v, eye, time],
-        ray_origin_depth: [
-            -0.42 + index as f32 * 0.07,
-            -0.24 + (index as f32 % 3.0) * 0.12,
-            -0.68,
-            depth,
-        ],
-        ray_direction_step: [(u - 0.5) * 0.42, (v - 0.5) * 0.32, 1.0, step_count as f32],
-        volume_params: [frequency, phase, opacity, 0.0],
-        expected_rgba: [0.0; 4],
-        expected_density_depth_status: [0.0; 4],
-    };
-    let expected = expected_stimulus_volume_probe_output(sample);
-    sample.expected_rgba = expected.rgba;
-    sample.expected_density_depth_status = expected.density_depth_status;
-    sample
+    quest_volume_probe_sample_from_optics(deterministic_bounded_stimulus_volume_probe_sample(
+        index,
+        grid_dimensions,
+        step_count,
+    ))
 }
 
-fn triangle_wave(value: f32) -> f32 {
-    ((value - value.floor()) * 2.0 - 1.0).abs()
+fn quest_volume_probe_sample_from_optics(
+    sample: OpticsStimulusVolumeProbeSample,
+) -> QuestMakepadStimulusVolumeProbeSample {
+    QuestMakepadStimulusVolumeProbeSample {
+        uv_eye_time: sample.uv_eye_time,
+        ray_origin_depth: sample.ray_origin_depth,
+        ray_direction_step: sample.ray_direction_step,
+        volume_params: sample.volume_params,
+        expected_rgba: sample.expected_rgba,
+        expected_density_depth_status: sample.expected_density_depth_status,
+    }
+}
+
+fn optics_volume_probe_sample_from_quest(
+    sample: QuestMakepadStimulusVolumeProbeSample,
+) -> OpticsStimulusVolumeProbeSample {
+    OpticsStimulusVolumeProbeSample {
+        uv_eye_time: sample.uv_eye_time,
+        ray_origin_depth: sample.ray_origin_depth,
+        ray_direction_step: sample.ray_direction_step,
+        volume_params: sample.volume_params,
+        expected_rgba: sample.expected_rgba,
+        expected_density_depth_status: sample.expected_density_depth_status,
+    }
+}
+
+fn quest_volume_probe_output_from_optics(
+    output: OpticsStimulusVolumeProbeOutput,
+) -> QuestMakepadStimulusVolumeProbeOutput {
+    QuestMakepadStimulusVolumeProbeOutput {
+        rgba: output.rgba,
+        density_depth_status: output.density_depth_status,
+    }
 }
 
 fn marker_token(value: &str) -> String {

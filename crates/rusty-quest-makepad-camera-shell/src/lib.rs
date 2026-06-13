@@ -15,6 +15,12 @@ pub use matter_surface_exports::*;
 use rusty_lattice_model::{validate_display_view_set, DisplayViewSet};
 use rusty_optics_model::{
     ProjectionGeometryReport, Rect2, VideoProjectionMapping, IDENTITY_HOMOGRAPHY,
+    STIMULUS_PROFILE_SCHEMA_ID as OPTICS_STIMULUS_PROFILE_SCHEMA_ID,
+    STIMULUS_VOLUME_SCHEMA_ID as OPTICS_STIMULUS_VOLUME_SCHEMA_ID,
+};
+use rusty_optics_stimulus::{
+    StimulusProfile as OpticsStimulusProfile,
+    StimulusVolumeProfileSummary as OpticsStimulusVolumeProfileSummary,
 };
 use rusty_quest_makepad_mesh_replay::MeshReplayConfig;
 pub use rusty_quest_makepad_mesh_replay::{
@@ -154,9 +160,9 @@ pub const DEFAULT_PARTICLE_RENDER_SIZE_SCALE: f32 = 1.0;
 /// Default projection footprint sample grid for app-shell contract smoke tests.
 pub const DEFAULT_PROJECTION_FOOTPRINT_GRID: usize = 8;
 /// Default staged Optics stimulus profile schema.
-pub const DEFAULT_STIMULUS_PROFILE_SCHEMA_ID: &str = "rusty.optics.stimulus.profile.v1";
+pub const DEFAULT_STIMULUS_PROFILE_SCHEMA_ID: &str = OPTICS_STIMULUS_PROFILE_SCHEMA_ID;
 /// Optics stimulus volume descriptor schema accepted by this adapter boundary.
-pub const STIMULUS_VOLUME_SCHEMA_ID: &str = "rusty.optics.stimulus.volume.v1";
+pub const STIMULUS_VOLUME_SCHEMA_ID: &str = OPTICS_STIMULUS_VOLUME_SCHEMA_ID;
 /// Marker name reserved for future Quest runtime volume-profile adoption evidence.
 pub const STIMULUS_VOLUME_ADOPTION_MARKER: &str = "RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_ADOPTION";
 /// Default full-screen stimulus presentation mode.
@@ -669,6 +675,24 @@ pub struct StimulusVolumeProfileSummary {
     pub stereo_field_output_layers: Option<u64>,
 }
 
+impl From<OpticsStimulusVolumeProfileSummary> for StimulusVolumeProfileSummary {
+    fn from(summary: OpticsStimulusVolumeProfileSummary) -> Self {
+        Self {
+            volume_present: summary.volume_present,
+            volume_schema: summary.volume_schema,
+            volume_id: summary.volume_id,
+            field_kind: summary.field_kind,
+            storage_hint: summary.storage_hint,
+            grid_dimensions: summary.grid_dimensions,
+            step_count: summary.step_count,
+            kernel_abi_id: summary.kernel_abi_id,
+            compute_pass_count: summary.compute_pass_count,
+            volume_readback_probe_samples: summary.volume_readback_probe_samples,
+            stereo_field_output_layers: summary.stereo_field_output_layers,
+        }
+    }
+}
+
 /// Load and verify the staged Optics stimulus profile selected by effective
 /// settings. The JSON body stays a renderer-neutral Optics payload; this helper
 /// only proves identity and full-screen stereo intent before a Quest renderer
@@ -735,7 +759,7 @@ pub fn stimulus_profile_payload_from_effective_settings_json_with_root(
         .and_then(Value::as_str)
         .unwrap_or("stimulus.profile.unknown")
         .to_string();
-    let volume_summary = stimulus_volume_profile_summary(&profile)?;
+    let volume_summary = stimulus_volume_profile_summary(&profile, &profile_json)?;
 
     Ok(Some(StimulusProfilePayload {
         config,
@@ -749,6 +773,48 @@ pub fn stimulus_profile_payload_from_effective_settings_json_with_root(
 }
 
 fn stimulus_volume_profile_summary(
+    profile: &Value,
+    profile_json: &str,
+) -> Result<StimulusVolumeProfileSummary, CameraShellConfigError> {
+    if let Some(summary) = typed_optics_stimulus_volume_profile_summary(profile, profile_json)? {
+        return Ok(summary);
+    }
+    stimulus_volume_profile_summary_legacy(profile)
+}
+
+fn typed_optics_stimulus_volume_profile_summary(
+    profile: &Value,
+    profile_json: &str,
+) -> Result<Option<StimulusVolumeProfileSummary>, CameraShellConfigError> {
+    match serde_json::from_str::<OpticsStimulusProfile>(profile_json) {
+        Ok(optics_profile) => {
+            let summary = OpticsStimulusVolumeProfileSummary::from_profile(&optics_profile)
+                .map_err(|error| CameraShellConfigError::StimulusProfileAsset(error.to_string()))?;
+            if summary.volume_present {
+                summary
+                    .validate_bounded_stereo_preview(512)
+                    .map_err(|error| {
+                        CameraShellConfigError::StimulusProfileAsset(error.to_string())
+                    })?;
+            }
+            Ok(Some(summary.into()))
+        }
+        Err(error) if looks_like_full_optics_profile(profile) => {
+            Err(CameraShellConfigError::StimulusProfileAsset(format!(
+                "invalid Optics stimulus profile: {error}"
+            )))
+        }
+        Err(_) => Ok(None),
+    }
+}
+
+fn looks_like_full_optics_profile(profile: &Value) -> bool {
+    profile.get("layer_graph").is_some()
+        || profile.get("temporal").is_some()
+        || profile.get("safety").is_some()
+}
+
+fn stimulus_volume_profile_summary_legacy(
     profile: &Value,
 ) -> Result<StimulusVolumeProfileSummary, CameraShellConfigError> {
     let Some(volume) = profile.get("volume") else {
