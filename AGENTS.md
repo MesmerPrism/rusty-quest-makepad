@@ -285,6 +285,16 @@ both markers must still keep
 `runtimeParticleIntegration=false`, `gpuComputeReady=false`,
 `highRateJsonPayload=false`, and `settingsControlPayload=false` until a later
 profile explicitly promotes a GPU-backed equivalent with rollback evidence.
+`QuestMakepadGpuForceAuthorityResidencyHealth` /
+`RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY` is the promotion health
+receipt after that gate: it must keep `activeForceAuthorityKind=matter-cpu`,
+`activeForceAuthorityCount=1`, `runtimeSelectionPermitted=false`,
+`boundedProofOnly=true`, `steadyStateResidencyReady=false`,
+`freshnessReady=false`, `cadenceReady=false`,
+`expandedOracleComparisonReady=false`, and
+`liveRecordedProviderAbReady=false` until steady-state resident GPU field/force
+cadence plus live-vs-recorded provider A/B evidence are proven. Treat it as the
+rollback/fallback decision point, not as `gpuComputeReady=true`.
 
 The 2026-06-11 indexed ADF pre-GPU sweep at
 `S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the

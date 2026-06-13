@@ -178,6 +178,15 @@ That is still not runtime promotion: validation must continue to require
 `candidatePromoted=false`, `runtimeForceAuthority=false`,
 `gpuComputeReady=false`, `matterCpuFallbackReady=true`, and
 `rollbackPolicy=matter-cpu-oracle-on-gpu-freshness-or-cadence-failure`.
+Runs that exercise the next residency-health slice should also require
+`RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY` and verify
+`boundedProofOnly=true`, `steadyStateResidencyReady=false`,
+`freshnessReady=false`, `cadenceReady=false`,
+`expandedOracleComparisonReady=false`,
+`liveRecordedProviderAbReady=false`, and `runtimeSelectionPermitted=false`.
+Those fields are the checklist for future promotion work; they must not flip to
+true until the steady-state resident GPU field/force cadence, broader
+CPU-oracle comparisons, and live-vs-recorded hand-provider A/B evidence exist.
 ADF profile/config sweeps should patch only generated/local effective settings
 for `makepad.adf.debug.max_depth`, `makepad.adf.debug.max_cells`, and
 `makepad.adf.debug.error_tolerance`; the runtime marker must echo the selected

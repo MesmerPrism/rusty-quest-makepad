@@ -2231,6 +2231,66 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(gate_marker.contains("gpuComputeReady=false"));
     assert!(gate_marker.contains("highRateJsonPayload=false"));
     assert!(gate_marker.contains("settingsControlPayload=false"));
+
+    let residency_health = QuestMakepadGpuForceAuthorityResidencyHealth::from_gate(&gate);
+    assert!(residency_health.evidence_ready());
+    assert!(!residency_health.steady_state_residency_ready());
+    assert!(!residency_health.freshness_ready());
+    assert!(!residency_health.cadence_ready());
+    assert!(!residency_health.expanded_oracle_comparison_ready());
+    assert!(!residency_health.live_recorded_provider_ab_ready());
+    assert!(!residency_health.runtime_selection_permitted());
+
+    let health_marker = residency_health.marker_line("unit-test");
+    assert!(health_marker.contains("RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY"));
+    assert!(health_marker
+        .contains("schema=rusty.quest.makepad.gpu_force_authority_residency_health.v1"));
+    assert!(health_marker.contains("status=fallback-matter-cpu"));
+    assert!(health_marker.contains("healthKind=steady-state-gpu-force-authority-residency-health"));
+    assert!(health_marker.contains("requestedForceAuthority=gpu-dense-sdf-field-particle-force"));
+    assert!(health_marker.contains("candidateForceAuthority=gpu-dense-sdf-field-particle-force"));
+    assert!(health_marker.contains("activeForceAuthorityKind=matter-cpu"));
+    assert!(health_marker.contains("activeMatterForceAuthority=mesh-distance"));
+    assert!(health_marker.contains("singleActiveForceAuthorityPreserved=true"));
+    assert!(health_marker.contains("forceAuthoritySlotCount=1"));
+    assert!(health_marker.contains("activeForceAuthorityCount=1"));
+    assert!(health_marker.contains("profileGate=explicit-profile-required"));
+    assert!(health_marker.contains("profileGateSatisfied=true"));
+    assert!(health_marker.contains("gpuForceAuthorityProfileEnabled=true"));
+    assert!(health_marker.contains("candidateEligible=true"));
+    assert!(health_marker.contains("candidateSelected=false"));
+    assert!(health_marker.contains("candidatePromoted=false"));
+    assert!(health_marker.contains("observedResidentProofs=1"));
+    assert!(health_marker.contains("requiredResidentProofs=4"));
+    assert!(health_marker.contains("boundedProofOnly=true"));
+    assert!(health_marker.contains("steadyStateResidencyReady=false"));
+    assert!(health_marker.contains("freshnessReady=false"));
+    assert!(health_marker.contains("cadenceReady=false"));
+    assert!(health_marker.contains("expandedOracleComparisonReady=false"));
+    assert!(health_marker.contains("liveRecordedProviderAbReady=false"));
+    assert!(health_marker.contains("runtimeSelectionPermitted=false"));
+    assert!(health_marker.contains("fallbackForceAuthority=mesh-distance"));
+    assert!(health_marker.contains("fallbackReason=gpu-residency-health-not-steady-state"));
+    assert!(health_marker
+        .contains("rollbackPolicy=matter-cpu-oracle-on-gpu-freshness-or-cadence-failure"));
+    assert!(health_marker.contains("matterCpuFallbackReady=true"));
+    assert!(health_marker.contains("readbackMatched=true"));
+    assert!(health_marker.contains("runtimeParticleForceComparisonReady=true"));
+    assert!(health_marker.contains("sourceFieldGenerationMatched=true"));
+    assert!(health_marker.contains("cpuOracle=matter-particle-snapshot-dense-sdf-force-sampler"));
+    assert!(health_marker.contains("cpuOraclePreserved=true"));
+    assert!(health_marker.contains("recordedInputEquivalent=true"));
+    assert!(health_marker.contains("residentFieldBufferSampled=true"));
+    assert!(health_marker.contains("denseSdfConstructedOnGpu=true"));
+    assert!(health_marker.contains("fieldParticleKernel=true"));
+    assert!(health_marker.contains("gpuComputeCandidateReady=true"));
+    assert!(health_marker.contains("forceAuthorityCandidateReady=true"));
+    assert!(health_marker.contains("forceAuthorityReady=false"));
+    assert!(health_marker.contains("runtimeForceAuthority=false"));
+    assert!(health_marker.contains("runtimeParticleIntegration=false"));
+    assert!(health_marker.contains("gpuComputeReady=false"));
+    assert!(health_marker.contains("highRateJsonPayload=false"));
+    assert!(health_marker.contains("settingsControlPayload=false"));
 }
 
 #[test]

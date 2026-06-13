@@ -198,6 +198,14 @@ freshness/cadence evidence, expanded CPU-oracle comparisons, and rollback to
 Matter CPU are implemented; markers must keep exactly one active authority and
 continue to report `runtimeForceAuthority=false` and `gpuComputeReady=false`
 until that promotion happens.
+The follow-on residency-health receipt
+(`QuestMakepadGpuForceAuthorityResidencyHealth` /
+`RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY`) is the explicit rollback
+decision surface. It records the observed bounded proof count, the required
+steady-state proof count, freshness/cadence readiness, expanded oracle
+comparison readiness, and live-vs-recorded provider A/B readiness. Until all of
+those are true it must keep `runtimeSelectionPermitted=false`, one active
+Matter CPU authority, and `matterCpuFallbackReady=true`.
 
 The runtime marker also reports `sourceProviderShape`. Positions-only GLB
 surface replay must remain `positions-only-surface` smoke evidence because its
