@@ -9,8 +9,8 @@ use crate::{
     world_adf_debug_batch_from_frame, world_particle_batch_from_upload, QuestMakepadAdfDebugFrame,
     QuestMakepadCollisionUpload, QuestMakepadDistanceSliceUpload, QuestMakepadGpuMeshSdfProbeInput,
     QuestMakepadGpuSkinningMeshProbeInput, QuestMakepadGpuSkinningProbeInput,
-    QuestMakepadMatterSurfaceProviderShape, QuestMakepadParticleUpload,
-    QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldAdfDebugPlacement,
+    QuestMakepadMatterParticleForceOracleConfig, QuestMakepadMatterSurfaceProviderShape,
+    QuestMakepadParticleUpload, QuestMakepadWorldAdfDebugBatch, QuestMakepadWorldAdfDebugPlacement,
     QuestMakepadWorldParticleBatch, QuestMakepadWorldParticlePlacement,
 };
 
@@ -86,6 +86,8 @@ pub struct QuestMakepadMatterSurfaceFrame {
     pub sdf_adf_debug_update_interval_frames: usize,
     /// Typed particle snapshot with latest surface distances.
     pub particle_snapshot: MatterSurfaceParticleSnapshot,
+    /// Compact Matter particle-force equation coefficients for bounded GPU proofs.
+    pub particle_force_oracle_config: QuestMakepadMatterParticleForceOracleConfig,
     /// Matter-owned particle step diagnostics, if particles were stepped.
     pub particle_step: Option<MatterSurfaceStepDiagnostics>,
     /// Optional renderer-neutral particle visual frame.
