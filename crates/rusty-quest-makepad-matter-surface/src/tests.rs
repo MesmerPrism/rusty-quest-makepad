@@ -2351,6 +2351,66 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(tracked_marker.contains("fallbackReason=gpu-freshness-not-proven"));
     assert!(tracked_marker.contains("gpuComputeReady=false"));
 
+    let mut varying_grid_tracker = QuestMakepadGpuForceAuthorityResidencyTracker::default();
+    let mut varying_grid_health = None;
+    for (index, (voxel_count, dimensions)) in [
+        (1_452_usize, [11_u32, 12_u32, 11_u32]),
+        (1_573_usize, [11_u32, 13_u32, 11_u32]),
+        (1_452_usize, [11_u32, 12_u32, 11_u32]),
+        (1_573_usize, [11_u32, 13_u32, 11_u32]),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut varying_grid_gate = gate.clone();
+        varying_grid_gate.candidate.source_probe.receipt.voxel_count = voxel_count;
+        varying_grid_gate
+            .candidate
+            .source_probe
+            .receipt
+            .grid
+            .voxel_count = voxel_count;
+        varying_grid_gate
+            .candidate
+            .source_probe
+            .receipt
+            .grid
+            .dimensions = dimensions;
+        varying_grid_gate
+            .candidate
+            .source_probe
+            .readback
+            .queue_submit_serial = 40 + index as u64;
+        varying_grid_gate
+            .candidate
+            .source_probe
+            .readback
+            .fence_serial = 40 + index as u64;
+        varying_grid_health = Some(varying_grid_tracker.observe_gate(&varying_grid_gate));
+    }
+    let varying_grid_health =
+        varying_grid_health.expect("tracker accepts varying live-equivalent SDF grids");
+    assert_eq!(
+        varying_grid_tracker.observed_resident_proofs(),
+        QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS
+    );
+    assert_eq!(
+        varying_grid_tracker.reused_resident_proofs(),
+        QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS
+    );
+    assert_eq!(varying_grid_tracker.residency_continuity_break_count(), 0);
+    assert!(varying_grid_health.steady_state_residency_ready());
+    assert_eq!(
+        varying_grid_health.fallback_reason(),
+        "gpu-freshness-not-proven"
+    );
+    let varying_grid_marker = varying_grid_health.marker_line("unit-test");
+    assert!(varying_grid_marker.contains("observedResidentProofs=4"));
+    assert!(varying_grid_marker.contains("reusedResidentProofs=4"));
+    assert!(varying_grid_marker.contains("residencyContinuityBroken=false"));
+    assert!(varying_grid_marker.contains("steadyStateResidencyReady=true"));
+    assert!(varying_grid_marker.contains("fallbackReason=gpu-freshness-not-proven"));
+
     let mut cadence_fallback_gate = gate.clone();
     cadence_fallback_gate
         .candidate
