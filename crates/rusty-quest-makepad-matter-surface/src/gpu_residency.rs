@@ -11,6 +11,7 @@ mod field_force_sampling_probe;
 mod field_particle_force_probe;
 mod field_sampling_probe;
 mod force_authority_candidate;
+mod force_authority_gate;
 mod marker;
 mod mesh_sdf_probe;
 mod oracle_probe;
@@ -70,6 +71,12 @@ pub use force_authority_candidate::{
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE_KIND,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE_MARKER_PREFIX,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE_SCHEMA_ID,
+};
+pub use force_authority_gate::{
+    QuestMakepadGpuForceAuthorityGate, QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE_KIND,
+    QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE_MARKER_PREFIX,
+    QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE_POLICY,
+    QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE_SCHEMA_ID,
 };
 pub use mesh_sdf_probe::{
     QuestMakepadGpuMeshSdfForceProbeSample, QuestMakepadGpuMeshSdfProbe,

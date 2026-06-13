@@ -260,6 +260,21 @@ must keep the selected CPU oracle and force-source fields, report
 `highRateJsonPayload=false`. This proves the resource path, not GPU particle
 force semantics.
 
+The GPU force-authority candidate path is still non-authoritative.
+`QuestMakepadGpuForceAuthorityCandidate` /
+`RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_CANDIDATE` may be emitted only from a
+ready resident dense-SDF particle-force proof that matches the Matter CPU
+oracle. `QuestMakepadGpuForceAuthorityGate` /
+`RUSTY_QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_GATE` records the next adapter
+boundary: candidate eligible, explicit profile gate required, runtime
+selection not permitted, exactly one Matter CPU force authority still active,
+and Matter CPU fallback ready. Both markers must keep
+`candidateSelected=false`, `candidatePromoted=false`,
+`forceAuthorityReady=false`, `runtimeForceAuthority=false`,
+`runtimeParticleIntegration=false`, `gpuComputeReady=false`,
+`highRateJsonPayload=false`, and `settingsControlPayload=false` until a later
+profile explicitly promotes a GPU-backed equivalent with rollback evidence.
+
 The 2026-06-11 indexed ADF pre-GPU sweep at
 `S:\Work\tmp\quest-makepad-indexed-adf-pre-gpu-sweep-20260611-141903` is the
 current force-mode evidence baseline. At 1024 Matter particles / 1024 visual
