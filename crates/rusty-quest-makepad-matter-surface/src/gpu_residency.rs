@@ -88,7 +88,7 @@ pub use force_authority_mode::{
 };
 pub use force_authority_residency::{
     QuestMakepadGpuForceAuthorityPromotionEvidence, QuestMakepadGpuForceAuthorityResidencyHealth,
-    QuestMakepadGpuForceAuthorityResidencyTracker,
+    QuestMakepadGpuForceAuthorityResidencyTracker, QuestMakepadGpuForceAuthorityRuntimeReadiness,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_KIND,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_MARKER_PREFIX,
     QUEST_MAKEPAD_GPU_FORCE_AUTHORITY_RESIDENCY_REQUIRED_PROOFS,

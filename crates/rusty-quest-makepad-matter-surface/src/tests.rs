@@ -2351,6 +2351,43 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(tracked_marker.contains("fallbackReason=gpu-freshness-not-proven"));
     assert!(tracked_marker.contains("gpuComputeReady=false"));
 
+    let mut cadence_fallback_gate = gate.clone();
+    cadence_fallback_gate
+        .candidate
+        .source_probe
+        .readback
+        .queue_submit_serial = 24;
+    cadence_fallback_gate
+        .candidate
+        .source_probe
+        .readback
+        .fence_serial = 24;
+    let cadence_fallback_health = tracker.observe_gate_with_runtime_readiness(
+        &cadence_fallback_gate,
+        QuestMakepadGpuForceAuthorityRuntimeReadiness {
+            freshness_ready: true,
+            cadence_ready: false,
+            expanded_oracle_comparison_ready: false,
+            live_recorded_provider_ab_ready: false,
+        },
+    );
+    assert!(cadence_fallback_health.steady_state_residency_ready());
+    assert!(!cadence_fallback_health.runtime_selection_permitted());
+    assert_eq!(
+        cadence_fallback_health.fallback_reason(),
+        "gpu-cadence-not-proven"
+    );
+    let cadence_fallback_marker = cadence_fallback_health.marker_line("unit-test");
+    assert!(cadence_fallback_marker.contains("observedResidentProofs=5"));
+    assert!(cadence_fallback_marker.contains("reusedResidentProofs=5"));
+    assert!(cadence_fallback_marker.contains("steadyStateResidencyReady=true"));
+    assert!(cadence_fallback_marker.contains("freshnessReady=true"));
+    assert!(cadence_fallback_marker.contains("cadenceReady=false"));
+    assert!(cadence_fallback_marker.contains("runtimeSelectionPermitted=false"));
+    assert!(cadence_fallback_marker.contains("activeForceAuthorityKind=matter-cpu"));
+    assert!(cadence_fallback_marker.contains("fallbackReason=gpu-cadence-not-proven"));
+    assert!(cadence_fallback_marker.contains("gpuComputeReady=false"));
+
     let mut continuity_break_gate = gate.clone();
     continuity_break_gate
         .candidate

@@ -104,6 +104,19 @@ impl Default for QuestMakepadGpuForceAuthorityPromotionEvidence {
     }
 }
 
+/// Runtime-readiness gates layered on top of steady-state GPU residency.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct QuestMakepadGpuForceAuthorityRuntimeReadiness {
+    /// True when GPU data freshness is tracked against current frame adoption.
+    pub freshness_ready: bool,
+    /// True when GPU force cadence is tracked and inside the profile budget.
+    pub cadence_ready: bool,
+    /// True when CPU-oracle comparison covers the steady-state sample set.
+    pub expanded_oracle_comparison_ready: bool,
+    /// True when live OpenXR hands and recorded replay pass through the same provider boundary.
+    pub live_recorded_provider_ab_ready: bool,
+}
+
 /// Stateful low-rate tracker for GPU force-authority residency continuity.
 ///
 /// This tracks evidence metadata only. It never owns Matter truth, particles,
@@ -163,6 +176,19 @@ impl QuestMakepadGpuForceAuthorityResidencyTracker {
     pub fn observe_gate(
         &mut self,
         gate: &QuestMakepadGpuForceAuthorityGate,
+    ) -> QuestMakepadGpuForceAuthorityResidencyHealth {
+        self.observe_gate_with_runtime_readiness(
+            gate,
+            QuestMakepadGpuForceAuthorityRuntimeReadiness::default(),
+        )
+    }
+
+    /// Observes one gate plus explicit runtime-readiness evidence.
+    #[must_use]
+    pub fn observe_gate_with_runtime_readiness(
+        &mut self,
+        gate: &QuestMakepadGpuForceAuthorityGate,
+        runtime_readiness: QuestMakepadGpuForceAuthorityRuntimeReadiness,
     ) -> QuestMakepadGpuForceAuthorityResidencyHealth {
         let receipt = &gate.candidate.source_probe.receipt;
         let readback = gate.candidate.source_probe.readback;
@@ -257,6 +283,11 @@ impl QuestMakepadGpuForceAuthorityResidencyTracker {
                 derived_buffer_generation_matched,
                 queue_submit_serial_monotonic,
                 fence_serial_monotonic,
+                freshness_ready: runtime_readiness.freshness_ready,
+                cadence_ready: runtime_readiness.cadence_ready,
+                expanded_oracle_comparison_ready: runtime_readiness
+                    .expanded_oracle_comparison_ready,
+                live_recorded_provider_ab_ready: runtime_readiness.live_recorded_provider_ab_ready,
                 ..QuestMakepadGpuForceAuthorityPromotionEvidence::default()
             },
         )
