@@ -1,8 +1,8 @@
-//! Bounded stereo storage-image preview contract for stimulus-volume profiles.
+//! Bounded stereo sampled-image preview contract for stimulus-volume profiles.
 //!
-//! This module owns the Quest-Makepad marker shape for the next Vulkan resource
-//! adoption proof. Makepad owns the generic storage-image compute/readback API;
-//! the CPU oracle stays shared with the stereo raymarch preview contract.
+//! This module owns the Quest-Makepad marker shape for the Vulkan image-view and
+//! sampler adoption proof. Makepad owns the generic storage-image/sample/readback
+//! API; the CPU oracle stays shared with the stereo raymarch preview contract.
 
 use crate::{
     stimulus_volume_raymarch_preview::{
@@ -18,21 +18,21 @@ use crate::{
     StimulusVolumeProfileSummary,
 };
 
-/// Marker emitted after bounded storage-image readback evidence.
+/// Marker emitted after bounded sampled-image readback evidence.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_MARKER_PREFIX: &str =
     "RUSTY_QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW";
 /// Schema for the bounded stereo storage-image marker.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_SCHEMA_ID: &str =
     "rusty.quest.makepad.stimulus_volume_image_preview.v1";
-/// Generic Makepad backend used by the storage-image preview proof.
+/// Generic Makepad backend used by the sampled-image preview proof.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_BACKEND: &str =
-    "makepad-vulkan-volume-storage-image-compute-copy-readback";
-/// Storage/adoption plane used by the storage-image preview proof.
+    "makepad-vulkan-volume-storage-image-sample-compute-copy-readback";
+/// Storage/adoption plane used by the sampled-image preview proof.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_RESOURCE_PLANE: &str =
-    "vulkan-storage-image-stereo-atlas-readback";
-/// Compact payload identifier for the storage-image oracle.
+    "vulkan-storage-image-stereo-atlas-sampled-image-readback";
+/// Compact payload identifier for the sampled-image oracle.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_PAYLOAD: &str =
-    "bounded-optics-stimulus-volume-image-preview-v1";
+    "bounded-optics-stimulus-volume-image-sample-preview-v1";
 /// Measurement source for the marker.
 pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_MEASUREMENT_SOURCE: &str =
     "quest-makepad-stimulus-volume-image-preview";
@@ -67,14 +67,14 @@ pub const QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_FORMAT: &str = "R32G32B32A
 pub type QuestMakepadStimulusVolumeImagePreviewPixel =
     QuestMakepadStimulusVolumeRaymarchPreviewPixel;
 
-/// Vec4-aligned image output read back from the generic Makepad storage image.
+/// Vec4-aligned image output read back from the generic Makepad sampled image.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct QuestMakepadStimulusVolumeImagePreviewOutput {
     /// Raymarched preview RGBA stored in the stereo atlas image.
     pub rgba: [f32; 4],
 }
 
-/// Full adapter input for the bounded stereo storage-image preview proof.
+/// Full adapter input for the bounded stereo sampled-image preview proof.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadStimulusVolumeImagePreviewInput {
     /// Shared profile and compact raymarch pixel input.
@@ -113,7 +113,7 @@ impl QuestMakepadStimulusVolumeImagePreviewInput {
         }
     }
 
-    /// Builds the bounded storage-image preview input from a staged profile summary.
+    /// Builds the bounded sampled-image preview input from a staged profile summary.
     #[must_use]
     pub fn from_profile_summary(
         profile_id: impl Into<String>,
@@ -154,7 +154,7 @@ impl QuestMakepadStimulusVolumeImagePreviewInput {
     }
 }
 
-/// Generic Makepad storage-image preview readback summary.
+/// Generic Makepad sampled-image preview readback summary.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct QuestMakepadStimulusVolumeImagePreviewReadback {
     /// Stereo atlas image width.
@@ -203,7 +203,7 @@ pub struct QuestMakepadStimulusVolumeImagePreviewReadback {
     pub transfer_readback_performed: bool,
     /// True when the image was allocated with sampled-image usage and transitioned for shader read.
     pub sampled_image_usage: bool,
-    /// True only after a later slice binds the image as a runtime sampled texture.
+    /// True when the Makepad backend bound the generated image through a sampled-image view/sampler.
     pub sampled_texture_bound: bool,
     /// True when the Makepad backend waited for queue idle after the proof.
     pub queue_wait_idle_performed: bool,
@@ -258,18 +258,18 @@ impl QuestMakepadStimulusVolumeImagePreviewReadback {
             && self.storage_image_written
             && self.transfer_readback_performed
             && self.sampled_image_usage
-            && !self.sampled_texture_bound
+            && self.sampled_texture_bound
     }
 }
 
-/// Bounded stimulus-volume stereo storage-image preview proof.
+/// Bounded stimulus-volume stereo sampled-image preview proof.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuestMakepadStimulusVolumeImagePreview {
     /// Schema identifier.
     pub schema_id: String,
     /// Staged Optics profile and compact preview input.
     pub input: QuestMakepadStimulusVolumeImagePreviewInput,
-    /// Makepad storage-image preview readback result.
+    /// Makepad sampled-image preview readback result.
     pub readback: QuestMakepadStimulusVolumeImagePreviewReadback,
 }
 
@@ -292,7 +292,7 @@ impl QuestMakepadStimulusVolumeImagePreview {
     pub fn marker_line(&self, phase: &str) -> String {
         let profile = &self.input.raymarch_input;
         format!(
-            "{} schema={} phase={} status={} proofKind=stimulus-volume-image-preview-v1 computeStage=optics-stimulus-volume-image-preview profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} stereoFieldOutputLayers={} imageWidth={} imageHeight={} imageLayers={} eyeTileWidth={} eyeTileHeight={} eyeCount={} pixelCount={} firstPixelIndex={} lastPixelIndex={} imageFormat={} outputTextureShape=stereo-rgba-lowres-atlas resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=rgba32float-atlas componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} lowResolutionStereoOutput=true runtimeTextureBound=false storageImageResident=true storageImageWritten={} transferReadbackPerformed={} sampledImageUsage={} sampledTextureBound={} sampledTextureResident=false commandEncoderSubmitted=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=true volumeImageKernel=true fieldParticleKernel=false computeKernel=true cpuOracle=quest-makepad-deterministic-volume-raymarch-preview-rgba cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
+            "{} schema={} phase={} status={} proofKind=stimulus-volume-image-sample-preview-v1 computeStage=optics-stimulus-volume-image-sample-preview profileId={} profileSha256={} volumeSchema={} volumeId={} volumeFieldKind={} volumeStorageHint={} volumeGridDimensions={} volumeStepCount={} kernelAbiId={} declaredReadbackSamples={} stereoFieldOutputLayers={} imageWidth={} imageHeight={} imageLayers={} eyeTileWidth={} eyeTileHeight={} eyeCount={} pixelCount={} firstPixelIndex={} lastPixelIndex={} imageFormat={} outputTextureShape=stereo-rgba-lowres-atlas resourcePlane={} computeProbeBackend={} oraclePayload={} storageLayout=rgba32float-atlas componentCount={} mismatchedComponents={} maxAbsError={} tolerance={} readbackMatched={} lowResolutionStereoOutput=true runtimeTextureBound=false storageImageResident=true storageImageWritten={} transferReadbackPerformed={} sampledImageUsage={} sampledTextureBound={} sampledTextureResident={} commandEncoderSubmitted=true computeDispatchSubmitted=true volumeFieldKernel=true volumeRaymarchKernel=true volumeImageKernel=true fieldParticleKernel=false computeKernel=true cpuOracle=quest-makepad-deterministic-volume-raymarch-preview-rgba cpuOraclePreserved=true opticsProfilePreserved=true highRateJsonPayload=false gpuComputeReady=false queueSubmitSerial={} fenceSerial={} resourceGeneration={} pendingRetireCount={} retainedResourceCount={} retiredAfterFenceCount={} queueWaitIdlePerformed={} retirementPolicy=retained-until-vulkan-drop hwbAcquiredCount=0 hwbReleasedAfterFenceCount=0 kgslFaultsBeforeMarker=unavailable kgslFaultsAfterMarker=unavailable elapsedMs={} measuredBy={}",
             QUEST_MAKEPAD_STIMULUS_VOLUME_IMAGE_PREVIEW_MARKER_PREFIX,
             self.schema_id,
             marker_token(phase),
@@ -333,6 +333,7 @@ impl QuestMakepadStimulusVolumeImagePreview {
             self.readback.storage_image_written,
             self.readback.transfer_readback_performed,
             self.readback.sampled_image_usage,
+            self.readback.sampled_texture_bound,
             self.readback.sampled_texture_bound,
             self.readback.queue_submit_serial,
             self.readback.fence_serial,
@@ -438,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn marker_reports_storage_image_without_runtime_ready_claim() {
+    fn marker_reports_sampled_image_without_runtime_ready_claim() {
         let summary = StimulusVolumeProfileSummary {
             volume_present: true,
             volume_schema: Some(STIMULUS_VOLUME_SCHEMA_ID.to_owned()),
@@ -490,7 +491,7 @@ mod tests {
             storage_image_written: true,
             transfer_readback_performed: true,
             sampled_image_usage: true,
-            sampled_texture_bound: false,
+            sampled_texture_bound: true,
             queue_wait_idle_performed: false,
             elapsed_ms: 0.5,
         };
@@ -502,7 +503,8 @@ mod tests {
         assert!(marker.contains("storageImageWritten=true"));
         assert!(marker.contains("transferReadbackPerformed=true"));
         assert!(marker.contains("sampledImageUsage=true"));
-        assert!(marker.contains("sampledTextureBound=false"));
+        assert!(marker.contains("sampledTextureBound=true"));
+        assert!(marker.contains("sampledTextureResident=true"));
         assert!(marker.contains("runtimeTextureBound=false"));
         assert!(marker.contains("gpuComputeReady=false"));
         assert!(marker.contains("highRateJsonPayload=false"));
