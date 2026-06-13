@@ -2344,6 +2344,7 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     assert!(tracked_marker.contains("observedResidentProofs=4"));
     assert!(tracked_marker.contains("reusedResidentProofs=4"));
     assert!(tracked_marker.contains("residencyContinuityReady=true"));
+    assert!(tracked_marker.contains("boundedProofOnly=false"));
     assert!(tracked_marker.contains("steadyStateResidencyReady=true"));
     assert!(tracked_marker.contains("freshnessReady=false"));
     assert!(tracked_marker.contains("runtimeSelectionPermitted=false"));
@@ -2440,6 +2441,7 @@ fn gpu_field_particle_force_probe_samples_matter_particles_without_authority() {
     let cadence_fallback_marker = cadence_fallback_health.marker_line("unit-test");
     assert!(cadence_fallback_marker.contains("observedResidentProofs=5"));
     assert!(cadence_fallback_marker.contains("reusedResidentProofs=5"));
+    assert!(cadence_fallback_marker.contains("boundedProofOnly=false"));
     assert!(cadence_fallback_marker.contains("steadyStateResidencyReady=true"));
     assert!(cadence_fallback_marker.contains("freshnessReady=true"));
     assert!(cadence_fallback_marker.contains("cadenceReady=false"));
