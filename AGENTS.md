@@ -49,6 +49,23 @@ Open detailed agent runbooks only when they match the task:
 - `docs/agent-instructions/adf-gpu-evidence.md`: ADF/field-force boundaries,
   GPU residency/storage/readback markers, and force-authority promotion gates.
 
+## Sustainable Design Guardrails
+
+- Treat monolithic file pressure as an ownership problem, not a line-count
+  problem. Split only by durable authority, schema, route, validation, adapter,
+  or test-family boundaries; preserve facades, schema IDs, serde fields,
+  fixture outputs, CLI behavior, validation outcomes, and dependency boundaries.
+- After a split, update the nearest distributed file map: this `AGENTS.md`,
+  `README.md`, `docs/ARCHITECTURE.md`, fixture docs, validation docs, or the
+  planning `agent-state\iteration-events.jsonl`.
+- Keep `AGENTS.md`, README, and skill files as concise routing indexes. Move
+  lane-specific recipes, device/build detail, compatibility ledgers, and long
+  validation flows into named docs or runbooks.
+- Keep legacy Rusty-XR names as explicit compatibility surfaces only. New
+  schemas, routes, and types use the owning lane (`rusty.manifold.*`,
+  `rusty.lattice.*`, `rusty.matter.*`, `rusty.optics.*`, `rusty.quest.*`, or
+  repo-local names); do not introduce `rusty.morphospace.*` schemas or
+  `Morphospace*` core types by default.
 ## Validation
 
 Run the repo gate before committing:
