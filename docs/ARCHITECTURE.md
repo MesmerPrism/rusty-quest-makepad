@@ -123,8 +123,11 @@ helpers, `runtime.rs` owns Matter stepping and runtime evidence markers,
 packing, `geometry.rs` and `markers.rs` own small shared helpers, `adf.rs` and
 `adf_world.rs` own ADF debug adaptation, `worker.rs` owns latest-wins
 execution, including recorded-hand compact-frame requests that expand into
-Matter source frames on the worker thread, and `tests.rs` owns the broad
-crate-level validation suite. GPU
+Matter source frames on the worker thread, and `tests.rs` is only the
+crate-level validation-suite index. `tests/surface_runtime.rs` owns
+source-frame, runtime, ADF, particle, and world-row behavior checks, while
+`tests/gpu_proofs.rs` owns GPU residency, storage/readback, skinning,
+mesh-SDF, field sampling/force, and force-authority boundary checks. GPU
 marker contracts are also split under `gpu_residency/`: `render.rs` for
 render-plane residency, `preflight.rs` for CPU-oracle compute eligibility,
 `storage_probe.rs` for storage-buffer command/readback evidence,

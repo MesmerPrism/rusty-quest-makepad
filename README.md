@@ -34,6 +34,11 @@ source-frame adaptation, upload rows, ADF debug adaptation, worker execution,
 and GPU residency/readback markers live in named modules; see
 `docs/ARCHITECTURE.md` before adding new GPU hand-skinning or mesh-to-SDF
 adapter code.
+The crate-level validation suite follows the same map: `src/tests.rs` is only
+the test-suite index, `src/tests/surface_runtime.rs` covers source-frame,
+runtime, ADF, particle, and world-row behavior, and
+`src/tests/gpu_proofs.rs` covers GPU residency/readback/proof and
+force-authority boundary markers.
 The camera-shell crate also keeps the Matter-surface facade in
 `src/matter_surface_exports.rs` so future adapter symbols do not expand
 `src/lib.rs`.

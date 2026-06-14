@@ -62,6 +62,8 @@ For focused native Matter adapter work, also use:
 ```powershell
 cargo test -p rusty-quest-makepad-mesh-replay
 cargo test -p rusty-quest-makepad-matter-surface
+cargo test -p rusty-quest-makepad-matter-surface surface_runtime
+cargo test -p rusty-quest-makepad-matter-surface gpu_proofs
 ```
 
 ## First-Hop Guardrails

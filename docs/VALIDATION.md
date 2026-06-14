@@ -16,12 +16,17 @@ Focused native Matter adapter checks:
 ```powershell
 cargo test -p rusty-quest-makepad-mesh-replay
 cargo test -p rusty-quest-makepad-matter-surface
+cargo test -p rusty-quest-makepad-matter-surface surface_runtime
+cargo test -p rusty-quest-makepad-matter-surface gpu_proofs
 ```
 
 The replay test proves recorded frames can become native Matter
 `TriangleMeshSurface` values. The Matter-surface adapter test proves the local
 path can step replay frames through Matter distance/collider/particle runtime
 and emit bounded Makepad-facing rows without browser Wasm.
+The focused `surface_runtime` and `gpu_proofs` filters match the split
+crate-level test modules, so future changes can run only the affected adapter
+family before the full repo gate.
 
 For real-input-equivalent recorded hand replay, the mesh-replay crate also has
 an ignored external-data oracle test. Point it at a local recorder output
