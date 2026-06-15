@@ -97,6 +97,11 @@ cargo test -p rusty-quest-makepad-matter-surface gpu_proofs
   sidecar. Runtime consumers should treat file watch events, mtimes, and
   launch wakeups as hints, compare the global revision/hash, then compare only
   the scoped hashes they own before parsing detailed effective settings.
+- Treat `tools\Build-QuestMakepadRuntimeBundle.ps1` as the master operator
+  entrypoint when a Makepad setting also needs a Quest property write plan.
+  App-scoped Android properties must be derived from the effective-settings
+  surface and use the consumer namespace; raw property readback is not enough
+  without a matching app marker or receipt.
 - Hostess APK validation must use the generated Morphospace Makepad Quest
   manifest and `.MakepadAppXr` Quest activity. Do not add an app-local Android
   manifest template just to remove camera permissions.
