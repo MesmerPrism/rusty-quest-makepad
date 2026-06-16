@@ -41,6 +41,18 @@ the direct hardware-buffer external texture path, uses the passthrough-underlay
 border policy, keeps the peripheral-stretch projection layer active, and enables
 projection-target joystick scale control.
 
+The live headset performance envelope is part of the clean route, not a
+Rusty-XR script dependency. `camera-hwb-live` stages
+`debug.rustyquest.makepad.display.refresh.rate.hz=72.0` and
+`debug.rustyquest.makepad.xr.render.scale=0.90`; the readiness command also
+sets the Quest performance props to CPU 4, GPU 4, fixed foveation level 0, and
+dynamic foveation disabled unless explicitly skipped. A full render scale of
+`1.0` is a stress/parity run, not the default live HWB camera route.
+If cadence reports a native `xrDisplayRefreshRateHz` that differs from the
+requested frame cadence, the performance gate follows OpenXR
+`predictedDisplayPeriodNs` and VrApi `FPS=current/target` evidence while still
+recording the cadence value as a diagnostic.
+
 Validate profile surfaces with:
 
 ```powershell
@@ -64,6 +76,8 @@ The route-readiness scorecard must show:
 - direct `cameraTexturePath=direct-camera-hardware-buffer-external`
 - `makepadVulkanImport=true`
 - paired left/right texture-update cadence
+- `performance.performance_ready=true` with `FPS=72/72`, zero recent stale and
+  tear samples, and observed display/effective frame rates near 72 Hz
 - zero targeted fatal, ANR, GPU page-fault, or app-process signal lines
 
 Projection-mapping and visual-release markers are reported separately under
