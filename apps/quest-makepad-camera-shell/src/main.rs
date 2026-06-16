@@ -5237,6 +5237,9 @@ impl App {
                             self.paired_import_right_rotation_steps = updated.yuv.rotation_steps;
                         }
                     }
+                    #[cfg(target_os = "android")]
+                    self.refresh_paired_import_projection_plan();
+                    self.try_adopt_pending_stereo_camera_frame("texture-updated");
                     self.complete_paired_import_if_ready(cx);
                 }
             }
