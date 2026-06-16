@@ -10,13 +10,14 @@ FORBIDDEN = (
 )
 
 SCAN_SUFFIXES = {".rs", ".toml", ".json", ".ps1"}
+SKIP_DIRS = {".git", "local-artifacts", "target"}
 
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     failures: list[str] = []
     for path in root.rglob("*"):
-        if "target" in path.parts or ".git" in path.parts:
+        if any(part in SKIP_DIRS for part in path.parts):
             continue
         if path.suffix not in SCAN_SUFFIXES:
             continue
@@ -33,4 +34,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

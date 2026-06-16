@@ -1,0 +1,17 @@
+[package]
+name = "rusty-quest-camera-model"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Camera metadata and projection helpers used by the Rusty Quest Makepad camera APK."
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+serde_json = "1"

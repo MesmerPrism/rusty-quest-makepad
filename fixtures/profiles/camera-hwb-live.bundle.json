@@ -1,0 +1,10 @@
+{
+  "schema": "rusty.quest.makepad.runtime_profile.v1",
+  "bundle_id": "bundle.quest_makepad.camera_hwb_live",
+  "app_id": "rusty-quest-makepad.camera-shell",
+  "settings_surface": "fixtures/settings/quest-makepad-camera-shell.settings.json",
+  "settings_profile": "fixtures/profiles/camera-hwb-live.settings-profile.json",
+  "quest_runtime_profile": "fixtures/profiles/camera-hwb-live.quest-runtime-profile.json",
+  "effective_settings_marker": "RUSTY_QUEST_MAKEPAD_EFFECTIVE_SETTINGS",
+  "notes": "Live camera hardware-buffer Makepad Quest profile. Rusty Makepad owns resolved settings, Rusty Quest owns Android property transport, and Rusty Quest Makepad owns APK launch/readiness evidence."
+}

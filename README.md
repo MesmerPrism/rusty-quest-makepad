@@ -112,6 +112,13 @@ and configures mesh replay, render scale, collision, SDF/ADF overlay, and
 particle toggles without depending on the previous source repo or hand-authored
 launch values.
 
+The camera-enabled Makepad Quest APK route is owned here plus `rusty-quest`.
+Use `tools\Build-QuestMakepadCameraApk.ps1`,
+`fixtures\profiles\camera-hwb-live.bundle.json`, and
+`tools\Invoke-QuestMakepadCameraReadiness.ps1` for clean APK build, profile
+staging, `.MakepadAppXr` launch, and readiness scoring. Rusty-XR remains
+historical compatibility evidence only for this route.
+
 The same surface now carries remote-camera handoff settings under
 `quest.remote_camera.*`. Those settings identify a validated Quest
 remote-camera session and endpoint role for the Makepad app; they do not carry

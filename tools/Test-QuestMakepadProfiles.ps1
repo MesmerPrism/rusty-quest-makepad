@@ -63,6 +63,11 @@ Test-RuntimeBundle `
     -OutDir "local-artifacts\quest-makepad-runtime-bundle"
 
 Test-RuntimeBundle `
+    -Name "Quest Makepad camera HWB live runtime bundle" `
+    -BundlePath "fixtures\profiles\camera-hwb-live.bundle.json" `
+    -OutDir "local-artifacts\quest-makepad-runtime-bundle-camera-hwb-live"
+
+Test-RuntimeBundle `
     -Name "Quest Makepad recorded-left runtime bundle" `
     -BundlePath "fixtures\profiles\mesh-replay-recorded-left.bundle.json" `
     -OutDir "local-artifacts\quest-makepad-runtime-bundle-recorded-left"

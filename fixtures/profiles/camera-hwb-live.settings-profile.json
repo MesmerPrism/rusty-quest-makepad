@@ -1,0 +1,24 @@
+{
+  "schema": "rusty.gui.makepad.settings_profile.v1",
+  "profile_id": "profile.quest_makepad.camera_hwb_live",
+  "surface_app_id": "rusty-quest-makepad.camera-shell",
+  "layer": "runtime_profile",
+  "values": [
+    { "setting_id": "makepad.mesh_replay.enabled", "value": false },
+    { "setting_id": "makepad.collision.enabled", "value": false },
+    { "setting_id": "makepad.particles.enabled", "value": false },
+    { "setting_id": "makepad.camera.streaming.enabled", "value": true },
+    { "setting_id": "makepad.projection.depth_meters", "value": 1.434085 },
+    { "setting_id": "makepad.projection.runtime_resolution.enabled", "value": true },
+    { "setting_id": "makepad.xr.render_scale", "value": 1.0 },
+    { "setting_id": "makepad.camera.projection_mode", "value": "display-screen-homography" },
+    { "setting_id": "makepad.camera.projection_geometry_profile", "value": "camera-projection" },
+    { "setting_id": "makepad.camera.source_sampling_mode", "value": "target-local-raster" },
+    { "setting_id": "makepad.projection.border_policy", "value": "passthrough-underlay" },
+    { "setting_id": "makepad.processing.layer", "value": "peripheral-stretch" },
+    { "setting_id": "makepad.projection.sample_mode", "value": "camera" },
+    { "setting_id": "makepad.direct_camera.hardware_buffer_external", "value": true },
+    { "setting_id": "makepad.native_passthrough.enabled", "value": true },
+    { "setting_id": "makepad.projection.target.joystick_controls", "value": "offset-scale" }
+  ]
+}

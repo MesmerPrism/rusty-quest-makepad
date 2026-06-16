@@ -5,6 +5,9 @@ Use this folder as the second-hop instruction surface after the root
 
 - `hostess-quest-apk.md`: Hostess Quest Makepad APK build, settings staging,
   generated Quest activity launch, and settings invalidation guardrails.
+- `camera-hwb-apk.md`: clean Rusty Quest Makepad camera HWB APK build,
+  `camera-hwb-live` profile staging, `.MakepadAppXr` launch, and readiness
+  scorecard route; Rusty-XR is historical compatibility evidence only.
 - `recorded-hand-particles.md`: local recorded full hand-mesh replay,
   billboard-particle visual smoke, density sweeps, and data-plane artifact
   rules.
@@ -13,4 +16,3 @@ Use this folder as the second-hop instruction surface after the root
 
 Keep the root `AGENTS.md` concise. Add new long recipes here or in
 `docs/VALIDATION.md`, then leave a short routing note in the root file.
-

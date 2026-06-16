@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 10,
+  "version": 11,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -450,6 +450,175 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.projection.runtime.resolution.enabled" }
       ],
       "readback_field": "projectionRuntimeResolutionEnabled"
+    },
+    {
+      "id": "makepad.xr.render_scale",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.xr_runtime",
+      "value_type": "number",
+      "unit": "x",
+      "minimum": 0.5,
+      "maximum": 1.5,
+      "default": 1.0,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "xr-render-scale" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_XR_RENDER_SCALE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.xr.render.scale" }
+      ],
+      "readback_field": "xrRenderScale"
+    },
+    {
+      "id": "makepad.camera.projection_mode",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.camera_projection",
+      "value_type": "enum",
+      "enum_values": ["display-screen-homography", "world-canvas"],
+      "default": "display-screen-homography",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-projection-mode" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_PROJECTION_MODE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.projection.mode" }
+      ],
+      "readback_field": "cameraProjectionMode"
+    },
+    {
+      "id": "makepad.camera.projection_geometry_profile",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.camera_projection",
+      "value_type": "string",
+      "default": "camera-projection",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-projection-geometry-profile" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_PROJECTION_GEOMETRY_PROFILE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.projection.geometry.profile" }
+      ],
+      "readback_field": "cameraProjectionGeometryProfile"
+    },
+    {
+      "id": "makepad.camera.source_sampling_mode",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.camera_projection",
+      "value_type": "enum",
+      "enum_values": ["target-local-raster", "screen-to-camera-homography"],
+      "default": "target-local-raster",
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-source-sampling-mode" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_SOURCE_SAMPLING_MODE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.source.sampling.mode" }
+      ],
+      "readback_field": "cameraSourceSamplingMode"
+    },
+    {
+      "id": "makepad.projection.border_policy",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "enum",
+      "enum_values": ["solid-red", "passthrough-underlay"],
+      "default": "solid-red",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "projection-border-policy" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PROJECTION_BORDER_POLICY" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.projection.border.policy" }
+      ],
+      "readback_field": "projectionBorderPolicy"
+    },
+    {
+      "id": "makepad.processing.layer",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "enum",
+      "enum_values": ["raw", "peripheral-stretch"],
+      "default": "raw",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "processing-layer" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PROCESSING_LAYER" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.processing.layer" }
+      ],
+      "readback_field": "processingLayer"
+    },
+    {
+      "id": "makepad.projection.sample_mode",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "enum",
+      "enum_values": ["camera", "target-only"],
+      "default": "camera",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "projection-sample-mode" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PROJECTION_SAMPLE_MODE" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.projection.sample.mode" }
+      ],
+      "readback_field": "projectionSampleMode"
+    },
+    {
+      "id": "makepad.direct_camera.hardware_buffer_external",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.camera_streaming",
+      "value_type": "boolean",
+      "default": true,
+      "hotload_policy": "scene_rebuild",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "direct-camera-hardware-buffer-external" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_DIRECT_CAMERA_HARDWARE_BUFFER_EXTERNAL" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.direct.camera.hardware.buffer.external" }
+      ],
+      "readback_field": "directCameraHardwareBufferExternal"
+    },
+    {
+      "id": "makepad.native_passthrough.enabled",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.xr_runtime",
+      "value_type": "boolean",
+      "default": false,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "native-passthrough-enabled" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_NATIVE_PASSTHROUGH_ENABLED" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.native.passthrough.enabled" }
+      ],
+      "readback_field": "nativePassthroughEnabled"
+    },
+    {
+      "id": "makepad.projection.target.joystick_controls",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_controls",
+      "value_type": "enum",
+      "enum_values": ["off", "offset-scale"],
+      "default": "offset-scale",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "projection-target-joystick-controls" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_PROJECTION_TARGET_JOYSTICK_CONTROLS" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.projection.target.joystick.controls" }
+      ],
+      "readback_field": "projectionTargetJoystickControls"
     },
     {
       "id": "makepad.collision.enabled",

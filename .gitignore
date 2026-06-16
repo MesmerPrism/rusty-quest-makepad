@@ -1,5 +1,7 @@
 /target/
+target/
 /local-artifacts/
+local-artifacts/
 /.idea/
 /.vscode/
 *.rs.bk
@@ -8,4 +10,3 @@
 *.log
 *.tmp
 __pycache__/
-

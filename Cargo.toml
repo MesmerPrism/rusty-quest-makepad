@@ -5,6 +5,10 @@ members = [
     "crates/rusty-quest-makepad-mesh-replay",
     "crates/rusty-quest-makepad-profile",
 ]
+exclude = [
+    "apps/quest-makepad-camera-shell",
+    "apps/quest-makepad-camera-shell/support/rusty-quest-camera-model",
+]
 resolver = "2"
 
 [workspace.package]

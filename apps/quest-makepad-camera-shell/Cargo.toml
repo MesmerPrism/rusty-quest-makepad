@@ -1,0 +1,22 @@
+[package]
+name = "rusty-quest-makepad-camera-apk"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Clean Rusty Quest Makepad camera APK route for Quest hardware-buffer validation."
+repository = "https://github.com/MesmerPrism/rusty-quest-makepad"
+build = "build.rs"
+
+[features]
+default = []
+makepad-hwb-ycbcr-metadata = []
+
+[dependencies]
+rusty-quest-camera-model = { path = "support/rusty-quest-camera-model" }
+rusty-quest-projection-runtime-config = { path = "../../../rusty-quest/crates/rusty-quest-projection-runtime-config" }
+rusty-quest-makepad-xr = { package = "makepad-xr", git = "https://github.com/MesmerPrism/makepad.git", branch = "dev", version = "1.0.0" }
+serde_json = "1"
+
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-sys = "0.6"
