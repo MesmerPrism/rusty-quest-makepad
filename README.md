@@ -117,7 +117,12 @@ Use `tools\Build-QuestMakepadCameraApk.ps1`,
 `fixtures\profiles\camera-hwb-live.bundle.json`, and
 `tools\Invoke-QuestMakepadCameraReadiness.ps1` for clean APK build, profile
 staging, `.MakepadAppXr` launch, and readiness scoring. Rusty-XR remains
-historical compatibility evidence only for this route.
+historical compatibility evidence only for this route. Use
+`tools\Invoke-QuestMakepadCameraStressGate.ps1` before broader video/HWB import
+work; it repeats launch/stop and pause/resume cycles, requires the camera
+texture metadata, descriptor/color, video-texture, shader-layout visual smoke,
+and performance gates, and records Vulkan HWB cache/retire evidence. Projection
+visual acceptance remains a separate scorecard field.
 
 The same surface now carries remote-camera handoff settings under
 `quest.remote_camera.*`. Those settings identify a validated Quest

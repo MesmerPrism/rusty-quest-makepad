@@ -296,6 +296,22 @@ property set operation references an effective setting and carries the same
 value. This keeps profile, property, and app readback preparation on one
 deterministic surface instead of a hand-edited ADB launch sequence.
 
+For the camera-enabled Makepad Quest APK route, use
+`tools\Invoke-QuestMakepadCameraReadiness.ps1` for the single-launch scorecard
+and `tools\Invoke-QuestMakepadCameraStressGate.ps1` for the lifecycle gate.
+The route gate requires separate runtime markers for texture metadata
+(`RUSTY_QUEST_MAKEPAD_TEXTURE_METADATA`), descriptor/color conformance
+(`RUSTY_QUEST_MAKEPAD_DESCRIPTOR_COLOR`), direct-HWB equivalent video-texture
+readiness (`RUSTY_QUEST_MAKEPAD_VIDEO_TEXTURE_GATE`), and the folded
+shader-layout runtime smoke
+(`RUSTY_QUEST_MAKEPAD_SHADER_LAYOUT_VISUAL_SMOKE`). The lifecycle gate repeats
+launch/stop and pause/resume cycles and records Vulkan HWB cache, retire, and
+video-import markers. Treat out-of-date/suboptimal/surface-loss observations as
+reported evidence only unless a future run deliberately induces them. Keep
+projection visual acceptance and OpenGL OES/native-video companion validation
+separate from the direct-HWB Vulkan route gate, and defer broad media imports
+until those gates are clean.
+
 The remote-camera Q2Q profile is included in the same dry-run profile gate:
 
 ```powershell

@@ -45,7 +45,7 @@ use source_metadata::{
 };
 use source_metadata::{
     makepad_camera2_acquisition_broker_h264_skipped_marker_line, makepad_camera_status_marker_line,
-    makepad_content_geometry_marker_fields,
+    makepad_content_geometry_marker_fields, makepad_descriptor_color_marker_line,
     makepad_hardware_buffer_import_broker_h264_prepare_request_marker_fields,
     makepad_hardware_buffer_import_broker_h264_startup_marker_fields,
     makepad_hardware_buffer_import_complete_error_marker_fields,
@@ -64,11 +64,12 @@ use source_metadata::{
     makepad_hardware_buffer_import_yuv_textures_ready_broker_marker_fields,
     makepad_hardware_buffer_import_yuv_textures_ready_single_stream_marker_fields,
     makepad_runtime_camera_source_sampling_mode, makepad_runtime_target_screen_footprint_pair,
+    makepad_shader_layout_visual_smoke_marker_line,
     makepad_stream_header_metadata_error_marker_fields,
-    makepad_stream_header_metadata_ignored_marker_fields,
-    normalize_direct_camera_projection_geometry_profile, stream_header_metadata_marker_fields,
-    target_screen_uv_rect_token, BrokerH264ProjectionMetadata, MakepadContentGeometrySource,
-    MakepadTargetScreenFootprintPair,
+    makepad_stream_header_metadata_ignored_marker_fields, makepad_texture_metadata_marker_line,
+    makepad_video_texture_gate_marker_line, normalize_direct_camera_projection_geometry_profile,
+    stream_header_metadata_marker_fields, target_screen_uv_rect_token,
+    BrokerH264ProjectionMetadata, MakepadContentGeometrySource, MakepadTargetScreenFootprintPair,
 };
 
 use makepad_widgets::makepad_platform::{
@@ -5223,6 +5224,37 @@ impl App {
                                 MakepadProcessingLayer::current().stable_id(),
                             ),
                         );
+                        let camera_id =
+                            self.paired_import_choice
+                                .as_ref()
+                                .and_then(|pair| match side {
+                                    StereoEye::Left => pair.left.camera_id.as_deref(),
+                                    StereoEye::Right => pair.right.camera_id.as_deref(),
+                                });
+                        emit_marker_line(&makepad_texture_metadata_marker_line(
+                            side.label(),
+                            camera_id,
+                            updated.yuv.enabled,
+                            updated.yuv.biplanar,
+                            updated.yuv.rotation_steps,
+                            texture_path,
+                            &updated.metadata,
+                            texture_update_count,
+                            self.cadence_left_texture_update_count,
+                            self.cadence_right_texture_update_count,
+                        ));
+                        emit_marker_line(&makepad_descriptor_color_marker_line(
+                            side.label(),
+                            texture_path,
+                            &updated.metadata,
+                        ));
+                        emit_marker_line(&makepad_video_texture_gate_marker_line(
+                            "texture-updated",
+                            "ok",
+                            "equivalent-direct-hwb-vulkan-texture",
+                            texture_path,
+                            Some(&updated.metadata),
+                        ));
                     }
                     if self.paired_import_finished {
                         return;
@@ -5596,6 +5628,13 @@ impl App {
             pair,
             self.native_video_widget_retry_count,
         ));
+        emit_marker_line(&makepad_video_texture_gate_marker_line(
+            "native-video-widget-surface",
+            "started",
+            "native-video-widget",
+            Self::direct_camera_requested_texture_path(),
+            None,
+        ));
         true
     }
 
@@ -5953,6 +5992,11 @@ impl App {
             broker_h264_enabled && !broker_h264_cpu_yuv_decode,
             single_stream_visual_proof,
             proof_source_side,
+            camera_texture_binding_enabled,
+            projection_panel_draw_enabled,
+        ));
+        emit_marker_line(&makepad_shader_layout_visual_smoke_marker_line(
+            texture_path,
             camera_texture_binding_enabled,
             projection_panel_draw_enabled,
         ));

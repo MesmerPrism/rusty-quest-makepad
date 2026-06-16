@@ -76,6 +76,16 @@ The route-readiness scorecard must show:
 - direct `cameraTexturePath=direct-camera-hardware-buffer-external`
 - `makepadVulkanImport=true`
 - paired left/right texture-update cadence
+- `route_gates.texture_metadata_ready=true`, with source frame, camera id,
+  AHardwareBuffer id, import sequence, descriptor shape, and texture-update
+  cadence reported under `texture_metadata`
+- `route_gates.descriptor_color_ready=true`, with descriptor shape and YCbCr
+  sampler-conversion metadata reported under `descriptor_color`
+- `route_gates.video_texture_gate_ready=true` for the direct-HWB Vulkan
+  equivalent video-texture gate; `open_gl_oes_companion_validated=false` remains
+  explicit until a dedicated native/OES video run proves it
+- `route_gates.shader_layout_visual_smoke_ready=true`, folded into the camera
+  projection panel runtime smoke for the Makepad shader-layout fix
 - `performance.performance_ready=true` with `FPS=72/72`, zero recent stale and
   tear samples, and observed display/effective frame rates near 72 Hz
 - zero targeted fatal, ANR, GPU page-fault, or app-process signal lines
@@ -83,3 +93,37 @@ The route-readiness scorecard must show:
 Projection-mapping and visual-release markers are reported separately under
 `markers.projection_ready`. They are parity evidence, not the route-ownership
 gate for moving the build/profile/launch path out of Rusty-XR.
+
+## Lifecycle Stress Gate
+
+Before trusting broader camera/video/HWB imports, run repeated launch/stop plus
+pause/resume evidence through the clean script:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Invoke-QuestMakepadCameraStressGate.ps1 `
+  -Adb <adb-path> `
+  -Serial <quest-serial> `
+  -Cycles 3
+```
+
+The stress scorecard is
+`local-artifacts/quest-makepad-camera-lifecycle-stress/lifecycle-stress-scorecard.json`.
+It requires every cycle's route, metadata, descriptor/color, video-texture,
+shader-layout visual-smoke, and performance gates to pass with no targeted
+fatal lines. It reports imported hardware-buffer cache markers, retire markers,
+video-import markers, pause/resume evidence, repeated force-stop/launch cycles,
+and any observed out-of-date, suboptimal, or surface-lost Vulkan events.
+
+Surface out-of-date/suboptimal/surface-lost events are opportunistic unless a
+future test deliberately induces them; absence is recorded as not observed, not
+as proof that recovery was exercised.
+
+## Import Boundaries
+
+Keep upstream Makepad XR and historical Rusty-XR branches as source maps and
+mechanics references only. The clean APK/profile/readiness/stress route is
+owned by `rusty-quest-makepad`, `rusty-quest`, and `makepad-morphospace`.
+
+Do not take broad media/video imports until the lifecycle stress and
+video-texture gates are clean. The OpenGL OES companion path remains a separate
+validation target even when direct Vulkan HWB texture metadata is green.

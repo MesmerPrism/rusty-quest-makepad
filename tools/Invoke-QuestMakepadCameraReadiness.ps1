@@ -342,15 +342,18 @@ Invoke-Checked "Quest Makepad camera runtime bundle" "powershell" @(
 
 $questRuntimeProfile = Resolve-RepoPath -RepoRoot $repoRoot -PathValue ([string]$bundle.quest_runtime_profile)
 $executedPlanPath = Join-Path $resolvedOutDir "property-write-plan-executed.json"
-Invoke-Checked "Quest camera property staging" "powershell" @(
+$applyRuntimeProfileArgs = @(
     "-NoProfile", "-ExecutionPolicy", "Bypass",
     "-File", "tools\Apply-RuntimeProfile.ps1",
     "-ProfilePath", $questRuntimeProfile,
     "-Execute",
     "-Out", $executedPlanPath,
-    "-Adb", $Adb,
-    "-Serial", $Serial
-) -WorkingDirectory $questRoot
+    "-Adb", $Adb
+)
+if (-not [string]::IsNullOrWhiteSpace($Serial)) {
+    $applyRuntimeProfileArgs += @("-Serial", $Serial)
+}
+Invoke-Checked "Quest camera property staging" "powershell" $applyRuntimeProfileArgs -WorkingDirectory $questRoot
 
 $state = (Invoke-Adb -Arguments @("get-state") | Select-Object -First 1).Trim()
 if ($state -ne "device") {
@@ -435,15 +438,30 @@ $focusActive = ($activityText -like "*$PackageName*" -and $activityText -like "*
 
 $lastCadence = Select-LastLineContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_CADENCE schema=rusty.quest.makepad-cadence.v1 phase=sample"
 $lastFrameFlow = Select-LastLineContaining -Lines $log -Needle "phase=xr-end-frame status=submitted"
+$lastTextureMetadata = Select-LastLineContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_TEXTURE_METADATA schema=rusty.quest.makepad-texture-metadata.v1"
+$lastDescriptorColor = Select-LastLineContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_DESCRIPTOR_COLOR schema=rusty.quest.makepad-descriptor-color.v1"
+$lastVideoTextureGate = Select-LastLineContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_VIDEO_TEXTURE_GATE schema=rusty.quest.makepad-video-texture-gate.v1"
+$lastShaderLayoutVisualSmoke = Select-LastLineContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_SHADER_LAYOUT_VISUAL_SMOKE schema=rusty.quest.makepad-shader-layout-visual-smoke.v1"
+$legacyMakepadForkMarkerPrefix = "RUSTY" + "_XR_MAKEPAD_"
+$lastVulkanHardwareBufferCache = Select-LastLineContaining -Lines $log -Needle ($legacyMakepadForkMarkerPrefix + "VULKAN_VIDEO_HARDWARE_BUFFER_CACHE")
+$lastVulkanResourceRetire = Select-LastLineContaining -Lines $log -Needle ($legacyMakepadForkMarkerPrefix + "VULKAN_RESOURCE_RETIRE")
+$lastVulkanVideoImport = Select-LastLineContaining -Lines $log -Needle ($legacyMakepadForkMarkerPrefix + "VULKAN_VIDEO_IMPORT")
 $markerCounts = [ordered]@{
     camera_status = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_CAMERA_STATUS"
     camera2_metadata = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_CAMERA2_METADATA"
     camera2_acquisition = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_CAMERA2_ACQUISITION"
     hardware_buffer_import = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_HARDWARE_BUFFER_IMPORT"
+    texture_metadata = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_TEXTURE_METADATA"
+    descriptor_color = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_DESCRIPTOR_COLOR"
+    video_texture_gate = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_VIDEO_TEXTURE_GATE"
+    shader_layout_visual_smoke = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_SHADER_LAYOUT_VISUAL_SMOKE"
     stereo_projection = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_STEREO_PROJECTION"
     cadence = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_CADENCE"
     frame_adoption = Count-LinesContaining -Lines $log -Needle "RUSTY_QUEST_MAKEPAD_FRAME_ADOPTION"
     makepad_frame_flow = Count-LinesContaining -Lines $log -Needle "phase=xr-end-frame status=submitted"
+    makepad_vulkan_hardware_buffer_cache = Count-LinesContaining -Lines $log -Needle ($legacyMakepadForkMarkerPrefix + "VULKAN_VIDEO_HARDWARE_BUFFER_CACHE")
+    makepad_vulkan_resource_retire = Count-LinesContaining -Lines $log -Needle ($legacyMakepadForkMarkerPrefix + "VULKAN_RESOURCE_RETIRE")
+    makepad_vulkan_video_import = Count-LinesContaining -Lines $log -Needle ($legacyMakepadForkMarkerPrefix + "VULKAN_VIDEO_IMPORT")
 }
 $cadence = [ordered]@{
     last_line = $lastCadence
@@ -476,24 +494,125 @@ $frameFlow = [ordered]@{
     display_refresh_rate_hz = $frameFlowDisplayRefreshHz
 }
 
+$textureMetadata = [ordered]@{
+    last_line = $lastTextureMetadata
+    texture_metadata_ready = (Get-MarkerValue -Line $lastTextureMetadata -Key "textureMetadataReady") -eq "true"
+    gpu_import_ready = (Get-MarkerValue -Line $lastTextureMetadata -Key "gpuImportReady") -eq "true"
+    visual_release_accepted = (Get-MarkerValue -Line $lastTextureMetadata -Key "visualReleaseAccepted") -eq "true"
+    camera_id = Get-MarkerValue -Line $lastTextureMetadata -Key "cameraId"
+    camera_input_id = Get-MarkerValue -Line $lastTextureMetadata -Key "cameraInputId"
+    camera_format_id = Get-MarkerValue -Line $lastTextureMetadata -Key "cameraFormatId"
+    source_frame_seq = Get-MarkerValue -Line $lastTextureMetadata -Key "sourceFrameSeq"
+    camera_frame_seq = Get-MarkerValue -Line $lastTextureMetadata -Key "cameraFrameSeq"
+    camera_timestamp_ns = Get-MarkerValue -Line $lastTextureMetadata -Key "cameraTimestampNs"
+    hardware_buffer_id = Get-MarkerValue -Line $lastTextureMetadata -Key "hardwareBufferId"
+    import_seq = Get-MarkerValue -Line $lastTextureMetadata -Key "importSeq"
+    texture_update_seq = Get-MarkerValue -Line $lastTextureMetadata -Key "textureUpdateSeq"
+    descriptor_shape = Get-MarkerValue -Line $lastTextureMetadata -Key "descriptorShape"
+    event_resource_path = Get-MarkerValue -Line $lastTextureMetadata -Key "eventResourcePath"
+    texture_path = Get-MarkerValue -Line $lastTextureMetadata -Key "cameraTexturePath"
+    makepad_vulkan_import = Get-MarkerValue -Line $lastTextureMetadata -Key "makepadVulkanImport"
+    texture_update_count = Get-MarkerValue -Line $lastTextureMetadata -Key "textureUpdateCount"
+    left_texture_update_count = Get-MarkerValue -Line $lastTextureMetadata -Key "leftTextureUpdateCount"
+    right_texture_update_count = Get-MarkerValue -Line $lastTextureMetadata -Key "rightTextureUpdateCount"
+    resource_reused = Get-MarkerValue -Line $lastTextureMetadata -Key "resourceReused"
+    fallback_active = Get-MarkerValue -Line $lastTextureMetadata -Key "fallbackActive"
+}
+$descriptorColor = [ordered]@{
+    last_line = $lastDescriptorColor
+    descriptor_shape_ready = (Get-MarkerValue -Line $lastDescriptorColor -Key "descriptorShapeReady") -eq "true"
+    ycbcr_metadata_present = (Get-MarkerValue -Line $lastDescriptorColor -Key "ycbcrMetadataPresent") -eq "true"
+    color_conformance_ready = (Get-MarkerValue -Line $lastDescriptorColor -Key "colorConformanceReady") -eq "true"
+    expected_descriptor_shape = Get-MarkerValue -Line $lastDescriptorColor -Key "expectedDescriptorShape"
+    descriptor_shape = Get-MarkerValue -Line $lastDescriptorColor -Key "descriptorShape"
+    color_conversion = Get-MarkerValue -Line $lastDescriptorColor -Key "colorConversion"
+    color_reference = Get-MarkerValue -Line $lastDescriptorColor -Key "colorReference"
+    visual_color_status = Get-MarkerValue -Line $lastDescriptorColor -Key "visualColorStatus"
+    visual_release_accepted = (Get-MarkerValue -Line $lastDescriptorColor -Key "visualReleaseAccepted") -eq "true"
+}
+$videoTextureGate = [ordered]@{
+    last_line = $lastVideoTextureGate
+    texture_gate_ready = (Get-MarkerValue -Line $lastVideoTextureGate -Key "textureGateReady") -eq "true"
+    equivalent_texture_metadata_ready = (Get-MarkerValue -Line $lastVideoTextureGate -Key "equivalentTextureMetadataReady") -eq "true"
+    gpu_import_ready = (Get-MarkerValue -Line $lastVideoTextureGate -Key "gpuImportReady") -eq "true"
+    native_video_widget_started = (Get-MarkerValue -Line $lastVideoTextureGate -Key "nativeVideoWidgetStarted") -eq "true"
+    open_gl_oes_companion_validated = (Get-MarkerValue -Line $lastVideoTextureGate -Key "openGlOesCompanionValidated") -eq "true"
+    direct_hwb_vulkan_validated = (Get-MarkerValue -Line $lastVideoTextureGate -Key "directHwbVulkanValidated") -eq "true"
+    defer_broad_media_imports = (Get-MarkerValue -Line $lastVideoTextureGate -Key "deferBroadMediaImports") -eq "true"
+    gate_kind = Get-MarkerValue -Line $lastVideoTextureGate -Key "gateKind"
+}
+$shaderLayoutVisualSmoke = [ordered]@{
+    last_line = $lastShaderLayoutVisualSmoke
+    shader_layout_visual_smoke_ready = ($null -ne $lastShaderLayoutVisualSmoke) -and
+        (Get-MarkerValue -Line $lastShaderLayoutVisualSmoke -Key "status") -eq "ok" -and
+        (Get-MarkerValue -Line $lastShaderLayoutVisualSmoke -Key "cameraTextureBinding") -eq "true" -and
+        (Get-MarkerValue -Line $lastShaderLayoutVisualSmoke -Key "projectionPanelDrawEnabled") -eq "true"
+    shader_layout_fix_scope = Get-MarkerValue -Line $lastShaderLayoutVisualSmoke -Key "shaderLayoutFixScope"
+    folded_into = Get-MarkerValue -Line $lastShaderLayoutVisualSmoke -Key "foldedInto"
+    visual_release_accepted = (Get-MarkerValue -Line $lastShaderLayoutVisualSmoke -Key "visualReleaseAccepted") -eq "true"
+}
+
 $targetedFatal = @($log | Where-Object {
     ($_ -match "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|kgsl|GPU page fault|ANR") -and
     ($_ -match [regex]::Escape($PackageName) -or $_ -match "makepad|rustyquest|RUSTY_QUEST_MAKEPAD")
 })
+
+$vulkanSurfaceOutOfDate = @($log | Where-Object { $_ -match "VK_ERROR_OUT_OF_DATE_KHR|ERROR_OUT_OF_DATE_KHR|\bout.of.date\b|OUT_OF_DATE" })
+$vulkanSurfaceSuboptimal = @($log | Where-Object { $_ -match "VK_SUBOPTIMAL_KHR|SUBOPTIMAL_KHR|\bsuboptimal\b|SUBOPTIMAL" })
+$vulkanSurfaceLost = @($log | Where-Object { $_ -match "VK_ERROR_SURFACE_LOST_KHR|ERROR_SURFACE_LOST_KHR|surface lost|SURFACE_LOST" })
+$lifecyclePauseResume = @($log | Where-Object {
+    ($_ -match "onPause|onResume|APP_CMD_PAUSE|APP_CMD_RESUME|pause|resume") -and
+    ($_ -match "makepad|rustyquest|Rusty|MakepadAppXr")
+})
+$vulkanLifecycle = [ordered]@{
+    recovery_ready = $targetedFatal.Count -eq 0
+    hardware_buffer_cache_marker_count = $markerCounts.makepad_vulkan_hardware_buffer_cache
+    resource_retire_marker_count = $markerCounts.makepad_vulkan_resource_retire
+    video_import_marker_count = $markerCounts.makepad_vulkan_video_import
+    hardware_buffer_cache_last_line = $lastVulkanHardwareBufferCache
+    resource_retire_last_line = $lastVulkanResourceRetire
+    video_import_last_line = $lastVulkanVideoImport
+    texture_cache_churn_observed = $markerCounts.makepad_vulkan_hardware_buffer_cache -gt 0
+    resource_retire_observed = $markerCounts.makepad_vulkan_resource_retire -gt 0
+    surface_out_of_date_observed = $vulkanSurfaceOutOfDate.Count -gt 0
+    surface_suboptimal_observed = $vulkanSurfaceSuboptimal.Count -gt 0
+    surface_lost_observed = $vulkanSurfaceLost.Count -gt 0
+    pause_resume_observed = $lifecyclePauseResume.Count -gt 0
+    surface_out_of_date_lines = @($vulkanSurfaceOutOfDate | Select-Object -First 20)
+    surface_suboptimal_lines = @($vulkanSurfaceSuboptimal | Select-Object -First 20)
+    surface_lost_lines = @($vulkanSurfaceLost | Select-Object -First 20)
+    pause_resume_lines = @($lifecyclePauseResume | Select-Object -First 20)
+}
+
 $metaPerfStale = Select-VrApiPerfSummary -Lines $log
 
 $transportReady = ($readbackFailures.Count -eq 0) -and (@($propertyEvidence | Where-Object { -not $_.matched }).Count -eq 0)
 $markerReady = $markerCounts.hardware_buffer_import -gt 0 -and
-    $markerCounts.cadence -gt 0 -and
+    $markerCounts.texture_metadata -gt 0 -and
+    $markerCounts.descriptor_color -gt 0 -and
+    $markerCounts.video_texture_gate -gt 0 -and
+    $markerCounts.shader_layout_visual_smoke -gt 0 -and
     $markerCounts.makepad_frame_flow -gt 0
 $leftTextureUpdateDelta = ConvertTo-ReadinessInt $cadence.left_texture_update_delta
 $rightTextureUpdateDelta = ConvertTo-ReadinessInt $cadence.right_texture_update_delta
 $pairedTextureUpdateDelta = ConvertTo-ReadinessInt $cadence.paired_texture_update_delta
-$textureReady = ($leftTextureUpdateDelta -gt 0) -and
+$textureReadyFromCadence = ($leftTextureUpdateDelta -gt 0) -and
     ($rightTextureUpdateDelta -gt 0) -and
     ($pairedTextureUpdateDelta -gt 0)
-$hardwareBufferReady = $cadence.texture_path -eq "direct-camera-hardware-buffer-external" -and
+$leftTextureMetadataCount = ConvertTo-ReadinessInt $textureMetadata.left_texture_update_count
+$rightTextureMetadataCount = ConvertTo-ReadinessInt $textureMetadata.right_texture_update_count
+$textureReadyFromMetadata = ($leftTextureMetadataCount -gt 0) -and ($rightTextureMetadataCount -gt 0)
+$textureReady = [bool]($textureReadyFromCadence -or $textureReadyFromMetadata)
+$hardwareBufferReadyFromCadence = $cadence.texture_path -eq "direct-camera-hardware-buffer-external" -and
     $cadence.makepad_vulkan_import -eq "true"
+$hardwareBufferReadyFromMetadata = $textureMetadata.texture_path -eq "direct-camera-hardware-buffer-external" -and
+    $textureMetadata.makepad_vulkan_import -eq "true" -and
+    $textureMetadata.gpu_import_ready
+$hardwareBufferReady = [bool]($hardwareBufferReadyFromCadence -or $hardwareBufferReadyFromMetadata)
+$textureMetadataReady = [bool]($textureMetadata.texture_metadata_ready -and $textureMetadata.gpu_import_ready)
+$descriptorColorReady = [bool]($descriptorColor.color_conformance_ready)
+$videoTextureGateReady = [bool]($videoTextureGate.texture_gate_ready)
+$shaderLayoutVisualSmokeReady = [bool]($shaderLayoutVisualSmoke.shader_layout_visual_smoke_ready)
 $frameFlowLayerCount = ConvertTo-ReadinessInt $frameFlow.layer_count
 $frameFlowReady = $frameFlow.should_render -eq "true" -and
     $frameFlowLayerCount -gt 0 -and
@@ -535,6 +654,10 @@ $ready = [bool]($transportReady -and
     $markerReady -and
     $textureReady -and
     $hardwareBufferReady -and
+    $textureMetadataReady -and
+    $descriptorColorReady -and
+    $videoTextureGateReady -and
+    $shaderLayoutVisualSmokeReady -and
     $frameFlowReady -and
     $targetedFatal.Count -eq 0)
 
@@ -596,13 +719,43 @@ $scorecard = [ordered]@{
         vr_api_target_frame_rate_hz = $vrApiTargetFrameRateHz
         vr_api_current_frame_rate_hz = $vrApiCurrentFrameRateHz
     }
+    route_gates = [ordered]@{
+        route_ready = $ready
+        marker_ready = $markerReady
+        texture_ready = $textureReady
+        texture_ready_from_cadence = $textureReadyFromCadence
+        texture_ready_from_metadata = $textureReadyFromMetadata
+        hardware_buffer_ready = $hardwareBufferReady
+        hardware_buffer_ready_from_cadence = $hardwareBufferReadyFromCadence
+        hardware_buffer_ready_from_metadata = $hardwareBufferReadyFromMetadata
+        texture_metadata_ready = $textureMetadataReady
+        descriptor_color_ready = $descriptorColorReady
+        video_texture_gate_ready = $videoTextureGateReady
+        shader_layout_visual_smoke_ready = $shaderLayoutVisualSmokeReady
+        frame_flow_ready = $frameFlowReady
+        projection_ready = $projectionReady
+        performance_ready = $performanceReady
+    }
+    texture_metadata = $textureMetadata
+    descriptor_color = $descriptorColor
+    video_texture_gate = $videoTextureGate
+    shader_layout_visual_smoke = $shaderLayoutVisualSmoke
+    vulkan_lifecycle = $vulkanLifecycle
     markers = [ordered]@{
         counts = $markerCounts
         marker_ready = $markerReady
         cadence = $cadence
         frame_flow = $frameFlow
         texture_ready = $textureReady
+        texture_ready_from_cadence = $textureReadyFromCadence
+        texture_ready_from_metadata = $textureReadyFromMetadata
         hardware_buffer_ready = $hardwareBufferReady
+        hardware_buffer_ready_from_cadence = $hardwareBufferReadyFromCadence
+        hardware_buffer_ready_from_metadata = $hardwareBufferReadyFromMetadata
+        texture_metadata_ready = $textureMetadataReady
+        descriptor_color_ready = $descriptorColorReady
+        video_texture_gate_ready = $videoTextureGateReady
+        shader_layout_visual_smoke_ready = $shaderLayoutVisualSmokeReady
         frame_flow_ready = $frameFlowReady
         projection_ready = $projectionReady
     }

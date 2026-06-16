@@ -1,5 +1,7 @@
 use crate::camera_texture_path::MakepadCameraTexturePath;
-use crate::makepad_widgets::makepad_platform::event::video_playback::VideoTextureUpdateMetadata;
+use crate::makepad_widgets::makepad_platform::event::video_playback::{
+    VideoTextureDescriptorShape, VideoTextureUpdateMetadata,
+};
 use rusty_quest_camera_model::{
     rect_xywh, target_footprint_debug_region_marker_fields, uv_rect_token, Rect2,
     SourceSamplingMode, Vec2, TARGET_SCREEN_FOOTPRINT_SCHEMA,
@@ -248,6 +250,104 @@ pub(crate) fn makepad_hardware_buffer_import_texture_updated_marker_fields(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn makepad_texture_metadata_marker_line(
+    side_label: &str,
+    camera_id: Option<&str>,
+    yuv_enabled: bool,
+    yuv_biplanar: bool,
+    rotation_steps: f32,
+    texture_path: MakepadCameraTexturePath,
+    metadata: &VideoTextureUpdateMetadata,
+    texture_update_count: u64,
+    left_texture_update_count: u64,
+    right_texture_update_count: u64,
+) -> String {
+    format!(
+        "RUSTY_QUEST_MAKEPAD_TEXTURE_METADATA schema=rusty.quest.makepad-texture-metadata.v1 phase=texture-updated status=ok side={} cameraId={} sourceFrameSeq={} hardwareBufferId={} textureUpdateCount={} leftTextureUpdateCount={} rightTextureUpdateCount={} yuvEnabled={} yuvBiplanar={} rotationSteps={:.0} textureMetadataReady={} gpuImportReady={} visualAcceptanceSeparate=true visualInspection=required visualReleaseAccepted=false releaseRetireCountsSource=makepad-vulkan-cache-retire-log {}{}",
+        side_label,
+        camera_id
+            .map(marker_token)
+            .unwrap_or_else(|| "unknown".to_string()),
+        optional_u64_marker(metadata.camera_frame_sequence),
+        metadata_hardware_buffer_id_marker(metadata),
+        texture_update_count,
+        left_texture_update_count,
+        right_texture_update_count,
+        yuv_enabled,
+        yuv_biplanar,
+        rotation_steps,
+        texture_metadata_ready(metadata),
+        gpu_import_ready(texture_path, metadata),
+        texture_path.marker_fields(),
+        video_texture_update_metadata_marker_fields(metadata),
+    )
+}
+
+pub(crate) fn makepad_descriptor_color_marker_line(
+    side_label: &str,
+    texture_path: MakepadCameraTexturePath,
+    metadata: &VideoTextureUpdateMetadata,
+) -> String {
+    let expected_descriptor_shape = expected_descriptor_shape(texture_path);
+    let descriptor_shape_ready = metadata.descriptor_shape.as_str() == expected_descriptor_shape;
+    let ycbcr_metadata_present = metadata.ycbcr_conversion.is_some();
+    format!(
+        "RUSTY_QUEST_MAKEPAD_DESCRIPTOR_COLOR schema=rusty.quest.makepad-descriptor-color.v1 phase=texture-updated status=ok side={} expectedDescriptorShape={} descriptorShapeReady={} ycbcrMetadataPresent={} colorConversion={} colorReference={} visualColorStatus={} colorConformanceReady={} visualAcceptanceSeparate=true visualInspection=required visualReleaseAccepted=false {}{}",
+        side_label,
+        expected_descriptor_shape,
+        descriptor_shape_ready,
+        ycbcr_metadata_present,
+        texture_path.color_conversion(),
+        texture_path.color_reference(),
+        texture_path.visual_color_status(),
+        descriptor_shape_ready && ycbcr_metadata_present,
+        texture_path.marker_fields(),
+        video_texture_update_metadata_marker_fields(metadata),
+    )
+}
+
+pub(crate) fn makepad_video_texture_gate_marker_line(
+    phase: &str,
+    status: &str,
+    gate_kind: &str,
+    texture_path: MakepadCameraTexturePath,
+    metadata: Option<&VideoTextureUpdateMetadata>,
+) -> String {
+    let metadata_fields = metadata
+        .map(video_texture_update_metadata_marker_fields)
+        .unwrap_or_default();
+    let equivalent_texture_metadata_ready = metadata.is_some_and(texture_metadata_ready);
+    let gpu_import_ready =
+        metadata.is_some_and(|metadata| gpu_import_ready(texture_path, metadata));
+    format!(
+        "RUSTY_QUEST_MAKEPAD_VIDEO_TEXTURE_GATE schema=rusty.quest.makepad-video-texture-gate.v1 phase={} status={} gateKind={} nativeVideoWidgetStarted={} equivalentTextureMetadataReady={} gpuImportReady={} textureGateReady={} openGlOesCompanionValidated=false directHwbVulkanValidated={} deferBroadMediaImports=true {}{}",
+        marker_token(phase),
+        marker_token(status),
+        marker_token(gate_kind),
+        gate_kind == "native-video-widget",
+        equivalent_texture_metadata_ready,
+        gpu_import_ready,
+        equivalent_texture_metadata_ready && gpu_import_ready,
+        texture_path.makepad_vulkan_import(),
+        texture_path.marker_fields(),
+        metadata_fields,
+    )
+}
+
+pub(crate) fn makepad_shader_layout_visual_smoke_marker_line(
+    texture_path: MakepadCameraTexturePath,
+    camera_texture_binding_enabled: bool,
+    projection_panel_draw_enabled: bool,
+) -> String {
+    format!(
+        "RUSTY_QUEST_MAKEPAD_SHADER_LAYOUT_VISUAL_SMOKE schema=rusty.quest.makepad-shader-layout-visual-smoke.v1 phase=projection-panel-bound status=ok foldedInto=camera-hwb-render-smoke shaderLayoutFixScope=makepad-922 cameraTextureBinding={} projectionPanelDrawEnabled={} drawVarsTextureRedraw=true visualInspection=required visualReleaseAccepted=false {}",
+        camera_texture_binding_enabled,
+        projection_panel_draw_enabled,
+        texture_path.marker_fields(),
+    )
+}
+
 fn video_texture_update_metadata_marker_fields(metadata: &VideoTextureUpdateMetadata) -> String {
     let mut fields = vec![
         format!("eventResourcePath={}", metadata.resource_path.as_str()),
@@ -268,6 +368,7 @@ fn video_texture_update_metadata_marker_fields(metadata: &VideoTextureUpdateMeta
     if let Some(value) = metadata.acquire_time_ns {
         fields.push(format!("acquireTimeNs={value}"));
     }
+    append_hardware_buffer_id_marker_field(metadata, &mut fields);
     if let Some(value) = metadata.upload_sequence {
         fields.push(format!("uploadSeq={value}"));
     }
@@ -295,7 +396,6 @@ fn video_texture_update_metadata_marker_fields(metadata: &VideoTextureUpdateMeta
     if let Some(value) = metadata.vulkan_external_format {
         fields.push(format!("vulkanExternalFormat={value}"));
     }
-    #[cfg(feature = "makepad-hwb-ycbcr-metadata")]
     if let Some(ycbcr) = metadata.ycbcr_conversion.as_ref() {
         fields.push(format!(
             "suggestedYcbcrModel={}",
@@ -355,6 +455,88 @@ fn video_texture_update_metadata_marker_fields(metadata: &VideoTextureUpdateMeta
         fields.push(format!("fallbackReason={}", marker_token(value)));
     }
     format!(" {}", fields.join(" "))
+}
+
+fn expected_descriptor_shape(texture_path: MakepadCameraTexturePath) -> &'static str {
+    match texture_path {
+        MakepadCameraTexturePath::DirectHardwareBufferExternal
+        | MakepadCameraTexturePath::BrokerH264HardwareBuffer => {
+            VideoTextureDescriptorShape::CombinedImmutableSamplerYcbcrConversion.as_str()
+        }
+        MakepadCameraTexturePath::DirectHardwareBufferYuvPlane => {
+            VideoTextureDescriptorShape::ImportedYuvPlaneTextures.as_str()
+        }
+        MakepadCameraTexturePath::DirectCpuYuvPlane
+        | MakepadCameraTexturePath::BrokerH264CpuYuv => {
+            VideoTextureDescriptorShape::CpuYuvPlaneTextures.as_str()
+        }
+        MakepadCameraTexturePath::BrokerH264SurfaceTexture => {
+            VideoTextureDescriptorShape::SurfaceTextureExternalOes.as_str()
+        }
+    }
+}
+
+fn texture_metadata_ready(metadata: &VideoTextureUpdateMetadata) -> bool {
+    metadata.camera_input_id.is_some()
+        && metadata.camera_format_id.is_some()
+        && metadata.camera_frame_sequence.is_some()
+        && metadata.camera_timestamp_ns.is_some()
+        && metadata.texture_update_sequence.is_some()
+        && metadata.descriptor_shape != VideoTextureDescriptorShape::Unspecified
+        && metadata.resource_path.as_str() != "unspecified"
+}
+
+fn gpu_import_ready(
+    texture_path: MakepadCameraTexturePath,
+    metadata: &VideoTextureUpdateMetadata,
+) -> bool {
+    texture_path.makepad_vulkan_import()
+        && metadata.import_sequence.is_some()
+        && metadata_hardware_buffer_id_ready(metadata)
+}
+
+fn optional_u64_marker(value: Option<u64>) -> String {
+    value
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "missing".to_string())
+}
+
+#[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+fn metadata_hardware_buffer_id_marker(metadata: &VideoTextureUpdateMetadata) -> String {
+    optional_u64_marker(metadata.hardware_buffer_id)
+}
+
+#[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+fn metadata_hardware_buffer_id_marker(_metadata: &VideoTextureUpdateMetadata) -> String {
+    "unavailable".to_string()
+}
+
+#[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+fn append_hardware_buffer_id_marker_field(
+    metadata: &VideoTextureUpdateMetadata,
+    fields: &mut Vec<String>,
+) {
+    if let Some(value) = metadata.hardware_buffer_id {
+        fields.push(format!("hardwareBufferId={value}"));
+    }
+}
+
+#[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+fn append_hardware_buffer_id_marker_field(
+    _metadata: &VideoTextureUpdateMetadata,
+    fields: &mut Vec<String>,
+) {
+    fields.push("hardwareBufferId=unavailable".to_string());
+}
+
+#[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+fn metadata_hardware_buffer_id_ready(metadata: &VideoTextureUpdateMetadata) -> bool {
+    metadata.hardware_buffer_id.is_some()
+}
+
+#[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+fn metadata_hardware_buffer_id_ready(_metadata: &VideoTextureUpdateMetadata) -> bool {
+    false
 }
 
 pub(crate) fn makepad_hardware_buffer_import_complete_error_marker_fields(
@@ -1674,6 +1856,10 @@ fn parse_broker_pixel_domain(value: Option<&JsonValue>) -> Option<BrokerH264Pixe
 
 #[cfg(test)]
 mod tests {
+    use crate::makepad_widgets::makepad_platform::event::video_playback::{
+        VideoTextureResourcePath, VideoTextureYcbcrConversionMetadata,
+    };
+
     use super::*;
 
     #[test]
@@ -2032,6 +2218,107 @@ mod tests {
             makepad_hardware_buffer_import_start_waiting_marker_fields(3),
             "phase=start status=waiting waitCount=3 reason=no_makepad_camera_stereo_pair_yet"
         );
+    }
+
+    #[test]
+    fn texture_metadata_descriptor_and_video_gate_markers_keep_scorecard_shape() {
+        let metadata = {
+            let metadata = VideoTextureUpdateMetadata::default()
+                .with_resource(
+                    VideoTextureResourcePath::HardwareBufferExternal,
+                    VideoTextureDescriptorShape::CombinedImmutableSamplerYcbcrConversion,
+                    1280,
+                    720,
+                )
+                .with_camera_source(Default::default(), Default::default())
+                .with_camera_frame(7, 123_456, Some(123_400))
+                .with_hardware_buffer_import(9, 123_500)
+                .with_vulkan_format("UNDEFINED", Some(9_999))
+                .with_ycbcr_conversion(VideoTextureYcbcrConversionMetadata {
+                    suggested_model: "VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601".to_string(),
+                    suggested_range: "VK_SAMPLER_YCBCR_RANGE_ITU_NARROW".to_string(),
+                    effective_model: "VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_601".to_string(),
+                    effective_range: "VK_SAMPLER_YCBCR_RANGE_ITU_NARROW".to_string(),
+                    components: "identity".to_string(),
+                    suggested_x_chroma_offset: "cosited-even".to_string(),
+                    suggested_y_chroma_offset: "midpoint".to_string(),
+                    conversion_mode: "default-sampler-remap".to_string(),
+                    sampler_binding_mode: "combined-immutable-sampler-ycbcr-conversion".to_string(),
+                    sampler_binding_compliance: "required".to_string(),
+                    shader_sample_lowering: "external-rgb".to_string(),
+                })
+                .with_resource_reused(false);
+            #[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+            {
+                metadata.with_hardware_buffer_id(42)
+            }
+            #[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+            {
+                metadata
+            }
+        };
+
+        let metadata_line = makepad_texture_metadata_marker_line(
+            "left",
+            Some("camera 0"),
+            false,
+            false,
+            0.0,
+            MakepadCameraTexturePath::DirectHardwareBufferExternal,
+            &metadata,
+            11,
+            11,
+            10,
+        );
+        assert!(metadata_line.starts_with(
+            "RUSTY_QUEST_MAKEPAD_TEXTURE_METADATA schema=rusty.quest.makepad-texture-metadata.v1 phase=texture-updated status=ok"
+        ));
+        assert!(metadata_line.contains("cameraId=camera_0"));
+        assert!(metadata_line.contains("sourceFrameSeq=7"));
+        #[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+        assert!(metadata_line.contains("hardwareBufferId=42"));
+        #[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+        assert!(metadata_line.contains("hardwareBufferId=unavailable"));
+        assert!(metadata_line.contains("textureMetadataReady=true"));
+        #[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+        assert!(metadata_line.contains("gpuImportReady=true"));
+        #[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+        assert!(metadata_line.contains("gpuImportReady=false"));
+        assert!(metadata_line.contains("visualReleaseAccepted=false"));
+
+        let descriptor_line = makepad_descriptor_color_marker_line(
+            "left",
+            MakepadCameraTexturePath::DirectHardwareBufferExternal,
+            &metadata,
+        );
+        assert!(descriptor_line
+            .contains("expectedDescriptorShape=combined-immutable-sampler-ycbcr-conversion"));
+        assert!(descriptor_line.contains("descriptorShapeReady=true"));
+        assert!(descriptor_line.contains("ycbcrMetadataPresent=true"));
+        assert!(descriptor_line.contains("colorConformanceReady=true"));
+        assert!(descriptor_line.contains("visualAcceptanceSeparate=true"));
+
+        let gate_line = makepad_video_texture_gate_marker_line(
+            "texture-updated",
+            "ok",
+            "equivalent-direct-hwb-vulkan-texture",
+            MakepadCameraTexturePath::DirectHardwareBufferExternal,
+            Some(&metadata),
+        );
+        #[cfg(feature = "makepad-hwb-ycbcr-metadata")]
+        assert!(gate_line.contains("textureGateReady=true"));
+        #[cfg(not(feature = "makepad-hwb-ycbcr-metadata"))]
+        assert!(gate_line.contains("textureGateReady=false"));
+        assert!(gate_line.contains("openGlOesCompanionValidated=false"));
+        assert!(gate_line.contains("deferBroadMediaImports=true"));
+
+        let shader_line = makepad_shader_layout_visual_smoke_marker_line(
+            MakepadCameraTexturePath::DirectHardwareBufferExternal,
+            true,
+            true,
+        );
+        assert!(shader_line.contains("shaderLayoutFixScope=makepad-922"));
+        assert!(shader_line.contains("projectionPanelDrawEnabled=true"));
     }
 
     #[test]

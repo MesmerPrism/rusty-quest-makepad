@@ -277,6 +277,15 @@ reports. Runtime adapters still own platform event loops and camera homography
 inputs; this crate owns the app-facing bridge between clean Lattice/Optics
 contracts and Quest Makepad behavior.
 
+For camera/video texture work, upstream Makepad XR and historical Rusty-XR
+branches are source maps and mechanics references only. This repo owns the
+clean app markers and scorecards; `rusty-quest` owns Android property transport;
+`makepad-morphospace` owns the forked Makepad runtime mechanics. Direct-HWB
+Vulkan texture readiness, descriptor/color conformance, and lifecycle stress
+must be green before importing broader media branches. OpenGL OES/native-video
+companion validation remains a separate gate and must not be inferred from the
+direct-HWB Vulkan smoke.
+
 ## Non-Ownership
 
 - generic Makepad settings resolver;
