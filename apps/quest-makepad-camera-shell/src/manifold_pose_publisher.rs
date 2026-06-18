@@ -14,7 +14,8 @@ pub(crate) const DEFAULT_MANIFOLD_POSE_CONTROLLER: &str = "right";
 pub(crate) const DEFAULT_MANIFOLD_POSE_KIND: &str = "grip";
 pub(crate) const DEFAULT_MANIFOLD_BROKER_HOST: &str = "127.0.0.1";
 pub(crate) const DEFAULT_MANIFOLD_BROKER_PORT: u16 = 8765;
-pub(crate) const DEFAULT_MANIFOLD_POSE_SAMPLE_HZ: f32 = 20.0;
+pub(crate) const DEFAULT_MANIFOLD_POSE_SAMPLE_HZ: f32 = 90.0;
+const MANIFOLD_POSE_PUBLISH_QUEUE_CAPACITY: usize = 1;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ManifoldPosePublisherConfig {
@@ -80,7 +81,10 @@ pub(crate) struct ManifoldPosePublisher {
 
 impl ManifoldPosePublisher {
     pub(crate) fn new(config: ManifoldPosePublisherConfig) -> Self {
-        let (sender, receiver) = mpsc::sync_channel::<ManifoldPoseSample>(8);
+        // Keep backpressure to one sample so PMB consumes fresh controller poses,
+        // not an accumulated FIFO of stale frames.
+        let (sender, receiver) =
+            mpsc::sync_channel::<ManifoldPoseSample>(MANIFOLD_POSE_PUBLISH_QUEUE_CAPACITY);
         let worker_config = config.clone();
         thread::spawn(move || {
             let mut client = BrokerWebSocketClient::new(&worker_config);
@@ -238,7 +242,6 @@ fn open_broker_websocket(config: &ManifoldPosePublisherConfig) -> Result<TcpStre
     if !response_text.starts_with("HTTP/1.1 101") {
         return Err("websocket_handshake_rejected".to_string());
     }
-    let _ = read_websocket_frame(&mut stream);
     Ok(stream)
 }
 
@@ -356,6 +359,14 @@ mod tests {
         assert_eq!(command["command"], "publish_stream_event");
         assert_eq!(command["params"]["stream"], DEFAULT_MANIFOLD_POSE_STREAM);
         assert_eq!(command["params"]["sequence_id"], 42);
+    }
+
+    #[test]
+    fn default_pose_sample_rate_matches_breath_scale_profile() {
+        let config = ManifoldPosePublisherConfig::default();
+        assert_eq!(config.sample_hz, 90.0);
+        assert!((config.interval_seconds() - (1.0 / 90.0)).abs() < 0.000_001);
+        assert_eq!(MANIFOLD_POSE_PUBLISH_QUEUE_CAPACITY, 1);
     }
 
     #[test]

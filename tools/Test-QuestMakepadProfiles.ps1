@@ -96,3 +96,8 @@ Test-RuntimeBundle `
     -Name "Quest Makepad stimulus volume proof runtime bundle" `
     -BundlePath "fixtures\profiles\stimulus-volume-proof.bundle.json" `
     -OutDir "local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-proof"
+
+Test-RuntimeBundle `
+    -Name "Quest Makepad bright volume stimulus runtime bundle" `
+    -BundlePath "fixtures\profiles\stimulus-volume-bright.bundle.json" `
+    -OutDir "local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-bright"

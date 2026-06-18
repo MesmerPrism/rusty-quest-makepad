@@ -235,15 +235,17 @@ pub(crate) fn makepad_hardware_buffer_import_texture_updated_marker_fields(
     metadata: &VideoTextureUpdateMetadata,
     projection_border_policy: &str,
     processing_layer: &str,
+    blur_fields: &str,
 ) -> String {
     format!(
-        "phase=texture-updated status=ok side={} yuvEnabled={} yuvBiplanar={} rotationSteps={:.0} projectionBorderPolicy={} processingLayer={} importPlan={} {}{}",
+        "phase=texture-updated status=ok side={} yuvEnabled={} yuvBiplanar={} rotationSteps={:.0} projectionBorderPolicy={} processingLayer={} {} importPlan={} {}{}",
         side_label,
         yuv_enabled,
         yuv_biplanar,
         rotation_steps,
         marker_token(projection_border_policy),
         marker_token(processing_layer),
+        blur_fields,
         texture_path.import_plan(),
         texture_path.marker_fields(),
         video_texture_update_metadata_marker_fields(metadata),
@@ -2187,8 +2189,9 @@ mod tests {
                 &VideoTextureUpdateMetadata::default(),
                 "solid-red",
                 "raw",
+                "blurSampleDomain=source-1280",
             ),
-            "phase=texture-updated status=ok side=left yuvEnabled=true yuvBiplanar=false rotationSteps=2 projectionBorderPolicy=solid-red processingLayer=raw importPlan=paired-camera-cpu-yuv-fallback cameraTexturePath=direct-camera-cpu-yuv-plane makepadVulkanImport=false textureImportPath=makepad-camera-cpu-yuv-plane cpuUploadPath=makepad-camera-cpu-yuv-plane visualColorStatus=accepted-cpu-yuv-reference eventResourcePath=unspecified descriptorShape=unspecified"
+            "phase=texture-updated status=ok side=left yuvEnabled=true yuvBiplanar=false rotationSteps=2 projectionBorderPolicy=solid-red processingLayer=raw blurSampleDomain=source-1280 importPlan=paired-camera-cpu-yuv-fallback cameraTexturePath=direct-camera-cpu-yuv-plane makepadVulkanImport=false textureImportPath=makepad-camera-cpu-yuv-plane cpuUploadPath=makepad-camera-cpu-yuv-plane visualColorStatus=accepted-cpu-yuv-reference eventResourcePath=unspecified descriptorShape=unspecified hardwareBufferId=unavailable"
         );
         assert_eq!(
             makepad_hardware_buffer_import_complete_error_marker_fields(
@@ -2412,8 +2415,9 @@ mod tests {
                 &VideoTextureUpdateMetadata::default(),
                 "solid-red",
                 "raw",
+                "blurSampleDomain=source-1280",
             ),
-            "phase=texture-updated status=ok side=left yuvEnabled=true yuvBiplanar=false rotationSteps=0 projectionBorderPolicy=solid-red processingLayer=raw importPlan=paired-camera-cpu-yuv-fallback cameraTexturePath=direct-camera-cpu-yuv-plane makepadVulkanImport=false textureImportPath=makepad-camera-cpu-yuv-plane cpuUploadPath=makepad-camera-cpu-yuv-plane visualColorStatus=accepted-cpu-yuv-reference eventResourcePath=unspecified descriptorShape=unspecified"
+            "phase=texture-updated status=ok side=left yuvEnabled=true yuvBiplanar=false rotationSteps=0 projectionBorderPolicy=solid-red processingLayer=raw blurSampleDomain=source-1280 importPlan=paired-camera-cpu-yuv-fallback cameraTexturePath=direct-camera-cpu-yuv-plane makepadVulkanImport=false textureImportPath=makepad-camera-cpu-yuv-plane cpuUploadPath=makepad-camera-cpu-yuv-plane visualColorStatus=accepted-cpu-yuv-reference eventResourcePath=unspecified descriptorShape=unspecified hardwareBufferId=unavailable"
         );
         assert_eq!(
             hardware_buffer_import_start_marker_fields(

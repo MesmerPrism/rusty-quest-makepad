@@ -282,8 +282,33 @@ pub(super) fn makepad_horizontal_alignment_tuning_from_resolution(
         rxrc::KEY_CAMERA_BLUR_RADIUS_PX,
         tuning.blur_radius_px,
         0.0,
-        16.0,
+        4096.0,
     );
+    tuning.blur_source_size_px = makepad_projection_runtime_float(
+        resolution,
+        rxrc::KEY_CAMERA_BLUR_SOURCE_SIZE_PX,
+        tuning.blur_source_size_px,
+        1.0,
+        8192.0,
+    );
+    tuning.blur_sample_step_gain = makepad_projection_runtime_float(
+        resolution,
+        rxrc::KEY_CAMERA_BLUR_SAMPLE_STEP_GAIN,
+        tuning.blur_sample_step_gain,
+        0.0,
+        1024.0,
+    );
+    if let Some(tap_layout) =
+        makepad_projection_runtime_text(resolution, rxrc::KEY_CAMERA_BLUR_TAP_LAYOUT)
+    {
+        tuning.blur_tap_layout = MakepadBlurTapLayout::from_stable_id(tap_layout).shader_code();
+    }
+    if let Some(render_graph) =
+        makepad_projection_runtime_text(resolution, rxrc::KEY_CAMERA_BLUR_RENDER_GRAPH)
+    {
+        tuning.blur_render_graph =
+            MakepadBlurRenderGraph::from_stable_id(render_graph).shader_code();
+    }
     tuning.peripheral_stretch_core_scale = makepad_projection_runtime_float(
         resolution,
         rxrc::KEY_PERIPHERAL_STRETCH_CORE_SCALE,
@@ -501,6 +526,36 @@ fn makepad_projection_runtime_config_defaults() -> rxrc::RuntimeConfig {
         &mut config,
         rxrc::KEY_CAMERA_BLUR_RADIUS_PX,
         2.0,
+        rxrc::RuntimeConfigSource::Default,
+    );
+    set_projection_manifest_text(
+        &mut config,
+        rxrc::KEY_CAMERA_BLUR_SAMPLE_DOMAIN,
+        MakepadBlurSampleDomain::Source1280.stable_id(),
+        rxrc::RuntimeConfigSource::Default,
+    );
+    set_projection_manifest_float(
+        &mut config,
+        rxrc::KEY_CAMERA_BLUR_SOURCE_SIZE_PX,
+        1280.0,
+        rxrc::RuntimeConfigSource::Default,
+    );
+    set_projection_manifest_float(
+        &mut config,
+        rxrc::KEY_CAMERA_BLUR_SAMPLE_STEP_GAIN,
+        4.0,
+        rxrc::RuntimeConfigSource::Default,
+    );
+    set_projection_manifest_text(
+        &mut config,
+        rxrc::KEY_CAMERA_BLUR_TAP_LAYOUT,
+        MakepadBlurTapLayout::FinalPassBox5x5.stable_id(),
+        rxrc::RuntimeConfigSource::Default,
+    );
+    set_projection_manifest_text(
+        &mut config,
+        rxrc::KEY_CAMERA_BLUR_RENDER_GRAPH,
+        MakepadBlurRenderGraph::FinalPass.stable_id(),
         rxrc::RuntimeConfigSource::Default,
     );
     set_projection_manifest_text(
@@ -740,6 +795,36 @@ fn makepad_projection_runtime_config_effective(
     );
     set_projection_manifest_text(
         &mut manifest,
+        rxrc::KEY_CAMERA_BLUR_SAMPLE_DOMAIN,
+        makepad_blur_sample_domain().stable_id(),
+        rxrc::RuntimeConfigSource::AndroidProperty,
+    );
+    set_projection_manifest_float(
+        &mut manifest,
+        rxrc::KEY_CAMERA_BLUR_SOURCE_SIZE_PX,
+        f64::from(tuning.blur_source_size_px),
+        rxrc::RuntimeConfigSource::AndroidProperty,
+    );
+    set_projection_manifest_float(
+        &mut manifest,
+        rxrc::KEY_CAMERA_BLUR_SAMPLE_STEP_GAIN,
+        f64::from(tuning.blur_sample_step_gain),
+        rxrc::RuntimeConfigSource::AndroidProperty,
+    );
+    set_projection_manifest_text(
+        &mut manifest,
+        rxrc::KEY_CAMERA_BLUR_TAP_LAYOUT,
+        MakepadBlurTapLayout::from_shader_code(tuning.blur_tap_layout).stable_id(),
+        rxrc::RuntimeConfigSource::AndroidProperty,
+    );
+    set_projection_manifest_text(
+        &mut manifest,
+        rxrc::KEY_CAMERA_BLUR_RENDER_GRAPH,
+        MakepadBlurRenderGraph::from_shader_code(tuning.blur_render_graph).stable_id(),
+        rxrc::RuntimeConfigSource::AndroidProperty,
+    );
+    set_projection_manifest_text(
+        &mut manifest,
         rxrc::KEY_PERIPHERAL_STRETCH_MODE,
         MakepadPeripheralStretchMode::EdgeStretch.stable_id(),
         rxrc::RuntimeConfigSource::AndroidProperty,
@@ -850,6 +935,10 @@ fn makepad_projection_input_records() -> Vec<rxrc::RuntimeKeyInputRecord> {
         "debug.rustyquest.projection.border.policy",
         "debug.rustyquest.processing.layer",
         "debug.rustyquest.camera.blur.radius.px",
+        "debug.rustyquest.camera.blur.sample.domain",
+        "debug.rustyquest.camera.blur.source.size.px",
+        "debug.rustyquest.camera.blur.sample.step.gain",
+        "debug.rustyquest.camera.blur.tap.layout",
         "debug.rustyquest.peripheral.stretch.mode",
         "debug.rustyquest.peripheral.stretch.core.scale",
         "debug.rustyquest.peripheral.stretch.edge.inset.uv",

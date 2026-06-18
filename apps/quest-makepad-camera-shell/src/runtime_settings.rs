@@ -47,7 +47,7 @@ pub(crate) const DEFAULT_MANIFOLD_POSE_CONTROLLER: &str = "right";
 pub(crate) const DEFAULT_MANIFOLD_POSE_KIND: &str = "grip";
 pub(crate) const DEFAULT_MANIFOLD_BROKER_HOST: &str = "127.0.0.1";
 pub(crate) const DEFAULT_MANIFOLD_BROKER_PORT: u16 = 8765;
-pub(crate) const DEFAULT_MANIFOLD_POSE_SAMPLE_HZ: f32 = 20.0;
+pub(crate) const DEFAULT_MANIFOLD_POSE_SAMPLE_HZ: f32 = 90.0;
 pub(crate) const DEFAULT_MANIFOLD_POSE_CONNECT_TIMEOUT_MS: u32 = 250;
 pub(crate) const DEFAULT_MANIFOLD_BREATH_FEEDBACK_ENABLED: bool = false;
 pub(crate) const DEFAULT_MANIFOLD_BREATH_FEEDBACK_STREAM: &str = "stream.breath.feedback_state";
@@ -59,7 +59,13 @@ pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STREAM: &str =
     DEFAULT_MANIFOLD_BREATH_FEEDBACK_STREAM;
 pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_MIN_SCALE: f32 = 1.0;
 pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_MAX_SCALE: f32 = 0.1796;
-pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA: f32 = 0.30;
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA: f32 = 0.75;
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_SECONDS: f32 = 0.03;
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SCALE_MODE: &str = "volume";
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_INHALE_SECONDS_MIN_TO_MAX: f32 = 4.0;
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_EXHALE_SECONDS_MAX_TO_MIN: f32 = 4.0;
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_INHALE_THRESHOLD01: f32 = 0.75;
+pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_EXHALE_THRESHOLD01: f32 = 0.25;
 pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_INVERT: bool = false;
 pub(crate) const DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_MIN_QUALITY: f32 = 0.0;
 pub(crate) const DEFAULT_MAKEPAD_MESH_REPLAY_ENABLED: bool = false;
@@ -269,6 +275,18 @@ pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_MAX_SCALE: &str =
     "projection_target_breath_max_scale";
 pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA: &str =
     "projection_target_breath_smoothing_alpha";
+pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_SECONDS: &str =
+    "projection_target_breath_smoothing_seconds";
+pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SCALE_MODE: &str =
+    "projection_target_breath_scale_mode";
+pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_INHALE_SECONDS_MIN_TO_MAX: &str =
+    "projection_target_breath_inhale_seconds_min_to_max";
+pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_EXHALE_SECONDS_MAX_TO_MIN: &str =
+    "projection_target_breath_exhale_seconds_max_to_min";
+pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_INHALE_THRESHOLD01: &str =
+    "projection_target_breath_state_inhale_threshold01";
+pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_EXHALE_THRESHOLD01: &str =
+    "projection_target_breath_state_exhale_threshold01";
 pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_INVERT: &str =
     "projection_target_breath_invert";
 pub(crate) const KEY_MAKEPAD_PROJECTION_TARGET_BREATH_MIN_QUALITY: &str =
@@ -716,6 +734,20 @@ mod tests {
         assert_eq!(
             manifold_env_key(KEY_MANIFOLD_POSE_SAMPLE_HZ),
             "RUSTY_MANIFOLD_POSE_SAMPLE_HZ"
+        );
+    }
+
+    #[test]
+    fn breath_scale_low_latency_defaults_are_current_profile() {
+        assert_eq!(DEFAULT_MANIFOLD_POSE_SAMPLE_HZ, 90.0);
+        assert_eq!(DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA, 0.75);
+        assert_eq!(
+            DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_SECONDS,
+            0.03
+        );
+        assert_eq!(
+            DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_INHALE_THRESHOLD01,
+            0.75
         );
     }
 }

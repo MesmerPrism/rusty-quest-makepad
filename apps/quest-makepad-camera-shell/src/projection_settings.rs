@@ -614,13 +614,275 @@ impl MakepadProjectionSampleMode {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MakepadBlurSampleDomain {
+    Source1280,
+    Guide384,
+    Custom,
+}
+
+impl MakepadBlurSampleDomain {
+    pub(crate) fn current() -> Self {
+        let value = hotload_text(rxrc::KEY_CAMERA_BLUR_SAMPLE_DOMAIN, "source-1280");
+        Self::from_stable_id(&value)
+    }
+
+    pub(crate) fn from_stable_id(value: &str) -> Self {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "guide-384" | "rusty-vision" | "rusty-vision-guide" | "384" => Self::Guide384,
+            "custom" => Self::Custom,
+            _ => Self::Source1280,
+        }
+    }
+
+    pub(crate) fn stable_id(self) -> &'static str {
+        match self {
+            Self::Source1280 => "source-1280",
+            Self::Guide384 => "guide-384",
+            Self::Custom => "custom",
+        }
+    }
+
+    pub(crate) fn default_radius_px(self) -> f32 {
+        match self {
+            Self::Guide384 => 1.0,
+            Self::Source1280 | Self::Custom => 2.0,
+        }
+    }
+
+    pub(crate) fn default_source_size_px(self) -> f32 {
+        match self {
+            Self::Guide384 => 384.0,
+            Self::Source1280 | Self::Custom => 1280.0,
+        }
+    }
+
+    pub(crate) fn default_sample_step_gain(self) -> f32 {
+        match self {
+            Self::Guide384 => 1.0,
+            Self::Source1280 | Self::Custom => 4.0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MakepadBlurTapLayout {
+    FinalPassBox5x5,
+    FinalPassCross9Tap,
+}
+
+impl MakepadBlurTapLayout {
+    pub(crate) fn current() -> Self {
+        let default = makepad_blur_sample_domain().default_tap_layout();
+        let value = hotload_text(rxrc::KEY_CAMERA_BLUR_TAP_LAYOUT, default.stable_id());
+        Self::from_stable_id(&value)
+    }
+
+    pub(crate) fn from_stable_id(value: &str) -> Self {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "final-pass-cross-9tap" | "cross-9tap" | "cross-9" | "fast-cross" => {
+                Self::FinalPassCross9Tap
+            }
+            _ => Self::FinalPassBox5x5,
+        }
+    }
+
+    pub(crate) fn from_shader_code(value: f32) -> Self {
+        if value >= 0.5 && value < 1.5 {
+            Self::FinalPassCross9Tap
+        } else {
+            Self::FinalPassBox5x5
+        }
+    }
+
+    pub(crate) fn stable_id(self) -> &'static str {
+        match self {
+            Self::FinalPassBox5x5 => "final-pass-box-5x5",
+            Self::FinalPassCross9Tap => "final-pass-cross-9tap",
+        }
+    }
+
+    pub(crate) fn shader_code(self) -> f32 {
+        match self {
+            Self::FinalPassBox5x5 => 0.0,
+            Self::FinalPassCross9Tap => 1.0,
+        }
+    }
+
+    fn kernel_label(self) -> &'static str {
+        match self {
+            Self::FinalPassBox5x5 => "5x5",
+            Self::FinalPassCross9Tap => "cross-5+5",
+        }
+    }
+
+    fn tap_count(self) -> usize {
+        match self {
+            Self::FinalPassBox5x5 => 25,
+            Self::FinalPassCross9Tap => 9,
+        }
+    }
+
+    fn math_label(self) -> &'static str {
+        match self {
+            Self::FinalPassBox5x5 => "single-pass-rgb-box",
+            Self::FinalPassCross9Tap => "single-pass-rgb-cross",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MakepadBlurRenderGraph {
+    FinalPass,
+    OffscreenGuideTexture,
+}
+
+impl MakepadBlurRenderGraph {
+    pub(crate) fn current() -> Self {
+        let value = hotload_text(rxrc::KEY_CAMERA_BLUR_RENDER_GRAPH, Self::FinalPass.stable_id());
+        Self::from_stable_id(&value)
+    }
+
+    pub(crate) fn from_stable_id(value: &str) -> Self {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "offscreen-guide-texture" | "offscreen-guide" | "guide-texture" | "rusty-vision-guide" => {
+                Self::OffscreenGuideTexture
+            }
+            _ => Self::FinalPass,
+        }
+    }
+
+    pub(crate) fn from_shader_code(value: f32) -> Self {
+        if value >= 0.5 && value < 1.5 {
+            Self::OffscreenGuideTexture
+        } else {
+            Self::FinalPass
+        }
+    }
+
+    pub(crate) fn stable_id(self) -> &'static str {
+        match self {
+            Self::FinalPass => "final-pass",
+            Self::OffscreenGuideTexture => "offscreen-guide-texture",
+        }
+    }
+
+    pub(crate) fn shader_code(self) -> f32 {
+        match self {
+            Self::FinalPass => 0.0,
+            Self::OffscreenGuideTexture => 1.0,
+        }
+    }
+
+    pub(crate) fn uses_offscreen_guide_texture(self) -> bool {
+        self == Self::OffscreenGuideTexture
+    }
+}
+
+impl MakepadBlurSampleDomain {
+    pub(crate) fn default_tap_layout(self) -> MakepadBlurTapLayout {
+        match self {
+            Self::Guide384 => MakepadBlurTapLayout::FinalPassCross9Tap,
+            Self::Source1280 | Self::Custom => MakepadBlurTapLayout::FinalPassBox5x5,
+        }
+    }
+}
+
+pub(crate) fn makepad_blur_sample_domain() -> MakepadBlurSampleDomain {
+    MakepadBlurSampleDomain::current()
+}
+
+pub(crate) fn makepad_blur_tap_layout() -> MakepadBlurTapLayout {
+    MakepadBlurTapLayout::current()
+}
+
+pub(crate) fn makepad_blur_render_graph() -> MakepadBlurRenderGraph {
+    MakepadBlurRenderGraph::current()
+}
+
 pub(crate) fn makepad_blur_radius_px() -> f32 {
-    hotload_f32(rxrc::KEY_CAMERA_BLUR_RADIUS_PX, 2.0, 0.0, 16.0)
+    hotload_f32(
+        rxrc::KEY_CAMERA_BLUR_RADIUS_PX,
+        makepad_blur_sample_domain().default_radius_px(),
+        0.0,
+        4096.0,
+    )
+}
+
+pub(crate) fn makepad_blur_source_size_px() -> f32 {
+    let domain = makepad_blur_sample_domain();
+    hotload_f32(
+        rxrc::KEY_CAMERA_BLUR_SOURCE_SIZE_PX,
+        domain.default_source_size_px(),
+        1.0,
+        8192.0,
+    )
+}
+
+pub(crate) fn makepad_blur_sample_step_gain() -> f32 {
+    let domain = makepad_blur_sample_domain();
+    hotload_f32(
+        rxrc::KEY_CAMERA_BLUR_SAMPLE_STEP_GAIN,
+        domain.default_sample_step_gain(),
+        0.0,
+        1024.0,
+    )
+}
+
+pub(crate) fn makepad_blur_marker_fields(
+    radius_px: f32,
+    source_size_px: f32,
+    sample_step_gain: f32,
+) -> String {
+    let source_size = source_size_px.max(1.0);
+    let tap_spacing_uv = radius_px.max(0.0) * sample_step_gain.max(0.0) / source_size;
+    let tap_layout = makepad_blur_tap_layout();
+    let guide_384_tap_spacing_parity =
+        makepad_blur_sample_domain() == MakepadBlurSampleDomain::Guide384
+        && (radius_px - 1.0).abs() <= 0.0001
+        && (source_size_px - 384.0).abs() <= 0.0001
+        && (sample_step_gain - 1.0).abs() <= 0.0001;
+    let guide_384_exact_box_parity =
+        guide_384_tap_spacing_parity && tap_layout == MakepadBlurTapLayout::FinalPassBox5x5;
+    let render_graph = makepad_blur_render_graph();
+    let guide_384_offscreen_graph_parity =
+        guide_384_exact_box_parity && render_graph.uses_offscreen_guide_texture();
+    let offscreen_graph = render_graph.uses_offscreen_guide_texture();
+    format!(
+        "blurSampleDomain={} blurSourceSizePx={:.1} blurSampleStepGain={:.3} blurTapSpacingUv={:.6} blurTapLayout={} blurRenderGraph={} blurKernelTaps={} blurTapCount={} blurTapOffsets=-2,-1,0,1,2 blurMath={} blurExternalCameraSamplesPerFinalFragment={} blurGuideTextureSamplesPerFinalFragment={} rustyVisionGuide384TapParity={} rustyVisionGuide384TapSpacingParity={} rustyVisionGuide384OffscreenGuideGraphParity={}",
+        makepad_blur_sample_domain().stable_id(),
+        source_size_px,
+        sample_step_gain,
+        tap_spacing_uv,
+        tap_layout.stable_id(),
+        render_graph.stable_id(),
+        tap_layout.kernel_label(),
+        tap_layout.tap_count(),
+        if offscreen_graph {
+            "offscreen-guide-rgb-split-box"
+        } else {
+            tap_layout.math_label()
+        },
+        if offscreen_graph {
+            0
+        } else {
+            tap_layout.tap_count()
+        },
+        if offscreen_graph {
+            1
+        } else {
+            0
+        },
+        guide_384_exact_box_parity,
+        guide_384_tap_spacing_parity,
+        guide_384_offscreen_graph_parity
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
+        MakepadBlurRenderGraph, MakepadBlurSampleDomain, MakepadBlurTapLayout,
         MakepadPeripheralStretchBlendMode, MakepadPeripheralStretchConfig, MakepadProcessingLayer,
         MakepadProjectionSampleMode,
     };
@@ -694,6 +956,73 @@ mod tests {
         assert_eq!(mode.shader_code(), 1.0);
         assert!(!mode.binds_camera_textures());
         assert!(!mode.draws_projection_panel());
+    }
+
+    #[test]
+    fn blur_sample_domain_keeps_vision_guide_defaults_separate_from_source_1280() {
+        assert_eq!(
+            MakepadBlurSampleDomain::from_stable_id("guide-384").stable_id(),
+            "guide-384"
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::from_stable_id("source-1280").stable_id(),
+            "source-1280"
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::Guide384.default_source_size_px(),
+            384.0
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::Guide384.default_sample_step_gain(),
+            1.0
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::Source1280.default_source_size_px(),
+            1280.0
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::Source1280.default_sample_step_gain(),
+            4.0
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::Guide384.default_tap_layout(),
+            MakepadBlurTapLayout::FinalPassCross9Tap
+        );
+        assert_eq!(
+            MakepadBlurSampleDomain::Source1280.default_tap_layout(),
+            MakepadBlurTapLayout::FinalPassBox5x5
+        );
+    }
+
+    #[test]
+    fn blur_tap_layout_keeps_exact_and_live_performance_modes_explicit() {
+        assert_eq!(
+            MakepadBlurTapLayout::from_stable_id("final-pass-cross-9tap").stable_id(),
+            "final-pass-cross-9tap"
+        );
+        assert_eq!(
+            MakepadBlurTapLayout::from_stable_id("final-pass-box-5x5").stable_id(),
+            "final-pass-box-5x5"
+        );
+        assert_eq!(
+            MakepadBlurTapLayout::FinalPassCross9Tap.shader_code(),
+            1.0
+        );
+        assert_eq!(MakepadBlurTapLayout::FinalPassBox5x5.shader_code(), 0.0);
+    }
+
+    #[test]
+    fn blur_render_graph_keeps_final_pass_and_offscreen_guide_explicit() {
+        assert_eq!(
+            MakepadBlurRenderGraph::from_stable_id("offscreen-guide-texture").stable_id(),
+            "offscreen-guide-texture"
+        );
+        assert_eq!(
+            MakepadBlurRenderGraph::from_stable_id("final-pass").stable_id(),
+            "final-pass"
+        );
+        assert!(MakepadBlurRenderGraph::OffscreenGuideTexture.uses_offscreen_guide_texture());
+        assert!(!MakepadBlurRenderGraph::FinalPass.uses_offscreen_guide_texture());
     }
 }
 

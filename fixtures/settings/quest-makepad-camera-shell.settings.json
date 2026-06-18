@@ -1,7 +1,7 @@
 {
   "schema": "rusty.gui.makepad.app_settings_surface.v1",
   "app_id": "rusty-quest-makepad.camera-shell",
-  "version": 11,
+  "version": 12,
   "settings": [
     {
       "id": "makepad.mesh_replay.enabled",
@@ -561,7 +561,7 @@
       "owner_repo": "rusty-quest-makepad",
       "owner_module": "camera_shell.projection_panel",
       "value_type": "enum",
-      "enum_values": ["raw", "peripheral-stretch"],
+      "enum_values": ["raw", "blur", "peripheral-stretch"],
       "default": "raw",
       "hotload_policy": "frame_safe",
       "writer_policy": "profile_owned",
@@ -572,6 +572,113 @@
         { "kind": "android_property", "name": "debug.rustyquest.makepad.processing.layer" }
       ],
       "readback_field": "processingLayer"
+    },
+    {
+      "id": "makepad.camera.blur.sample_domain",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "enum",
+      "enum_values": ["source-1280", "guide-384", "custom"],
+      "default": "source-1280",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-blur-sample-domain" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_BLUR_SAMPLE_DOMAIN" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.blur.sample.domain" }
+      ],
+      "readback_field": "cameraBlurSampleDomain"
+    },
+    {
+      "id": "makepad.camera.blur.radius_px",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "number",
+      "unit": "px",
+      "minimum": 0.0,
+      "maximum": 4096.0,
+      "default": 2.0,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-blur-radius-px" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_BLUR_RADIUS_PX" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.blur.radius.px" }
+      ],
+      "readback_field": "cameraBlurRadiusPx"
+    },
+    {
+      "id": "makepad.camera.blur.source_size_px",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "number",
+      "unit": "px",
+      "minimum": 1.0,
+      "maximum": 8192.0,
+      "default": 1280.0,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-blur-source-size-px" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_BLUR_SOURCE_SIZE_PX" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.blur.source.size.px" }
+      ],
+      "readback_field": "cameraBlurSourceSizePx"
+    },
+    {
+      "id": "makepad.camera.blur.sample_step_gain",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "number",
+      "minimum": 0.0,
+      "maximum": 1024.0,
+      "default": 4.0,
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-blur-sample-step-gain" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_BLUR_SAMPLE_STEP_GAIN" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.blur.sample.step.gain" }
+      ],
+      "readback_field": "cameraBlurSampleStepGain"
+    },
+    {
+      "id": "makepad.camera.blur.tap_layout",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "enum",
+      "enum_values": ["final-pass-box-5x5", "final-pass-cross-9tap"],
+      "default": "final-pass-box-5x5",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-blur-tap-layout" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_BLUR_TAP_LAYOUT" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.blur.tap.layout" }
+      ],
+      "readback_field": "cameraBlurTapLayout"
+    },
+    {
+      "id": "makepad.camera.blur.render_graph",
+      "owner_repo": "rusty-quest-makepad",
+      "owner_module": "camera_shell.projection_panel",
+      "value_type": "enum",
+      "enum_values": ["final-pass", "offscreen-guide-texture"],
+      "default": "final-pass",
+      "hotload_policy": "frame_safe",
+      "writer_policy": "profile_owned",
+      "sensitivity": "public_safe",
+      "exposures": [
+        { "kind": "cli_flag", "name": "camera-blur-render-graph" },
+        { "kind": "environment_variable", "name": "RUSTY_QUEST_MAKEPAD_CAMERA_BLUR_RENDER_GRAPH" },
+        { "kind": "android_property", "name": "debug.rustyquest.makepad.camera.blur.render.graph" }
+      ],
+      "readback_field": "cameraBlurRenderGraph"
     },
     {
       "id": "makepad.projection.sample_mode",

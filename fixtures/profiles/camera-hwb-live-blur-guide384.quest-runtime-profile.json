@@ -1,6 +1,6 @@
 {
   "schema": "rusty.quest.runtime_profile.v1",
-  "profile_id": "profile.quest.makepad.camera_hwb_live",
+  "profile_id": "profile.quest.makepad.camera_hwb_live_blur_guide384",
   "target_platform": "quest",
   "owned_android_properties": [
     "debug.rustyquest.makepad.mesh.replay.enabled",
@@ -40,13 +40,13 @@
     { "name": "debug.rustyquest.makepad.camera.projection.geometry.profile", "value": "camera-projection", "source_setting_id": "makepad.camera.projection_geometry_profile" },
     { "name": "debug.rustyquest.makepad.camera.source.sampling.mode", "value": "target-local-raster", "source_setting_id": "makepad.camera.source_sampling_mode" },
     { "name": "debug.rustyquest.makepad.projection.border.policy", "value": "passthrough-underlay", "source_setting_id": "makepad.projection.border_policy" },
-    { "name": "debug.rustyquest.makepad.processing.layer", "value": "peripheral-stretch", "source_setting_id": "makepad.processing.layer" },
-    { "name": "debug.rustyquest.makepad.camera.blur.sample.domain", "value": "source-1280", "source_setting_id": "makepad.camera.blur.sample_domain" },
-    { "name": "debug.rustyquest.makepad.camera.blur.radius.px", "value": "2.0", "source_setting_id": "makepad.camera.blur.radius_px" },
-    { "name": "debug.rustyquest.makepad.camera.blur.source.size.px", "value": "1280.0", "source_setting_id": "makepad.camera.blur.source_size_px" },
-    { "name": "debug.rustyquest.makepad.camera.blur.sample.step.gain", "value": "4.0", "source_setting_id": "makepad.camera.blur.sample_step_gain" },
+    { "name": "debug.rustyquest.makepad.processing.layer", "value": "blur", "source_setting_id": "makepad.processing.layer" },
+    { "name": "debug.rustyquest.makepad.camera.blur.sample.domain", "value": "guide-384", "source_setting_id": "makepad.camera.blur.sample_domain" },
+    { "name": "debug.rustyquest.makepad.camera.blur.radius.px", "value": "1.0", "source_setting_id": "makepad.camera.blur.radius_px" },
+    { "name": "debug.rustyquest.makepad.camera.blur.source.size.px", "value": "384.0", "source_setting_id": "makepad.camera.blur.source_size_px" },
+    { "name": "debug.rustyquest.makepad.camera.blur.sample.step.gain", "value": "1.0", "source_setting_id": "makepad.camera.blur.sample_step_gain" },
     { "name": "debug.rustyquest.makepad.camera.blur.tap.layout", "value": "final-pass-box-5x5", "source_setting_id": "makepad.camera.blur.tap_layout" },
-    { "name": "debug.rustyquest.makepad.camera.blur.render.graph", "value": "final-pass", "source_setting_id": "makepad.camera.blur.render_graph" },
+    { "name": "debug.rustyquest.makepad.camera.blur.render.graph", "value": "offscreen-guide-texture", "source_setting_id": "makepad.camera.blur.render_graph" },
     { "name": "debug.rustyquest.makepad.projection.sample.mode", "value": "camera", "source_setting_id": "makepad.projection.sample_mode" },
     { "name": "debug.rustyquest.makepad.direct.camera.hardware.buffer.external", "value": "true", "source_setting_id": "makepad.direct_camera.hardware_buffer_external" },
     { "name": "debug.rustyquest.makepad.native.passthrough.enabled", "value": "true", "source_setting_id": "makepad.native_passthrough.enabled" },
@@ -60,6 +60,6 @@
     "RUSTY_QUEST_MAKEPAD_CADENCE"
   ],
   "validation_commands": [
-    "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Invoke-QuestMakepadCameraReadiness.ps1"
+    "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Invoke-QuestMakepadCameraReadiness.ps1 -BundlePath fixtures/profiles/camera-hwb-live-blur-guide384.bundle.json"
   ]
 }

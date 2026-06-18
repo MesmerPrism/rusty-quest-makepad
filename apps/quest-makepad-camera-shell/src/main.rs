@@ -73,6 +73,7 @@ use source_metadata::{
 };
 
 use makepad_widgets::makepad_platform::{
+    DrawPass, DrawPassClearColor,
     event::video_playback::{
         BrokerH264VideoSource, CameraPreviewMode, TextureHandleReadyEvent, VideoSource,
         VideoTextureResourcePath, VideoTextureUpdateMetadata, VideoYuvMetadata,
@@ -80,7 +81,7 @@ use makepad_widgets::makepad_platform::{
     permission::Permission,
     thread::SignalToUI,
     video::{VideoFormat, VideoInputsEvent, VideoPixelFormat},
-    TextureFormat, TextureId, TextureUpdated,
+    TextureFormat, TextureId, TextureSize, TextureUpdated,
 };
 use makepad_widgets::*;
 use manifold_breath_feedback::{
@@ -127,9 +128,15 @@ struct ProjectionTargetBreathScaleConfig {
     enabled: bool,
     controls: String,
     stream_id: String,
+    scale_mode: String,
     scale_at_volume0: f32,
     scale_at_volume1: f32,
     smoothing_alpha: f32,
+    smoothing_seconds: f32,
+    inhale_seconds_min_to_max: f32,
+    exhale_seconds_max_to_min: f32,
+    state_inhale_threshold01: f32,
+    state_exhale_threshold01: f32,
     invert: bool,
     min_quality: f32,
 }
@@ -137,6 +144,9 @@ struct ProjectionTargetBreathScaleConfig {
 const CAMERA_PAIR_CLOSE_TIMESTAMP_NS: u64 = 25_000_000;
 const FRAME_ADOPTION_MARKER_LIMIT: usize = 24;
 const FRAME_ADOPTION_MARKER_PERIOD: usize = 120;
+const BLUR_GUIDE_DEFAULT_TEXTURE_SIZE_PX: usize = 384;
+const BLUR_GUIDE_MIN_TEXTURE_SIZE_PX: usize = 16;
+const BLUR_GUIDE_MAX_TEXTURE_SIZE_PX: usize = 2048;
 
 script_mod! {
     use mod.pod.*
@@ -146,6 +156,74 @@ script_mod! {
     use mod.geom
     use mod.prelude.widgets.*
     use mod.widgets.*
+
+    mod.draw.DrawMakepadCameraGuideCopy = mod.std.set_type_default() do #(DrawMakepadCameraGuideCopy::script_shader(vm)){
+        ..mod.draw.DrawQuad
+        source_camera_texture: texture_video()
+        blur_radius_px: uniform(1.0)
+        blur_sample_step_gain: uniform(1.0)
+
+        sample_camera_rgb: fn(uv: vec2) -> vec3 {
+            let sample_uv = clamp(uv, vec2(0.0, 0.0), vec2(1.0, 1.0));
+            return self.source_camera_texture.sample_video(sample_uv).xyz;
+        }
+
+        pixel: fn() {
+            let texel_x = 1.0 / max(self.rect_size.x, 1.0);
+            let sample_step = vec2(
+                texel_x *
+                    max(self.blur_radius_px, 0.0) *
+                    max(self.blur_sample_step_gain, 0.0),
+                0.0
+            );
+            let uv = clamp(self.pos, vec2(0.0, 0.0), vec2(1.0, 1.0));
+            let color =
+                (
+                    self.sample_camera_rgb(uv - sample_step * 2.0) +
+                    self.sample_camera_rgb(uv - sample_step) +
+                    self.sample_camera_rgb(uv) +
+                    self.sample_camera_rgb(uv + sample_step) +
+                    self.sample_camera_rgb(uv + sample_step * 2.0)
+                ) * 0.2;
+            return vec4(color.x, color.y, color.z, 1.0);
+        }
+    }
+
+    mod.draw.DrawMakepadCameraGuideBlurAxis = mod.std.set_type_default() do #(DrawMakepadCameraGuideBlurAxis::script_shader(vm)){
+        ..mod.draw.DrawQuad
+        source_texture: texture_2d(float)
+        blur_radius_px: uniform(1.0)
+        blur_sample_step_gain: uniform(1.0)
+        blur_axis: uniform(0.0)
+
+        sample_source: fn(uv: vec2) -> vec4 {
+            return self.source_texture.sample_as_bgra(clamp(uv, vec2(0.0, 0.0), vec2(1.0, 1.0)));
+        }
+
+        pixel: fn() {
+            let size = self.source_texture.size();
+            let texel = vec2(
+                1.0 / max(size.x, 1.0),
+                1.0 / max(size.y, 1.0)
+            );
+            let horizontal = vec2(1.0, 0.0);
+            let vertical = vec2(0.0, 1.0);
+            let axis = mix(horizontal, vertical, step(0.5, self.blur_axis));
+            let sample_step =
+                texel *
+                axis *
+                max(self.blur_radius_px, 0.0) *
+                max(self.blur_sample_step_gain, 0.0);
+            let uv = clamp(self.pos, vec2(0.0, 0.0), vec2(1.0, 1.0));
+            let color =
+                self.sample_source(uv + sample_step * -2.0) +
+                self.sample_source(uv + sample_step * -1.0) +
+                self.sample_source(uv) +
+                self.sample_source(uv + sample_step * 1.0) +
+                self.sample_source(uv + sample_step * 2.0);
+            return color / 5.0;
+        }
+    }
 
     mod.draw.DrawMakepadStereoCameraPanel = mod.std.set_type_default() do #(DrawMakepadStereoCameraPanel::script_shader(vm)){
         alpha_blend: true
@@ -167,6 +245,8 @@ script_mod! {
         right_tex_y: texture_2d(float)
         right_tex_u: texture_2d(float)
         right_tex_v: texture_2d(float)
+        left_blur_guide_texture: texture_2d(float)
+        right_blur_guide_texture: texture_2d(float)
         left_projection_h00: uniform(1.0)
         left_projection_h01: uniform(0.0)
         left_projection_h02: uniform(0.0)
@@ -237,6 +317,10 @@ script_mod! {
         processing_layer: uniform(0.0)
         projection_sample_mode: uniform(0.0)
         blur_radius_px: uniform(2.0)
+        blur_source_size_px: uniform(1280.0)
+        blur_sample_step_gain: uniform(4.0)
+        blur_tap_layout: uniform(0.0)
+        blur_render_graph: uniform(0.0)
         peripheral_stretch_core_scale: uniform(1.0)
         peripheral_stretch_edge_inset_uv: uniform(0.015)
         peripheral_stretch_max_inset_uv: uniform(0.14)
@@ -651,8 +735,9 @@ script_mod! {
         }
 
         sample_camera_blur_rgb: fn(coord: vec2f, eye_selector: float) -> vec3f {
-            let blur_source_texel = vec2(1.0 / 1280.0, 1.0 / 1280.0);
-            let sample_step = blur_source_texel * clamp(self.blur_radius_px, 0.0, 16.0) * 4.0;
+            let blur_source_size = max(self.blur_source_size_px, 1.0);
+            let blur_source_texel = vec2(1.0 / blur_source_size, 1.0 / blur_source_size);
+            let sample_step = blur_source_texel * max(self.blur_radius_px, 0.0) * max(self.blur_sample_step_gain, 0.0);
             let sample_uv = clamp(coord, vec2(0.0, 0.0), vec2(1.0, 1.0));
             let x0 = -2.0 * sample_step.x;
             let x1 = -1.0 * sample_step.x;
@@ -664,6 +749,24 @@ script_mod! {
             let y2 = 0.0;
             let y3 = 1.0 * sample_step.y;
             let y4 = 2.0 * sample_step.y;
+            if self.blur_tap_layout > 0.5 && self.blur_tap_layout < 1.5 {
+                let color =
+                    self.sample_camera_rgb(sample_uv + vec2(x0, y2), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x1, y2), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x2, y2), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x3, y2), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x4, y2), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x2, y0), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x2, y1), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x2, y3), eye_selector) +
+                    self.sample_camera_rgb(sample_uv + vec2(x2, y4), eye_selector);
+                let cross_color = color / 9.0;
+                return vec3(
+                    clamp(cross_color.x, 0.0, 1.0),
+                    clamp(cross_color.y, 0.0, 1.0),
+                    clamp(cross_color.z, 0.0, 1.0)
+                );
+            }
             let row0 =
                 self.sample_camera_rgb(sample_uv + vec2(x0, y0), eye_selector) +
                 self.sample_camera_rgb(sample_uv + vec2(x1, y0), eye_selector) +
@@ -702,8 +805,19 @@ script_mod! {
             );
         }
 
+        sample_camera_blur_guide_rgb: fn(coord: vec2f, eye_selector: float) -> vec3f {
+            let sample_uv = clamp(coord, vec2(0.0, 0.0), vec2(1.0, 1.0));
+            if eye_selector > 0.5 {
+                return self.right_blur_guide_texture.sample_as_bgra(sample_uv).xyz;
+            }
+            return self.left_blur_guide_texture.sample_as_bgra(sample_uv).xyz;
+        }
+
         sample_processed_camera_rgb: fn(coord: vec2f, eye_selector: float) -> vec3f {
             if self.processing_layer > 0.5 && self.processing_layer < 1.5 {
+                if self.blur_render_graph > 0.5 && self.blur_render_graph < 1.5 {
+                    return self.sample_camera_blur_guide_rgb(coord, eye_selector);
+                }
                 return self.sample_camera_blur_rgb(coord, eye_selector);
             }
             return self.sample_camera_rgb(coord, eye_selector);
@@ -1465,6 +1579,14 @@ pub struct App {
     #[rust]
     blur_radius_px: f32,
     #[rust]
+    blur_source_size_px: f32,
+    #[rust]
+    blur_sample_step_gain: f32,
+    #[rust]
+    blur_tap_layout: f32,
+    #[rust]
+    blur_render_graph: f32,
+    #[rust]
     peripheral_stretch_core_scale: f32,
     #[rust]
     peripheral_stretch_edge_inset_uv: f32,
@@ -1556,7 +1678,25 @@ pub struct App {
     #[rust]
     projection_target_breath_scale: f32,
     #[rust]
+    projection_target_breath_target01: f32,
+    #[rust]
+    projection_target_breath_velocity_scale: f32,
+    #[rust]
+    projection_target_breath_previous_target_scale: f32,
+    #[rust]
+    projection_target_breath_last_update_time: f64,
+    #[rust]
+    projection_target_breath_last_phase: String,
+    #[rust]
+    projection_target_breath_last_sequence_id: u64,
+    #[rust]
+    projection_target_breath_last_sample_time_unix_ns: i64,
+    #[rust]
+    projection_target_breath_last_quality01: f32,
+    #[rust]
     projection_target_breath_last_sample_key: Option<String>,
+    #[rust]
+    projection_target_breath_last_log_frame: u64,
     #[rust]
     cadence_next_frame: Option<NextFrame>,
     #[rust]
@@ -1589,6 +1729,351 @@ pub struct App {
     cadence_left_last_position_ms: u128,
     #[rust]
     cadence_right_last_position_ms: u128,
+}
+
+#[derive(Script, ScriptHook)]
+#[repr(C)]
+pub struct DrawMakepadCameraGuideCopy {
+    #[deref]
+    draw_super: DrawQuad,
+}
+
+#[derive(Script, ScriptHook)]
+#[repr(C)]
+pub struct DrawMakepadCameraGuideBlurAxis {
+    #[deref]
+    draw_super: DrawQuad,
+}
+
+struct CameraGuideBlurEyeGraph {
+    guide_pass: DrawPass,
+    guide_draw_list: DrawList2d,
+    guide_texture: Texture,
+    horizontal_pass: DrawPass,
+    horizontal_draw_list: DrawList2d,
+    horizontal_texture: Texture,
+    vertical_pass: DrawPass,
+    vertical_draw_list: DrawList2d,
+    vertical_texture: Texture,
+    size_px: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct CameraGuideBlurRenderKey {
+    left_update_count: u64,
+    right_update_count: u64,
+    size_px: usize,
+    blur_radius_px_bits: u32,
+    blur_sample_step_gain_bits: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct CameraGuideBlurDrawResult {
+    ready: bool,
+    rendered: bool,
+}
+
+struct CameraGuideBlurGraph {
+    left: CameraGuideBlurEyeGraph,
+    right: CameraGuideBlurEyeGraph,
+    left_source: Option<Texture>,
+    right_source: Option<Texture>,
+    left_source_update_count: u64,
+    right_source_update_count: u64,
+    last_render_key: Option<CameraGuideBlurRenderKey>,
+}
+
+impl CameraGuideBlurEyeGraph {
+    fn new(cx: &mut Cx, label: &str, size_px: usize) -> Self {
+        let guide_pass = DrawPass::new_with_name(cx, &format!("{label}_guide_copy"));
+        let guide_draw_list = DrawList2d::new(cx);
+        let guide_texture = Self::new_render_texture(cx, size_px);
+        guide_pass.set_color_texture(
+            cx,
+            &guide_texture,
+            DrawPassClearColor::ClearWith(vec4(0.0, 0.0, 0.0, 1.0)),
+        );
+
+        let horizontal_pass = DrawPass::new_with_name(cx, &format!("{label}_guide_blur_h"));
+        let horizontal_draw_list = DrawList2d::new(cx);
+        let horizontal_texture = Self::new_render_texture(cx, size_px);
+        horizontal_pass.set_color_texture(
+            cx,
+            &horizontal_texture,
+            DrawPassClearColor::ClearWith(vec4(0.0, 0.0, 0.0, 1.0)),
+        );
+
+        let vertical_pass = DrawPass::new_with_name(cx, &format!("{label}_guide_blur_v"));
+        let vertical_draw_list = DrawList2d::new(cx);
+        let vertical_texture = Self::new_render_texture(cx, size_px);
+        vertical_pass.set_color_texture(
+            cx,
+            &vertical_texture,
+            DrawPassClearColor::ClearWith(vec4(0.0, 0.0, 0.0, 1.0)),
+        );
+
+        Self {
+            guide_pass,
+            guide_draw_list,
+            guide_texture,
+            horizontal_pass,
+            horizontal_draw_list,
+            horizontal_texture,
+            vertical_pass,
+            vertical_draw_list,
+            vertical_texture,
+            size_px,
+        }
+    }
+
+    fn new_render_texture(cx: &mut Cx, size_px: usize) -> Texture {
+        Texture::new_with_format(
+            cx,
+            TextureFormat::RenderBGRAu8 {
+                size: TextureSize::Fixed {
+                    width: size_px,
+                    height: size_px,
+                },
+                initial: true,
+            },
+        )
+    }
+
+    fn resize(&mut self, cx: &mut Cx, size_px: usize) {
+        if self.size_px == size_px {
+            return;
+        }
+        self.guide_texture = Self::new_render_texture(cx, size_px);
+        self.guide_pass.set_color_texture(
+            cx,
+            &self.guide_texture,
+            DrawPassClearColor::ClearWith(vec4(0.0, 0.0, 0.0, 1.0)),
+        );
+        self.horizontal_texture = Self::new_render_texture(cx, size_px);
+        self.horizontal_pass.set_color_texture(
+            cx,
+            &self.horizontal_texture,
+            DrawPassClearColor::ClearWith(vec4(0.0, 0.0, 0.0, 1.0)),
+        );
+        self.vertical_texture = Self::new_render_texture(cx, size_px);
+        self.vertical_pass.set_color_texture(
+            cx,
+            &self.vertical_texture,
+            DrawPassClearColor::ClearWith(vec4(0.0, 0.0, 0.0, 1.0)),
+        );
+        self.size_px = size_px;
+    }
+
+    fn draw(
+        &mut self,
+        cx: &mut Cx2d,
+        copy: &mut DrawMakepadCameraGuideCopy,
+        blur_axis: &mut DrawMakepadCameraGuideBlurAxis,
+        source: &Texture,
+        size_px: usize,
+        blur_radius_px: f32,
+        blur_sample_step_gain: f32,
+    ) {
+        self.resize(cx, size_px);
+        let pass_size = dvec2(size_px as f64, size_px as f64);
+        self.draw_copy_pass(
+            cx,
+            copy,
+            source,
+            pass_size,
+            blur_radius_px,
+            blur_sample_step_gain,
+        );
+        let guide_texture = self.guide_texture.clone();
+        self.draw_blur_axis_pass(
+            cx,
+            blur_axis,
+            &guide_texture,
+            pass_size,
+            1.0,
+            blur_radius_px,
+            blur_sample_step_gain,
+        );
+    }
+
+    fn draw_copy_pass(
+        &mut self,
+        cx: &mut Cx2d,
+        copy: &mut DrawMakepadCameraGuideCopy,
+        source: &Texture,
+        pass_size: Vec2d,
+        blur_radius_px: f32,
+        blur_sample_step_gain: f32,
+    ) {
+        self.guide_pass.set_size(cx, pass_size);
+        cx.make_child_pass(&self.guide_pass);
+        cx.begin_pass(&self.guide_pass, Some(1.0));
+        self.guide_draw_list.begin_always(cx);
+        cx.begin_root_turtle(pass_size, Layout::flow_overlay());
+        copy.draw_vars.set_texture(0, source);
+        copy.draw_vars
+            .set_uniform(cx, live_id!(blur_radius_px), &[blur_radius_px]);
+        copy.draw_vars
+            .set_uniform(cx, live_id!(blur_sample_step_gain), &[blur_sample_step_gain]);
+        copy.draw_abs(
+            cx,
+            Rect {
+                pos: dvec2(0.0, 0.0),
+                size: pass_size,
+            },
+        );
+        cx.end_pass_sized_turtle();
+        self.guide_draw_list.end(cx);
+        cx.end_pass(&self.guide_pass);
+    }
+
+    fn draw_blur_axis_pass(
+        &mut self,
+        cx: &mut Cx2d,
+        blur_axis: &mut DrawMakepadCameraGuideBlurAxis,
+        source: &Texture,
+        pass_size: Vec2d,
+        axis: f32,
+        blur_radius_px: f32,
+        blur_sample_step_gain: f32,
+    ) {
+        let (pass, draw_list) = if axis < 0.5 {
+            (&self.horizontal_pass, &mut self.horizontal_draw_list)
+        } else {
+            (&self.vertical_pass, &mut self.vertical_draw_list)
+        };
+        pass.set_size(cx, pass_size);
+        cx.make_child_pass(pass);
+        cx.begin_pass(pass, Some(1.0));
+        draw_list.begin_always(cx);
+        cx.begin_root_turtle(pass_size, Layout::flow_overlay());
+        blur_axis.draw_vars.set_texture(0, source);
+        blur_axis
+            .draw_vars
+            .set_uniform(cx, live_id!(blur_radius_px), &[blur_radius_px]);
+        blur_axis
+            .draw_vars
+            .set_uniform(cx, live_id!(blur_sample_step_gain), &[blur_sample_step_gain]);
+        blur_axis
+            .draw_vars
+            .set_uniform(cx, live_id!(blur_axis), &[axis]);
+        blur_axis.draw_abs(
+            cx,
+            Rect {
+                pos: dvec2(0.0, 0.0),
+                size: pass_size,
+            },
+        );
+        cx.end_pass_sized_turtle();
+        draw_list.end(cx);
+        cx.end_pass(pass);
+    }
+}
+
+impl CameraGuideBlurGraph {
+    fn new(cx: &mut Cx) -> Self {
+        Self {
+            left: CameraGuideBlurEyeGraph::new(cx, "left_camera", BLUR_GUIDE_DEFAULT_TEXTURE_SIZE_PX),
+            right: CameraGuideBlurEyeGraph::new(
+                cx,
+                "right_camera",
+                BLUR_GUIDE_DEFAULT_TEXTURE_SIZE_PX,
+            ),
+            left_source: None,
+            right_source: None,
+            left_source_update_count: 0,
+            right_source_update_count: 0,
+            last_render_key: None,
+        }
+    }
+
+    fn set_sources(
+        &mut self,
+        left: Option<Texture>,
+        right: Option<Texture>,
+        left_update_count: u64,
+        right_update_count: u64,
+    ) {
+        self.left_source = left;
+        self.right_source = right;
+        self.left_source_update_count = left_update_count;
+        self.right_source_update_count = right_update_count;
+        self.last_render_key = None;
+    }
+
+    fn guide_texture_size_px(source_size_px: f32) -> usize {
+        source_size_px
+            .round()
+            .clamp(
+                BLUR_GUIDE_MIN_TEXTURE_SIZE_PX as f32,
+                BLUR_GUIDE_MAX_TEXTURE_SIZE_PX as f32,
+            ) as usize
+    }
+
+    fn draw(
+        &mut self,
+        cx: &mut Cx2d,
+        copy: &mut DrawMakepadCameraGuideCopy,
+        blur_axis: &mut DrawMakepadCameraGuideBlurAxis,
+        source_size_px: f32,
+        blur_radius_px: f32,
+        blur_sample_step_gain: f32,
+    ) -> CameraGuideBlurDrawResult {
+        let (Some(left_source), Some(right_source)) =
+            (self.left_source.clone(), self.right_source.clone())
+        else {
+            self.last_render_key = None;
+            return CameraGuideBlurDrawResult {
+                ready: false,
+                rendered: false,
+            };
+        };
+        let size_px = Self::guide_texture_size_px(source_size_px);
+        let render_key = CameraGuideBlurRenderKey {
+            left_update_count: self.left_source_update_count,
+            right_update_count: self.right_source_update_count,
+            size_px,
+            blur_radius_px_bits: blur_radius_px.to_bits(),
+            blur_sample_step_gain_bits: blur_sample_step_gain.to_bits(),
+        };
+        if self.last_render_key == Some(render_key) {
+            return CameraGuideBlurDrawResult {
+                ready: true,
+                rendered: false,
+            };
+        }
+        self.left.draw(
+            cx,
+            copy,
+            blur_axis,
+            &left_source,
+            size_px,
+            blur_radius_px,
+            blur_sample_step_gain,
+        );
+        self.right.draw(
+            cx,
+            copy,
+            blur_axis,
+            &right_source,
+            size_px,
+            blur_radius_px,
+            blur_sample_step_gain,
+        );
+        self.last_render_key = Some(render_key);
+        CameraGuideBlurDrawResult {
+            ready: true,
+            rendered: true,
+        }
+    }
+
+    fn left_blur_texture(&self) -> Texture {
+        self.left.vertical_texture.clone()
+    }
+
+    fn right_blur_texture(&self) -> Texture {
+        self.right.vertical_texture.clone()
+    }
 }
 
 #[derive(Script, ScriptHook, Debug)]
@@ -1670,6 +2155,14 @@ pub struct DrawMakepadStereoCameraPanel {
     pub projection_sample_mode: f32,
     #[rust(2.0_f32)]
     pub blur_radius_px: f32,
+    #[rust(1280.0_f32)]
+    pub blur_source_size_px: f32,
+    #[rust(4.0_f32)]
+    pub blur_sample_step_gain: f32,
+    #[rust(0.0_f32)]
+    pub blur_tap_layout: f32,
+    #[rust(0.0_f32)]
+    pub blur_render_graph: f32,
     #[rust(1.0_f32)]
     pub peripheral_stretch_core_scale: f32,
     #[rust(0.015_f32)]
@@ -1864,6 +2357,21 @@ impl DrawMakepadStereoCameraPanel {
         self.draw_vars.redraw(cx);
     }
 
+    fn set_blur_guide_textures(
+        &mut self,
+        cx: &mut Cx,
+        left: Option<Texture>,
+        right: Option<Texture>,
+        render_graph_code: f32,
+    ) {
+        self.assign_texture_slot(8, left);
+        self.assign_texture_slot(9, right);
+        self.blur_render_graph = render_graph_code;
+        self.draw_vars
+            .set_uniform(cx, live_id!(blur_render_graph), &[render_graph_code]);
+        self.draw_vars.redraw(cx);
+    }
+
     fn set_camera_yuv_textures(
         &mut self,
         cx: &mut Cx,
@@ -1918,6 +2426,10 @@ pub struct MakepadStereoCameraPanel {
     #[redraw]
     #[live]
     draw_panel: DrawMakepadStereoCameraPanel,
+    #[live]
+    draw_guide_copy: DrawMakepadCameraGuideCopy,
+    #[live]
+    draw_guide_blur_axis: DrawMakepadCameraGuideBlurAxis,
     #[live(vec3(0.92, 0.52, 0.010))]
     size: Vec3f,
     #[rust(false)]
@@ -1927,6 +2439,10 @@ pub struct MakepadStereoCameraPanel {
     node: XrNode,
     #[rust]
     synthetic_luma_probe_texture: Option<Texture>,
+    #[rust(CameraGuideBlurGraph::new(vm.cx_mut()))]
+    guide_blur_graph: CameraGuideBlurGraph,
+    #[rust(false)]
+    guide_blur_graph_output_bound: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1941,6 +2457,10 @@ struct HorizontalAlignmentTuning {
     processing_layer: f32,
     projection_sample_mode: f32,
     blur_radius_px: f32,
+    blur_source_size_px: f32,
+    blur_sample_step_gain: f32,
+    blur_tap_layout: f32,
+    blur_render_graph: f32,
     peripheral_stretch_core_scale: f32,
     peripheral_stretch_edge_inset_uv: f32,
     peripheral_stretch_max_inset_uv: f32,
@@ -1983,6 +2503,10 @@ impl Default for HorizontalAlignmentTuning {
             processing_layer: MakepadProcessingLayer::current().shader_code(),
             projection_sample_mode: MakepadProjectionSampleMode::current().shader_code(),
             blur_radius_px: makepad_blur_radius_px(),
+            blur_source_size_px: makepad_blur_source_size_px(),
+            blur_sample_step_gain: makepad_blur_sample_step_gain(),
+            blur_tap_layout: makepad_blur_tap_layout().shader_code(),
+            blur_render_graph: makepad_blur_render_graph().shader_code(),
             peripheral_stretch_core_scale: peripheral_stretch.core_scale,
             peripheral_stretch_edge_inset_uv: peripheral_stretch.edge_inset_uv,
             peripheral_stretch_max_inset_uv: peripheral_stretch.max_inset_uv,
@@ -2089,6 +2613,61 @@ impl MakepadStereoCameraPanel {
         self.draw_panel.draw_vars.redraw(cx);
     }
 
+    fn guide_blur_graph_requested(&self) -> bool {
+        self.draw_panel.blur_render_graph >= 0.5
+            && self.draw_panel.blur_render_graph < 1.5
+            && self.draw_panel.processing_layer > 0.5
+            && self.draw_panel.processing_layer < 1.5
+            && self.draw_panel.projection_sample_mode < 0.5
+            && self.draw_panel.yuv_mode <= 0.5
+    }
+
+    fn render_guide_blur_graph(&mut self, cx: &mut Cx3d) -> bool {
+        if !self.guide_blur_graph_requested() {
+            if self.guide_blur_graph_output_bound {
+                self.draw_panel
+                    .set_blur_guide_textures(cx.cx, None, None, 0.0);
+                self.guide_blur_graph_output_bound = false;
+            }
+            return false;
+        }
+
+        let result = {
+            let cx2d = &mut Cx2d::new(cx.cx);
+            self.guide_blur_graph.draw(
+                cx2d,
+                &mut self.draw_guide_copy,
+                &mut self.draw_guide_blur_axis,
+                self.draw_panel.blur_source_size_px,
+                self.draw_panel.blur_radius_px,
+                self.draw_panel.blur_sample_step_gain,
+            )
+        };
+        if result.ready {
+            if result.rendered || !self.guide_blur_graph_output_bound {
+                self.draw_panel.set_blur_guide_textures(
+                    cx.cx,
+                    Some(self.guide_blur_graph.left_blur_texture()),
+                    Some(self.guide_blur_graph.right_blur_texture()),
+                    MakepadBlurRenderGraph::OffscreenGuideTexture.shader_code(),
+                );
+                self.guide_blur_graph_output_bound = true;
+            }
+        } else if self.guide_blur_graph_output_bound {
+            self.draw_panel.set_blur_guide_textures(
+                cx.cx,
+                None,
+                None,
+                0.0,
+            );
+            self.guide_blur_graph_output_bound = false;
+        } else {
+            self.draw_panel
+                .set_blur_guide_textures(cx.cx, None, None, 0.0);
+        }
+        result.ready
+    }
+
     fn synthetic_luma_probe_texture(&mut self, cx: &mut Cx) -> Texture {
         if let Some(texture) = &self.synthetic_luma_probe_texture {
             return texture.clone();
@@ -2136,7 +2715,15 @@ impl MakepadStereoCameraPanel {
         right_screen_to_surface_h: [[f32; 3]; 3],
         source_sample_y_flip: f32,
         projection_content_mapping_mode: f32,
+        left_texture_update_count: u64,
+        right_texture_update_count: u64,
     ) {
+        self.guide_blur_graph.set_sources(
+            left.clone(),
+            right.clone(),
+            left_texture_update_count,
+            right_texture_update_count,
+        );
         self.draw_panel.set_camera_textures(cx, left, right);
         let (left_yuv, right_yuv) = if SYNTHETIC_LUMA_SLOT_PROOF {
             let probe = self.synthetic_luma_probe_texture(cx);
@@ -2249,6 +2836,10 @@ impl MakepadStereoCameraPanel {
         self.draw_panel.projection_sample_mode =
             MakepadProjectionSampleMode::current().shader_code();
         self.draw_panel.blur_radius_px = makepad_blur_radius_px();
+        self.draw_panel.blur_source_size_px = makepad_blur_source_size_px();
+        self.draw_panel.blur_sample_step_gain = makepad_blur_sample_step_gain();
+        self.draw_panel.blur_tap_layout = makepad_blur_tap_layout().shader_code();
+        self.draw_panel.blur_render_graph = makepad_blur_render_graph().shader_code();
         let peripheral_stretch = MakepadPeripheralStretchConfig::current();
         self.draw_panel.peripheral_stretch_core_scale = peripheral_stretch.core_scale;
         self.draw_panel.peripheral_stretch_edge_inset_uv = peripheral_stretch.edge_inset_uv;
@@ -2342,6 +2933,26 @@ impl MakepadStereoCameraPanel {
         self.set_panel_uniform_f32(cx, live_id!(blur_radius_px), self.draw_panel.blur_radius_px);
         self.set_panel_uniform_f32(
             cx,
+            live_id!(blur_source_size_px),
+            self.draw_panel.blur_source_size_px,
+        );
+        self.set_panel_uniform_f32(
+            cx,
+            live_id!(blur_sample_step_gain),
+            self.draw_panel.blur_sample_step_gain,
+        );
+        self.set_panel_uniform_f32(
+            cx,
+            live_id!(blur_tap_layout),
+            self.draw_panel.blur_tap_layout,
+        );
+        self.set_panel_uniform_f32(
+            cx,
+            live_id!(blur_render_graph),
+            self.draw_panel.blur_render_graph,
+        );
+        self.set_panel_uniform_f32(
+            cx,
             live_id!(projection_area_diagnostic),
             TARGET_PROJECTION_AREA_DIAGNOSTIC,
         );
@@ -2356,6 +2967,19 @@ impl MakepadStereoCameraPanel {
             ),
             (live_id!(processing_layer), self.draw_panel.processing_layer),
             (live_id!(blur_radius_px), self.draw_panel.blur_radius_px),
+            (
+                live_id!(blur_source_size_px),
+                self.draw_panel.blur_source_size_px,
+            ),
+            (
+                live_id!(blur_sample_step_gain),
+                self.draw_panel.blur_sample_step_gain,
+            ),
+            (live_id!(blur_tap_layout), self.draw_panel.blur_tap_layout),
+            (
+                live_id!(blur_render_graph),
+                self.draw_panel.blur_render_graph,
+            ),
             (
                 live_id!(peripheral_stretch_core_scale),
                 self.draw_panel.peripheral_stretch_core_scale,
@@ -2746,6 +3370,10 @@ impl MakepadStereoCameraPanel {
         self.draw_panel.processing_layer = tuning.processing_layer;
         self.draw_panel.projection_sample_mode = tuning.projection_sample_mode;
         self.draw_panel.blur_radius_px = tuning.blur_radius_px;
+        self.draw_panel.blur_source_size_px = tuning.blur_source_size_px;
+        self.draw_panel.blur_sample_step_gain = tuning.blur_sample_step_gain;
+        self.draw_panel.blur_tap_layout = tuning.blur_tap_layout;
+        self.draw_panel.blur_render_graph = tuning.blur_render_graph;
         self.draw_panel.peripheral_stretch_core_scale = tuning.peripheral_stretch_core_scale;
         self.draw_panel.peripheral_stretch_edge_inset_uv = tuning.peripheral_stretch_edge_inset_uv;
         self.draw_panel.peripheral_stretch_max_inset_uv = tuning.peripheral_stretch_max_inset_uv;
@@ -2806,6 +3434,13 @@ impl MakepadStereoCameraPanel {
                 tuning.projection_sample_mode,
             ),
             (live_id!(blur_radius_px), tuning.blur_radius_px),
+            (live_id!(blur_source_size_px), tuning.blur_source_size_px),
+            (
+                live_id!(blur_sample_step_gain),
+                tuning.blur_sample_step_gain,
+            ),
+            (live_id!(blur_tap_layout), tuning.blur_tap_layout),
+            (live_id!(blur_render_graph), tuning.blur_render_graph),
             (
                 live_id!(peripheral_stretch_core_scale),
                 tuning.peripheral_stretch_core_scale,
@@ -2945,6 +3580,7 @@ impl Widget for MakepadStereoCameraPanel {
         self.draw_panel.cube_size = vec3f(1.0, 1.0, 0.0);
         self.draw_panel.depth_clip = 0.0;
         if MakepadProjectionSampleMode::current().draws_projection_panel() {
+            self.render_guide_blur_graph(cx);
             self.draw_panel.draw(cx);
         }
 
@@ -3456,6 +4092,10 @@ impl App {
                 KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STREAM,
                 DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STREAM,
             ),
+            scale_mode: hotload_text(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SCALE_MODE,
+                DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SCALE_MODE,
+            ),
             scale_at_volume0: hotload_f32(
                 KEY_MAKEPAD_PROJECTION_TARGET_BREATH_MIN_SCALE,
                 DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_MIN_SCALE,
@@ -3471,6 +4111,36 @@ impl App {
             smoothing_alpha: hotload_f32(
                 KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA,
                 DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA,
+                0.0,
+                1.0,
+            ),
+            smoothing_seconds: hotload_f32(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_SECONDS,
+                DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_SECONDS,
+                0.0,
+                5.0,
+            ),
+            inhale_seconds_min_to_max: hotload_f32(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_INHALE_SECONDS_MIN_TO_MAX,
+                DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_INHALE_SECONDS_MIN_TO_MAX,
+                0.01,
+                60.0,
+            ),
+            exhale_seconds_max_to_min: hotload_f32(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_EXHALE_SECONDS_MAX_TO_MIN,
+                DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_EXHALE_SECONDS_MAX_TO_MIN,
+                0.01,
+                60.0,
+            ),
+            state_inhale_threshold01: hotload_f32(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_INHALE_THRESHOLD01,
+                DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_INHALE_THRESHOLD01,
+                0.0,
+                1.0,
+            ),
+            state_exhale_threshold01: hotload_f32(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_EXHALE_THRESHOLD01,
+                DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_EXHALE_THRESHOLD01,
                 0.0,
                 1.0,
             ),
@@ -3496,7 +4166,7 @@ impl App {
             "disabled"
         };
         format!(
-            "RUSTY_QUEST_MAKEPAD_BREATH_SCALE_CONFIG schema=rusty.quest.makepad-breath-scale-config.v1 phase=hotload status={} enabled={} controls={} controlsRaw={} stream={} streamRaw={} scaleAtVolume0={:.4} scaleAtVolume0Raw={} scaleAtVolume1={:.4} scaleAtVolume1Raw={} smoothingAlpha={:.4} smoothingAlphaRaw={} invert={} invertRaw={} minQuality={:.4} minQualityRaw={} scaleOwner=makepad-projection-target consumer=manifold-breath-volume flagsOwner=hostessctl.record_values",
+            "RUSTY_QUEST_MAKEPAD_BREATH_SCALE_CONFIG schema=rusty.quest.makepad-breath-scale-config.v1 phase=hotload status={} enabled={} controls={} controlsRaw={} stream={} streamRaw={} scaleMode={} scaleModeRaw={} scaleAtVolume0={:.4} scaleAtVolume0Raw={} scaleAtVolume1={:.4} scaleAtVolume1Raw={} smoothingAlpha={:.4} smoothingAlphaRaw={} smoothingSeconds={:.4} smoothingSecondsRaw={} inhaleSecondsMinToMax={:.4} inhaleSecondsRaw={} exhaleSecondsMaxToMin={:.4} exhaleSecondsRaw={} stateInhaleThreshold01={:.4} stateInhaleThresholdRaw={} stateExhaleThreshold01={:.4} stateExhaleThresholdRaw={} invert={} invertRaw={} minQuality={:.4} minQualityRaw={} scaleOwner=makepad-projection-target consumer=manifold-breath-state-or-volume flagsOwner=hostessctl.record_values",
             status,
             config.enabled,
             marker_token(&config.controls),
@@ -3506,6 +4176,10 @@ impl App {
             marker_token(&config.stream_id),
             marker_token(&Self::runtime_marker_value(
                 KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STREAM
+            )),
+            marker_token(&config.scale_mode),
+            marker_token(&Self::runtime_marker_value(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SCALE_MODE
             )),
             config.scale_at_volume0,
             marker_token(&Self::runtime_marker_value(
@@ -3518,6 +4192,26 @@ impl App {
             config.smoothing_alpha,
             marker_token(&Self::runtime_marker_value(
                 KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_ALPHA
+            )),
+            config.smoothing_seconds,
+            marker_token(&Self::runtime_marker_value(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_SMOOTHING_SECONDS
+            )),
+            config.inhale_seconds_min_to_max,
+            marker_token(&Self::runtime_marker_value(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_INHALE_SECONDS_MIN_TO_MAX
+            )),
+            config.exhale_seconds_max_to_min,
+            marker_token(&Self::runtime_marker_value(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_EXHALE_SECONDS_MAX_TO_MIN
+            )),
+            config.state_inhale_threshold01,
+            marker_token(&Self::runtime_marker_value(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_INHALE_THRESHOLD01
+            )),
+            config.state_exhale_threshold01,
+            marker_token(&Self::runtime_marker_value(
+                KEY_MAKEPAD_PROJECTION_TARGET_BREATH_STATE_EXHALE_THRESHOLD01
             )),
             config.invert,
             marker_token(&Self::runtime_marker_value(
@@ -3683,7 +4377,7 @@ impl App {
         }
     }
 
-    fn handle_projection_target_breath_scale(&mut self, cx: &mut Cx) {
+    fn handle_projection_target_breath_scale(&mut self, cx: &mut Cx, now_seconds: f64) {
         let config = Self::projection_target_breath_scale_config();
         let config_marker = Self::projection_target_breath_scale_config_marker_line(&config);
         if self
@@ -3697,62 +4391,130 @@ impl App {
         if !config.enabled {
             self.projection_target_breath_scale_ready = false;
             self.projection_target_breath_last_sample_key = None;
+            self.projection_target_breath_last_update_time = 0.0;
+            self.projection_target_breath_velocity_scale = 0.0;
+            self.projection_target_breath_last_phase.clear();
+            self.projection_target_breath_last_log_frame = 0;
             return;
         }
 
-        let Some(sample) = self
+        let sample = self
             .manifold_breath_feedback_subscriber
             .as_ref()
-            .and_then(ManifoldBreathFeedbackSubscriber::latest_sample)
-        else {
-            return;
-        };
-        if sample.stream_id != config.stream_id {
-            return;
+            .and_then(ManifoldBreathFeedbackSubscriber::latest_sample);
+        let current_tuning = self.current_horizontal_alignment_tuning();
+        if !self.projection_target_breath_scale_ready {
+            self.projection_target_breath_scale =
+                current_tuning.projection_target_scale.clamp(PROJECTION_TARGET_MIN_SCALE, PROJECTION_TARGET_MAX_SCALE);
+            self.projection_target_breath_target01 = makepad_projection_target_breath_volume_for_scale(
+                self.projection_target_breath_scale,
+                config.scale_at_volume0,
+                config.scale_at_volume1,
+                config.invert,
+            );
+            self.projection_target_breath_previous_target_scale =
+                makepad_projection_target_breath_scale_for_volume(
+                    self.projection_target_breath_target01,
+                    config.scale_at_volume0,
+                    config.scale_at_volume1,
+                    config.invert,
+                );
+            self.projection_target_breath_velocity_scale = 0.0;
+            self.projection_target_breath_last_update_time = now_seconds.max(0.0);
+            self.projection_target_breath_last_phase = "pause".to_string();
         }
 
-        let sample_key = makepad_projection_target_breath_sample_key(&sample);
-        if self
-            .projection_target_breath_last_sample_key
+        let mut new_sample = false;
+        let mut rejected_sample = false;
+        if let Some(sample) = sample
             .as_ref()
-            .is_some_and(|previous| previous == &sample_key)
+            .filter(|sample| sample.stream_id.as_str() == config.stream_id.as_str())
         {
+            let sample_key = makepad_projection_target_breath_sample_key(sample);
+            if self
+                .projection_target_breath_last_sample_key
+                .as_ref()
+                .is_none_or(|previous| previous != &sample_key)
+            {
+                self.projection_target_breath_last_sample_key = Some(sample_key);
+                let sample_quality01 = sample.quality01.unwrap_or(-1.0);
+                if makepad_projection_target_breath_quality_passes(sample, config.min_quality) {
+                    self.projection_target_breath_last_phase =
+                        makepad_projection_target_breath_phase(sample, &config).to_string();
+                    self.projection_target_breath_last_sequence_id = sample.sequence_id;
+                    self.projection_target_breath_last_sample_time_unix_ns =
+                        sample.sample_time_unix_ns;
+                    self.projection_target_breath_last_quality01 = sample_quality01 as f32;
+                    if !makepad_projection_target_breath_scale_mode_is_state_ramp(
+                        &config.scale_mode,
+                    ) {
+                        self.projection_target_breath_target01 =
+                            makepad_projection_target_breath_volume01(sample.volume01 as f32);
+                    }
+                    new_sample = true;
+                } else {
+                    rejected_sample = true;
+                    Self::emit_stereo_projection_marker(&format!(
+                        "phase=projection-target-breath-scale status=rejected reason=quality-below-min source=manifold-breath stream={} sequenceId={} value01={:.4} quality={} quality01={:.4} minQuality={:.4}",
+                        marker_token(&sample.stream_id),
+                        sample.sequence_id,
+                        sample.volume01,
+                        marker_token(&sample.quality),
+                        sample_quality01,
+                        config.min_quality,
+                    ));
+                }
+            }
+        }
+        if rejected_sample && !self.projection_target_breath_scale_ready {
             return;
         }
-        self.projection_target_breath_last_sample_key = Some(sample_key);
 
-        let sample_quality01 = sample.quality01.unwrap_or(-1.0);
-        if !makepad_projection_target_breath_quality_passes(&sample, config.min_quality) {
-            Self::emit_stereo_projection_marker(&format!(
-                "phase=projection-target-breath-scale status=rejected reason=quality-below-min source=manifold-breath-volume stream={} sequenceId={} volume01={:.4} quality={} quality01={:.4} minQuality={:.4}",
-                marker_token(&sample.stream_id),
-                sample.sequence_id,
-                sample.volume01,
-                marker_token(&sample.quality),
-                sample_quality01,
-                config.min_quality,
-            ));
-            return;
+        let dt_seconds = if self.projection_target_breath_last_update_time > 0.0 {
+            (now_seconds - self.projection_target_breath_last_update_time).clamp(0.0, 0.1) as f32
+        } else {
+            0.0
+        };
+        self.projection_target_breath_last_update_time = now_seconds.max(0.0);
+        if makepad_projection_target_breath_scale_mode_is_state_ramp(&config.scale_mode) {
+            self.projection_target_breath_target01 = makepad_projection_target_breath_state_step(
+                self.projection_target_breath_target01,
+                &self.projection_target_breath_last_phase,
+                dt_seconds,
+                config.inhale_seconds_min_to_max,
+                config.exhale_seconds_max_to_min,
+            );
         }
 
         let target_scale = makepad_projection_target_breath_scale_for_volume(
-            sample.volume01 as f32,
+            self.projection_target_breath_target01,
             config.scale_at_volume0,
             config.scale_at_volume1,
             config.invert,
         );
-        let current_tuning = self.current_horizontal_alignment_tuning();
-        let previous_scale = if self.projection_target_breath_scale_ready {
-            self.projection_target_breath_scale
+        let previous_scale = self.projection_target_breath_scale;
+        let next_scale = if makepad_projection_target_breath_scale_mode_is_state_ramp(
+            &config.scale_mode,
+        ) {
+            makepad_projection_target_breath_spring_scale(
+                previous_scale,
+                target_scale,
+                &mut self.projection_target_breath_velocity_scale,
+                &mut self.projection_target_breath_previous_target_scale,
+                config.smoothing_seconds,
+                dt_seconds,
+                self.projection_target_breath_scale_ready,
+            )
+        } else if new_sample {
+            makepad_projection_target_breath_smoothed_scale(
+                previous_scale,
+                target_scale,
+                config.smoothing_alpha,
+                self.projection_target_breath_scale_ready,
+            )
         } else {
-            current_tuning.projection_target_scale
+            previous_scale
         };
-        let next_scale = makepad_projection_target_breath_smoothed_scale(
-            previous_scale,
-            target_scale,
-            config.smoothing_alpha,
-            self.projection_target_breath_scale_ready,
-        );
         self.projection_target_breath_scale_ready = true;
         self.projection_target_breath_scale = next_scale;
         self.projection_target_joystick_scale = next_scale;
@@ -3761,26 +4523,38 @@ impl App {
         tuning.projection_target_scale = next_scale;
         self.projection_target_scale = tuning.projection_target_scale;
         let panel_bound = self.apply_horizontal_alignment_tuning_to_panel(cx, tuning);
-        Self::emit_stereo_projection_marker(&format!(
-            "phase=projection-target-breath-scale status=applied source=manifold-breath-volume stream={} sequenceId={} sampleTimeUnixNs={} volume01={:.4} phase={} quality={} quality01={:.4} scaleAtVolume0={:.4} scaleAtVolume1={:.4} invert={} smoothingAlpha={:.4} targetScale={:.4} previousScale={:.4} projectionTargetScale={:.4} projectionTargetOffsetXUv={:.4} projectionTargetOffsetYUv={:.4} panelBound={}",
-            marker_token(&sample.stream_id),
-            sample.sequence_id,
-            sample.sample_time_unix_ns,
-            sample.volume01,
-            marker_token(&sample.phase),
-            marker_token(&sample.quality),
-            sample_quality01,
-            config.scale_at_volume0,
-            config.scale_at_volume1,
-            config.invert,
-            config.smoothing_alpha,
-            target_scale,
-            previous_scale,
-            tuning.projection_target_scale,
-            tuning.projection_target_offset_x_uv,
-            tuning.projection_target_offset_y_uv,
-            panel_bound,
-        ));
+        let frame = self.cadence_xr_update_count;
+        let changed = (next_scale - previous_scale).abs() > 0.0001;
+        let should_log = new_sample
+            || changed
+                && (self.projection_target_breath_last_log_frame == 0
+                    || frame.saturating_sub(self.projection_target_breath_last_log_frame) >= 30);
+        if should_log {
+            Self::emit_stereo_projection_marker(&format!(
+                "phase=projection-target-breath-scale status=applied source=manifold-breath stream={} scaleMode={} sequenceId={} sampleTimeUnixNs={} retainedPhase={} retainedQuality01={:.4} target01={:.4} scaleAtVolume0={:.4} scaleAtVolume1={:.4} invert={} smoothingAlpha={:.4} smoothingSeconds={:.4} inhaleSecondsMinToMax={:.4} exhaleSecondsMaxToMin={:.4} targetScale={:.4} previousScale={:.4} projectionTargetScale={:.4} dtSeconds={:.4} newSample={} panelBound={}",
+                marker_token(&config.stream_id),
+                marker_token(&config.scale_mode),
+                self.projection_target_breath_last_sequence_id,
+                self.projection_target_breath_last_sample_time_unix_ns,
+                marker_token(&self.projection_target_breath_last_phase),
+                self.projection_target_breath_last_quality01,
+                self.projection_target_breath_target01,
+                config.scale_at_volume0,
+                config.scale_at_volume1,
+                config.invert,
+                config.smoothing_alpha,
+                config.smoothing_seconds,
+                config.inhale_seconds_min_to_max,
+                config.exhale_seconds_max_to_min,
+                target_scale,
+                previous_scale,
+                tuning.projection_target_scale,
+                dt_seconds,
+                new_sample,
+                panel_bound,
+            ));
+            self.projection_target_breath_last_log_frame = frame;
+        }
     }
 
     fn handle_manifold_breath_feedback_subscription(&mut self) {
@@ -4179,6 +4953,10 @@ impl App {
         let processing_layer = MakepadProcessingLayer::current().shader_code();
         let projection_sample_mode = MakepadProjectionSampleMode::current().shader_code();
         let blur_radius_px = makepad_blur_radius_px();
+        let blur_source_size_px = makepad_blur_source_size_px();
+        let blur_sample_step_gain = makepad_blur_sample_step_gain();
+        let blur_tap_layout = makepad_blur_tap_layout().shader_code();
+        let blur_render_graph = makepad_blur_render_graph().shader_code();
         let peripheral_stretch = MakepadPeripheralStretchConfig::current();
         let projection_area_diagnostic = hotload_f32(
             KEY_MAKEPAD_PROJECTION_AREA_DIAGNOSTIC,
@@ -4264,6 +5042,10 @@ impl App {
             processing_layer,
             projection_sample_mode,
             blur_radius_px,
+            blur_source_size_px,
+            blur_sample_step_gain,
+            blur_tap_layout,
+            blur_render_graph,
             peripheral_stretch_core_scale: peripheral_stretch.core_scale,
             peripheral_stretch_edge_inset_uv: peripheral_stretch.edge_inset_uv,
             peripheral_stretch_max_inset_uv: peripheral_stretch.max_inset_uv,
@@ -4306,6 +5088,10 @@ impl App {
                 processing_layer: self.processing_layer,
                 projection_sample_mode: self.projection_sample_mode,
                 blur_radius_px: self.blur_radius_px,
+                blur_source_size_px: self.blur_source_size_px,
+                blur_sample_step_gain: self.blur_sample_step_gain,
+                blur_tap_layout: self.blur_tap_layout,
+                blur_render_graph: self.blur_render_graph,
                 peripheral_stretch_core_scale: self.peripheral_stretch_core_scale,
                 peripheral_stretch_edge_inset_uv: self.peripheral_stretch_edge_inset_uv,
                 peripheral_stretch_max_inset_uv: self.peripheral_stretch_max_inset_uv,
@@ -4358,6 +5144,10 @@ impl App {
             || (self.processing_layer - tuning.processing_layer).abs() > 0.0001
             || (self.projection_sample_mode - tuning.projection_sample_mode).abs() > 0.0001
             || (self.blur_radius_px - tuning.blur_radius_px).abs() > 0.0001
+            || (self.blur_source_size_px - tuning.blur_source_size_px).abs() > 0.0001
+            || (self.blur_sample_step_gain - tuning.blur_sample_step_gain).abs() > 0.0001
+            || (self.blur_tap_layout - tuning.blur_tap_layout).abs() > 0.0001
+            || (self.blur_render_graph - tuning.blur_render_graph).abs() > 0.0001
             || (self.peripheral_stretch_core_scale - tuning.peripheral_stretch_core_scale).abs()
                 > 0.0001
             || (self.peripheral_stretch_edge_inset_uv - tuning.peripheral_stretch_edge_inset_uv)
@@ -4420,6 +5210,10 @@ impl App {
         self.processing_layer = tuning.processing_layer;
         self.projection_sample_mode = tuning.projection_sample_mode;
         self.blur_radius_px = tuning.blur_radius_px;
+        self.blur_source_size_px = tuning.blur_source_size_px;
+        self.blur_sample_step_gain = tuning.blur_sample_step_gain;
+        self.blur_tap_layout = tuning.blur_tap_layout;
+        self.blur_render_graph = tuning.blur_render_graph;
         self.peripheral_stretch_core_scale = tuning.peripheral_stretch_core_scale;
         self.peripheral_stretch_edge_inset_uv = tuning.peripheral_stretch_edge_inset_uv;
         self.peripheral_stretch_max_inset_uv = tuning.peripheral_stretch_max_inset_uv;
@@ -4483,7 +5277,7 @@ impl App {
                 self.handle_manifold_breath_feedback_subscription();
                 self.handle_manifold_pose_publish(_update);
                 self.handle_projection_target_joystick(cx, _update);
-                self.handle_projection_target_breath_scale(cx);
+                self.handle_projection_target_breath_scale(cx, _update.state.as_ref().time.max(0.0));
                 self.handle_mesh_replay_update(cx, _update);
                 #[cfg(target_os = "android")]
                 self.update_runtime_xr_projection(_update);
@@ -5222,6 +6016,11 @@ impl App {
                                 &updated.metadata,
                                 MakepadProjectionBorderPolicy::current().stable_id(),
                                 MakepadProcessingLayer::current().stable_id(),
+                                &makepad_blur_marker_fields(
+                                    makepad_blur_radius_px(),
+                                    makepad_blur_source_size_px(),
+                                    makepad_blur_sample_step_gain(),
+                                ),
                             ),
                         );
                         let camera_id =
@@ -5926,6 +6725,14 @@ impl App {
         } else {
             None
         };
+        let left_texture_update_count = adopted_frame
+            .as_ref()
+            .map(|frame| frame.left.texture_update_count)
+            .unwrap_or(self.cadence_left_texture_update_count);
+        let right_texture_update_count = adopted_frame
+            .as_ref()
+            .map(|frame| frame.right.texture_update_count)
+            .unwrap_or(self.cadence_right_texture_update_count);
         panel.set_camera_textures(
             cx,
             left_panel_texture,
@@ -5949,6 +6756,8 @@ impl App {
             pair.right_screen_to_surface_h,
             source_sample_y_flip,
             projection_content_mapping_mode,
+            left_texture_update_count,
+            right_texture_update_count,
         );
         panel.set_target_footprint(cx, pair.target_footprint);
         panel.set_horizontal_alignment_tuning(cx, self.current_horizontal_alignment_tuning());
@@ -7912,6 +8721,124 @@ fn makepad_projection_target_breath_scale_for_volume(
         .clamp(PROJECTION_TARGET_MIN_SCALE, PROJECTION_TARGET_MAX_SCALE)
 }
 
+fn makepad_projection_target_breath_volume_for_scale(
+    scale: f32,
+    scale_at_volume0: f32,
+    scale_at_volume1: f32,
+    invert: bool,
+) -> f32 {
+    let span = scale_at_volume1 - scale_at_volume0;
+    let value01 = if span.abs() <= 1.0e-6 {
+        0.5
+    } else {
+        ((scale - scale_at_volume0) / span).clamp(0.0, 1.0)
+    };
+    if invert {
+        1.0 - value01
+    } else {
+        value01
+    }
+}
+
+fn makepad_projection_target_breath_volume01(value01: f32) -> f32 {
+    value01.clamp(0.0, 1.0)
+}
+
+fn makepad_projection_target_breath_scale_mode_is_state_ramp(scale_mode: &str) -> bool {
+    matches!(
+        scale_mode.trim().to_ascii_lowercase().replace('_', "-").as_str(),
+        "state-ramp" | "state-spring" | "breathing-state"
+    )
+}
+
+fn makepad_projection_target_breath_phase(
+    sample: &BreathFeedbackSample,
+    config: &ProjectionTargetBreathScaleConfig,
+) -> &'static str {
+    let phase = sample.phase.trim().to_ascii_lowercase().replace('_', "-");
+    match phase.as_str() {
+        "inhale" | "inhaling" => "inhale",
+        "exhale" | "exhaling" => "exhale",
+        "bad-tracking" | "badtracking" | "bad_tracking" => "bad_tracking",
+        "pause" | "paused" | "retention" | "hold" => "pause",
+        _ => {
+            let state01 = sample.volume01.clamp(0.0, 1.0) as f32;
+            let inhale_threshold = config.state_inhale_threshold01.clamp(0.0, 1.0);
+            let exhale_threshold = config
+                .state_exhale_threshold01
+                .clamp(0.0, inhale_threshold);
+            if state01 >= inhale_threshold {
+                "inhale"
+            } else if state01 <= exhale_threshold {
+                "exhale"
+            } else {
+                "pause"
+            }
+        }
+    }
+}
+
+fn makepad_projection_target_breath_state_step(
+    current01: f32,
+    phase: &str,
+    dt_seconds: f32,
+    inhale_seconds_min_to_max: f32,
+    exhale_seconds_max_to_min: f32,
+) -> f32 {
+    let phase = phase.trim().to_ascii_lowercase().replace('_', "-");
+    let dt_seconds = dt_seconds.max(0.0);
+    let next = match phase.as_str() {
+        "inhale" | "inhaling" => {
+            current01 + dt_seconds / inhale_seconds_min_to_max.max(0.01)
+        }
+        "exhale" | "exhaling" => {
+            current01 - dt_seconds / exhale_seconds_max_to_min.max(0.01)
+        }
+        _ => current01,
+    };
+    next.clamp(0.0, 1.0)
+}
+
+fn makepad_projection_target_breath_spring_scale(
+    previous_scale: f32,
+    target_scale: f32,
+    velocity_scale: &mut f32,
+    previous_target_scale: &mut f32,
+    smoothing_seconds: f32,
+    dt_seconds: f32,
+    scale_ready: bool,
+) -> f32 {
+    let target_scale = target_scale.clamp(PROJECTION_TARGET_MIN_SCALE, PROJECTION_TARGET_MAX_SCALE);
+    if !scale_ready {
+        *velocity_scale = 0.0;
+        *previous_target_scale = target_scale;
+        return target_scale;
+    }
+    let previous_scale = previous_scale.clamp(PROJECTION_TARGET_MIN_SCALE, PROJECTION_TARGET_MAX_SCALE);
+    let dt_seconds = dt_seconds.max(1.0e-4);
+    let smooth = smoothing_seconds.max(0.01);
+    let remaining = (target_scale - previous_scale).abs().max(1.0e-6);
+    let target_jump = (target_scale - *previous_target_scale).abs();
+    if target_jump > 2.0 * remaining {
+        *velocity_scale = 0.0;
+    }
+    *previous_target_scale = target_scale;
+
+    let omega = 2.0 / smooth;
+    let x = omega * dt_seconds;
+    let exp = 1.0 / (1.0 + x + 0.48 * x * x + 0.235 * x * x * x);
+    let change = previous_scale - target_scale;
+    let temp = (*velocity_scale + omega * change) * dt_seconds;
+    *velocity_scale = (*velocity_scale - omega * temp) * exp;
+    let mut next = target_scale + (change + temp) * exp;
+    if target_scale >= previous_scale {
+        next = next.min(target_scale);
+    } else {
+        next = next.max(target_scale);
+    }
+    next.clamp(PROJECTION_TARGET_MIN_SCALE, PROJECTION_TARGET_MAX_SCALE)
+}
+
 fn makepad_projection_target_breath_smoothed_scale(
     previous_scale: f32,
     target_scale: f32,
@@ -7948,6 +8875,25 @@ fn makepad_projection_target_breath_sample_key(sample: &BreathFeedbackSample) ->
 #[cfg(test)]
 mod projection_target_joystick_tests {
     use super::*;
+
+    fn breath_scale_config(scale_mode: &str) -> ProjectionTargetBreathScaleConfig {
+        ProjectionTargetBreathScaleConfig {
+            enabled: true,
+            controls: "scale".to_string(),
+            stream_id: DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STREAM.to_string(),
+            scale_mode: scale_mode.to_string(),
+            scale_at_volume0: 1.0,
+            scale_at_volume1: 0.2,
+            smoothing_alpha: 0.75,
+            smoothing_seconds: 0.03,
+            inhale_seconds_min_to_max: 4.0,
+            exhale_seconds_max_to_min: 4.0,
+            state_inhale_threshold01: 0.75,
+            state_exhale_threshold01: 0.25,
+            invert: false,
+            min_quality: 0.0,
+        }
+    }
 
     #[test]
     fn joystick_controls_parse_canonical_offset_scale() {
@@ -8040,6 +8986,93 @@ mod projection_target_joystick_tests {
 
         assert!((first - 0.2).abs() < 0.0001);
         assert!((next - 0.5).abs() < 0.0001);
+    }
+
+    #[test]
+    fn breath_state_phase_decodes_threshold_pause_band() {
+        let config = breath_scale_config("state-ramp");
+        let mut sample = BreathFeedbackSample {
+            stream_id: DEFAULT_MAKEPAD_PROJECTION_TARGET_BREATH_STREAM.to_string(),
+            sequence_id: 7,
+            sample_time_unix_ns: 0,
+            volume01: 0.5,
+            phase: "unknown".to_string(),
+            quality: "ok".to_string(),
+            quality01: Some(1.0),
+            payload_hash: "hash".to_string(),
+        };
+
+        assert_eq!(
+            makepad_projection_target_breath_phase(&sample, &config),
+            "pause"
+        );
+        sample.volume01 = 0.9;
+        assert_eq!(
+            makepad_projection_target_breath_phase(&sample, &config),
+            "inhale"
+        );
+        sample.volume01 = 0.1;
+        assert_eq!(
+            makepad_projection_target_breath_phase(&sample, &config),
+            "exhale"
+        );
+    }
+
+    #[test]
+    fn breath_state_step_keeps_last_phase_active_over_time() {
+        let after_inhale = makepad_projection_target_breath_state_step(
+            0.5,
+            "inhale",
+            0.5,
+            4.0,
+            4.0,
+        );
+        let after_exhale = makepad_projection_target_breath_state_step(
+            after_inhale,
+            "exhale",
+            0.25,
+            4.0,
+            4.0,
+        );
+        let after_pause = makepad_projection_target_breath_state_step(
+            after_exhale,
+            "pause",
+            1.0,
+            4.0,
+            4.0,
+        );
+
+        assert!((after_inhale - 0.625).abs() < 0.0001);
+        assert!((after_exhale - 0.5625).abs() < 0.0001);
+        assert!((after_pause - after_exhale).abs() < 0.0001);
+    }
+
+    #[test]
+    fn breath_spring_scale_approaches_target_without_overshoot() {
+        let mut velocity = 0.0;
+        let mut previous_target = 1.0;
+        let first = makepad_projection_target_breath_spring_scale(
+            1.0,
+            0.2,
+            &mut velocity,
+            &mut previous_target,
+            0.2,
+            0.016,
+            true,
+        );
+        let second = makepad_projection_target_breath_spring_scale(
+            first,
+            0.2,
+            &mut velocity,
+            &mut previous_target,
+            0.2,
+            0.016,
+            true,
+        );
+
+        assert!(first < 1.0);
+        assert!(second < first);
+        assert!(second >= 0.2);
     }
 
     #[test]

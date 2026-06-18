@@ -132,6 +132,9 @@ pub(crate) fn parse_breath_feedback_event(
         payload.get("volume01"),
         payload.get("breath_volume01"),
         payload.get("volume_01"),
+        payload.get("state01"),
+        payload.get("breath_state01"),
+        payload.get("value01"),
     ])?;
     let phase = first_string(
         &[payload.get("phase"), payload.get("breath_phase")],
@@ -498,6 +501,31 @@ mod tests {
         );
         assert_eq!(receipt["params"]["received_sequence_id"], 7);
         assert_eq!(receipt["params"]["acknowledged"], true);
+    }
+
+    #[test]
+    fn parses_raw_state_stream_event_as_normalized_drive_value() {
+        let event = json!({
+            "type": "stream_event",
+            "stream": "stream.breath.state",
+            "sequence_id": 8,
+            "payload": {
+                "stream_id": "stream.breath.state",
+                "sample_time_unix_ns": 1777900000000000001_i64,
+                "state01": 1.0,
+                "phase": "inhale",
+                "quality": "state_fixed_orientation",
+                "tracking01": 0.95
+            }
+        });
+
+        let sample =
+            parse_breath_feedback_event(&event, "stream.breath.state").expect("sample parses");
+
+        assert_eq!(sample.sequence_id, 8);
+        assert_eq!(sample.phase, "inhale");
+        assert!((sample.volume01 - 1.0).abs() < 0.0001);
+        assert_eq!(sample.quality01, Some(0.95));
     }
 
     #[test]

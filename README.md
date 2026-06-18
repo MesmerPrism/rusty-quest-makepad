@@ -143,6 +143,12 @@ interference fixture. `fixtures\profiles\stimulus-volume-proof.bundle.json`
 uses the same boundary for the Optics volume proof profile and records a
 compact volume/compute ABI summary in the dry-run bundle report; this is
 profile adoption evidence, not a Quest Vulkan compute claim.
+`fixtures\profiles\stimulus-volume-bright.bundle.json` stages a separate
+volume-only bright interference profile for the Hostess fragment raymarcher:
+the profile suppresses the 2D base layer and validation texture mix, raises
+volume emission and black-threshold contrast, uses continuous depth-ramp
+coloring to make ray depth legible, and keeps controller randomization in the
+8-15 Hz range.
 Hostess can validate that volume profile through bounded Makepad XR/Vulkan
 readback markers: a point-sample probe and a 4x4-per-eye stereo raymarch
 preview. These markers consume the shared Optics bounded-volume CPU oracle and

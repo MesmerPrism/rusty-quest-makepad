@@ -25,11 +25,12 @@ use super::source_metadata::{
 use super::Camera2StereoPlan;
 use super::{
     hotload_bool, hotload_f32, hotload_text, makepad_camera_projection_mode_is_world_canvas,
-    makepad_current_source_color_contract_fields, makepad_projection_depth_meters,
-    makepad_projection_panel_geometry, makepad_projection_preview_fov_y_degrees,
-    makepad_projection_preview_offset_y_meters, makepad_projection_raw_overscan, marker_token, App,
-    HorizontalAlignmentTuning, MakepadCameraPair, MakepadPeripheralStretchBlendMode,
-    MakepadPeripheralStretchConfig, MakepadPeripheralStretchCornerMode,
+    makepad_blur_marker_fields, makepad_current_source_color_contract_fields,
+    makepad_projection_depth_meters, makepad_projection_panel_geometry,
+    makepad_projection_preview_fov_y_degrees, makepad_projection_preview_offset_y_meters,
+    makepad_projection_raw_overscan, marker_token, App, HorizontalAlignmentTuning,
+    MakepadCameraPair, MakepadPeripheralStretchBlendMode, MakepadPeripheralStretchConfig,
+    MakepadPeripheralStretchCornerMode,
     MakepadPeripheralStretchDebug, MakepadPeripheralStretchMode, MakepadProcessingLayer,
     MakepadProjectionAlphaMode, MakepadProjectionBorderPolicy, MakepadProjectionSampleMode,
     DEFAULT_MAKEPAD_PROJECTION_TARGET_JOYSTICK_CONTROLS, KEY_MAKEPAD_NATIVE_PASSTHROUGH_ENABLED,
@@ -1248,6 +1249,11 @@ pub(crate) fn makepad_horizontal_alignment_hotload_marker_fields(
         processing_layer.stable_id(),
         MakepadProjectionSampleMode::current().stable_id(),
         tuning.blur_radius_px,
+        &makepad_blur_marker_fields(
+            tuning.blur_radius_px,
+            tuning.blur_source_size_px,
+            tuning.blur_sample_step_gain,
+        ),
         &peripheral_stretch_fields,
         tuning.projection_area_diagnostic,
         tuning.projection_area_offset_left_uv,
@@ -1442,6 +1448,7 @@ fn horizontal_alignment_hotload_marker_fields(
     processing_layer: &str,
     projection_sample_mode: &str,
     blur_radius_px: f32,
+    blur_fields: &str,
     peripheral_stretch_fields: &str,
     projection_area_diagnostic: f32,
     projection_area_left_uv: f32,
@@ -1457,7 +1464,7 @@ fn horizontal_alignment_hotload_marker_fields(
     panel_bound: bool,
 ) -> String {
     format!(
-        "phase=horizontal-alignment-hotload status=applied s105HotloadHorizontalAlignmentControl=true s106SafeHorizontalWindowSampling=true s107WindowScaleHotload=true s108BorderlessWindowScale=false s109SolidRedProjectionExterior=true s110VerticalWindowOffsetHotload=true s111ProjectionAreaDiagnostic=true s112ProjectionAreaScreenOffset=true s113ProjectionAreaScreenScale=true s114ProjectionAreaFootprintOnlyDiagnostic=true s115ProjectionAreaKeystone=true s116ProjectionAreaMidpointBow=true s117PreHomographyDiagnosticOnly=true s118ProjectedFootprintLiveWindow=true s119ProcessingLayerHotload=true s120ProjectionAreaOpacityHotload=true s121ProjectionAreaRoundedMaskHotload=true s122ProjectionAlphaMaskHotload=true s123ProjectionSampleModeHotload=true s124PeripheralStretchLayerHotload=true horizontalAlignmentSource=screen_to_camera_center_delta_projection_area_source_valid_window manualHorizontalOffsetHotload=true verticalOffsetHotload=true contentUvScaleHotload=true projectionBorderOpacityHotload=true projectionBorderPolicyHotload=true processingLayerHotload=true projectionSampleModeHotload=true peripheralStretchHotload=true projectionAreaDiagnosticHotload=true projectionAreaScreenOffsetHotload=true projectionAreaScreenScaleHotload=true projectionAreaRoundedMaskHotload=true projectionAreaKeystoneHotload=true projectionAreaBowHotload=true projectionAreaOpacityHotload=true projectionAlphaMaskHotload=true projectionAreaTransformStage=pre_homography_screen_uv borderlessWindowMask=false solidRedProjectionExterior={} propertyPrefix=debug.rustyquest.makepad {} projectionAreaDiagnosticMode=0_off_1_full_2_footprint_only horizontalAlignmentStrength={:.4} manualLeftUv={:.4} manualRightUv={:.4} manualVerticalUv={:.4} contentUvScale={:.4} projectionBorderOpacity={:.4} projectionAreaOpacity={:.4} projectionAlphaMode={} projectionAlphaScale={:.4} projectionAlphaBias={:.4} processingLayer={} projectionSampleMode={} blurRadiusPx={:.2} {} projectionAreaDiagnostic={:.1} projectionAreaLeftUv={:.4} projectionAreaRightUv={:.4} projectionAreaVerticalUv={:.4} projectionAreaScaleX={:.4} projectionAreaScaleY={:.4} projectionAreaRadiusXUv={:.4} projectionAreaRadiusYUv={:.4} projectionAreaCornerRadiusUv={:.4} projectionAreaKeystoneX={:.4} projectionAreaBowX={:.4} panelBound={} visualInspection=required",
+        "phase=horizontal-alignment-hotload status=applied s105HotloadHorizontalAlignmentControl=true s106SafeHorizontalWindowSampling=true s107WindowScaleHotload=true s108BorderlessWindowScale=false s109SolidRedProjectionExterior=true s110VerticalWindowOffsetHotload=true s111ProjectionAreaDiagnostic=true s112ProjectionAreaScreenOffset=true s113ProjectionAreaScreenScale=true s114ProjectionAreaFootprintOnlyDiagnostic=true s115ProjectionAreaKeystone=true s116ProjectionAreaMidpointBow=true s117PreHomographyDiagnosticOnly=true s118ProjectedFootprintLiveWindow=true s119ProcessingLayerHotload=true s120ProjectionAreaOpacityHotload=true s121ProjectionAreaRoundedMaskHotload=true s122ProjectionAlphaMaskHotload=true s123ProjectionSampleModeHotload=true s124PeripheralStretchLayerHotload=true horizontalAlignmentSource=screen_to_camera_center_delta_projection_area_source_valid_window manualHorizontalOffsetHotload=true verticalOffsetHotload=true contentUvScaleHotload=true projectionBorderOpacityHotload=true projectionBorderPolicyHotload=true processingLayerHotload=true projectionSampleModeHotload=true peripheralStretchHotload=true projectionAreaDiagnosticHotload=true projectionAreaScreenOffsetHotload=true projectionAreaScreenScaleHotload=true projectionAreaRoundedMaskHotload=true projectionAreaKeystoneHotload=true projectionAreaBowHotload=true projectionAreaOpacityHotload=true projectionAlphaMaskHotload=true projectionAreaTransformStage=pre_homography_screen_uv borderlessWindowMask=false solidRedProjectionExterior={} propertyPrefix=debug.rustyquest.makepad {} projectionAreaDiagnosticMode=0_off_1_full_2_footprint_only horizontalAlignmentStrength={:.4} manualLeftUv={:.4} manualRightUv={:.4} manualVerticalUv={:.4} contentUvScale={:.4} projectionBorderOpacity={:.4} projectionAreaOpacity={:.4} projectionAlphaMode={} projectionAlphaScale={:.4} projectionAlphaBias={:.4} processingLayer={} projectionSampleMode={} blurRadiusPx={:.2} {} {} projectionAreaDiagnostic={:.1} projectionAreaLeftUv={:.4} projectionAreaRightUv={:.4} projectionAreaVerticalUv={:.4} projectionAreaScaleX={:.4} projectionAreaScaleY={:.4} projectionAreaRadiusXUv={:.4} projectionAreaRadiusYUv={:.4} projectionAreaCornerRadiusUv={:.4} projectionAreaKeystoneX={:.4} projectionAreaBowX={:.4} panelBound={} visualInspection=required",
         solid_red_projection_exterior,
         projection_target_fields,
         horizontal_alignment_strength,
@@ -1473,6 +1480,7 @@ fn horizontal_alignment_hotload_marker_fields(
         processing_layer,
         projection_sample_mode,
         blur_radius_px,
+        blur_fields,
         peripheral_stretch_fields,
         projection_area_diagnostic,
         projection_area_left_uv,
@@ -2182,7 +2190,7 @@ pub(crate) fn makepad_projection_target_marker_fields() -> String {
     );
     let source_color_contract = makepad_current_source_color_contract_fields();
     format!(
-        "nativePassthroughRequested={} projectionBorderPolicy={} passthroughUnderlay={} projectionDepthMeters={:.3} panelTargetDepthMeters={:.3} cameraPreviewFovYDegrees={:.3} cameraPreviewOffsetYMeters={:.3} cameraRawOverlayOverscan={:.3} panelTargetAspect={:.3} panelTargetWidthMeters={:.3} panelTargetHeightMeters={:.3} panelTargetCenterYMeters={:.3} panelTargetZMeters={:.3} projectionAreaOpacity={:.3} projectionBorderOpacity={:.3} projectionAlphaMode={} projectionAlphaScale={:.3} projectionAlphaBias={:.3} processingLayer={} blurRadiusPx={:.2} {} {} projectionAreaLeftOffsetXUv={:.4} projectionAreaRightOffsetXUv={:.4} projectionAreaOffsetYUv={:.4} makepadNativeProjectionAreaLeftUv={:.4} makepadNativeProjectionAreaRightUv={:.4} makepadNativeProjectionAreaVerticalUv={:.4} projectionAreaScaleX={:.4} projectionAreaScaleY={:.4} projectionTargetOffsetXUv={:.4} projectionTargetOffsetYUv={:.4} projectionTargetScale={:.4} projectionAreaRadiusXUv={:.4} projectionAreaRadiusYUv={:.4} projectionTargetRadiusXUv={:.4} projectionTargetRadiusYUv={:.4} projectionAreaCornerRadiusUv={:.4} projectionTargetJoystickControls={} projectionAreaScaleControlRole=diagnostic-canvas-scale-runtime-property projectionTargetScaleControlRole=reference-target-footprint-runtime-adjustment projectionTargetControlCoordinateSpace=display-eye-screen-uv projectionTargetControlSemantics=runtime_adjustment_applied_after_source_metadata projectionCanvasMode={} projectionCanvasSampleRows=makepad-runtime-source-sampling-marker projectionCanvasIndicator=none projectionSurfaceAspectContract={} projectionAreaTargetSource=target-screen-metadata projectionAreaTargetStage=target_footprint_mapping projectionAreaTargetCoordinateSpace=display-eye-screen-uv projectionAreaTargetRectSemantics=xywh targetFootprintSchema={} leftTargetScreenUvRect={} rightTargetScreenUvRect={} targetClipPolicy=clip-to-visible-eye targetFootprintMetadataSource={} targetFootprintDefault={} resolvedTargetFootprintSource=target-screen-metadata-plus-runtime-adjustment targetFootprintSourceSamplingDomain=target-local-raster effectBoundary=target-footprint projectionAreaOffsetConvention=positive-x-right-positive-y-down projectionAreaOffsetResponseCoordinateSpace=display-eye-screen-uv projectionAreaOffsetResponseModel=screen_uv_delta_equals_offset_uv projectionAreaShaderScreenBaseFormula=screenBase=(surfaceUv-0.5)*projectionAreaScaleUv+0.5 projectionAreaFullFrameContentFormula=contentUv=(targetLocalDomainUv-(0.5-targetRadiusUv))/(2*targetRadiusUv) projectionAreaSourceToScreenGainUv={} leftProjectionAreaSourceToScreenGainUv={} rightProjectionAreaSourceToScreenGainUv={} surfaceCoverageSource=target-screen-metadata surfaceCoverageSemantics=visible-render-surface-covers-target-fov feedPlacementSource=target-screen-metadata feedPlacementSemantics=video_content_inside_target_footprint borderRegionSemantics=visible-render-surface-minus-target-footprint sourceInvalidSemantics=homography-path-only-target-local-stretch-clamps-edge-sample borderFillPolicy={} leftProjectionAreaOffsetResponseUv={} rightProjectionAreaOffsetResponseUv={} leftProjectionAreaScreenUvRect={} rightProjectionAreaScreenUvRect={} leftFeedPlacementScreenUvRect={} rightFeedPlacementScreenUvRect={} leftProjectionAreaCenterUv={} rightProjectionAreaCenterUv={} rendererSurfaceUvOrigin=makepad-renderer-surface-uv displayScreenUvOrigin=top-left-origin-y-down displayScreenUvNormalization=renderer-v-flip-to-display-screen-uv",
+        "nativePassthroughRequested={} projectionBorderPolicy={} passthroughUnderlay={} projectionDepthMeters={:.3} panelTargetDepthMeters={:.3} cameraPreviewFovYDegrees={:.3} cameraPreviewOffsetYMeters={:.3} cameraRawOverlayOverscan={:.3} panelTargetAspect={:.3} panelTargetWidthMeters={:.3} panelTargetHeightMeters={:.3} panelTargetCenterYMeters={:.3} panelTargetZMeters={:.3} projectionAreaOpacity={:.3} projectionBorderOpacity={:.3} projectionAlphaMode={} projectionAlphaScale={:.3} projectionAlphaBias={:.3} processingLayer={} blurRadiusPx={:.2} {} {} {} projectionAreaLeftOffsetXUv={:.4} projectionAreaRightOffsetXUv={:.4} projectionAreaOffsetYUv={:.4} makepadNativeProjectionAreaLeftUv={:.4} makepadNativeProjectionAreaRightUv={:.4} makepadNativeProjectionAreaVerticalUv={:.4} projectionAreaScaleX={:.4} projectionAreaScaleY={:.4} projectionTargetOffsetXUv={:.4} projectionTargetOffsetYUv={:.4} projectionTargetScale={:.4} projectionAreaRadiusXUv={:.4} projectionAreaRadiusYUv={:.4} projectionTargetRadiusXUv={:.4} projectionTargetRadiusYUv={:.4} projectionAreaCornerRadiusUv={:.4} projectionTargetJoystickControls={} projectionAreaScaleControlRole=diagnostic-canvas-scale-runtime-property projectionTargetScaleControlRole=reference-target-footprint-runtime-adjustment projectionTargetControlCoordinateSpace=display-eye-screen-uv projectionTargetControlSemantics=runtime_adjustment_applied_after_source_metadata projectionCanvasMode={} projectionCanvasSampleRows=makepad-runtime-source-sampling-marker projectionCanvasIndicator=none projectionSurfaceAspectContract={} projectionAreaTargetSource=target-screen-metadata projectionAreaTargetStage=target_footprint_mapping projectionAreaTargetCoordinateSpace=display-eye-screen-uv projectionAreaTargetRectSemantics=xywh targetFootprintSchema={} leftTargetScreenUvRect={} rightTargetScreenUvRect={} targetClipPolicy=clip-to-visible-eye targetFootprintMetadataSource={} targetFootprintDefault={} resolvedTargetFootprintSource=target-screen-metadata-plus-runtime-adjustment targetFootprintSourceSamplingDomain=target-local-raster effectBoundary=target-footprint projectionAreaOffsetConvention=positive-x-right-positive-y-down projectionAreaOffsetResponseCoordinateSpace=display-eye-screen-uv projectionAreaOffsetResponseModel=screen_uv_delta_equals_offset_uv projectionAreaShaderScreenBaseFormula=screenBase=(surfaceUv-0.5)*projectionAreaScaleUv+0.5 projectionAreaFullFrameContentFormula=contentUv=(targetLocalDomainUv-(0.5-targetRadiusUv))/(2*targetRadiusUv) projectionAreaSourceToScreenGainUv={} leftProjectionAreaSourceToScreenGainUv={} rightProjectionAreaSourceToScreenGainUv={} surfaceCoverageSource=target-screen-metadata surfaceCoverageSemantics=visible-render-surface-covers-target-fov feedPlacementSource=target-screen-metadata feedPlacementSemantics=video_content_inside_target_footprint borderRegionSemantics=visible-render-surface-minus-target-footprint sourceInvalidSemantics=homography-path-only-target-local-stretch-clamps-edge-sample borderFillPolicy={} leftProjectionAreaOffsetResponseUv={} rightProjectionAreaOffsetResponseUv={} leftProjectionAreaScreenUvRect={} rightProjectionAreaScreenUvRect={} leftFeedPlacementScreenUvRect={} rightFeedPlacementScreenUvRect={} leftProjectionAreaCenterUv={} rightProjectionAreaCenterUv={} rendererSurfaceUvOrigin=makepad-renderer-surface-uv displayScreenUvOrigin=top-left-origin-y-down displayScreenUvNormalization=renderer-v-flip-to-display-screen-uv",
         native_passthrough,
         policy.stable_id(),
         policy.wants_native_passthrough(),
@@ -2203,6 +2211,11 @@ pub(crate) fn makepad_projection_target_marker_fields() -> String {
         tuning.projection_alpha_bias,
         processing_layer.stable_id(),
         tuning.blur_radius_px,
+        makepad_blur_marker_fields(
+            tuning.blur_radius_px,
+            tuning.blur_source_size_px,
+            tuning.blur_sample_step_gain,
+        ),
         peripheral_stretch_fields,
         source_color_contract,
         projection_area_left_offset_x_uv,
@@ -2674,6 +2687,7 @@ mod tests {
             "none",
             "camera",
             0.0,
+            "blurSampleDomain=source-1280 blurKernelTaps=5x5",
             "peripheralStretchMode=edge-stretch peripheralStretchConsumesProjectionExterior=false",
             1.0,
             -0.1,
@@ -2690,6 +2704,7 @@ mod tests {
         );
 
         assert!(fields.starts_with("phase=horizontal-alignment-hotload status=applied"));
+        assert!(fields.contains("blurKernelTaps=5x5"));
         assert!(fields.contains("projectionAreaTransformStage=pre_homography_screen_uv"));
         assert!(fields.contains("projectionBorderPolicy=solid-red"));
         assert!(fields.contains("projectionSampleMode=camera"));

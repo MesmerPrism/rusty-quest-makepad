@@ -330,6 +330,7 @@ handoff:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-interference.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-interference
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-volume-proof.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-proof
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-QuestMakepadRuntimeBundle.ps1 -BundlePath fixtures\profiles\stimulus-volume-bright.bundle.json -OutDir local-artifacts\quest-makepad-runtime-bundle-stimulus-volume-bright
 ```
 
 Those bundles copy the Optics stimulus profile into
@@ -340,6 +341,16 @@ report also records `payloads[].profile_summary.volume_present=true`,
 `volume_readback_probe_samples=512`, `stereo_field_output_layers=2`,
 `gpu_compute_ready=false`, and `compute_kernel_claimed=false`. Browser-created
 profiles use:
+
+The bright volume bundle stages
+`volume_only_bright_interference_profile.json`, which carries
+`adapter_hints.makepad_fragment_volume` for Hostess. Expected Hostess draw and
+randomize markers for that profile include `volumeOnly=true`,
+`volumeBaseLayerMix=0.000`, `volumeTextureMix=0.000`,
+`volumeEmissionGain=2.650`, `volumeBlackThreshold=0.240`,
+`volumeColorSaturation=1.000`, `volumeColorMode=DepthRamp`,
+`volumeDepthColorMix=1.000`, `volumeDepthContrast=0.900`, and
+`randomizeHzRange=8.000-15.000`.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Expand-StimulusBrowserHandoff.ps1 -HandoffPath <downloaded-quest-handoff.json> -OutDir local-artifacts\quest-makepad-browser-stimulus-handoff

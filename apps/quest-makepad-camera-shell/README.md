@@ -326,7 +326,7 @@ adb -s <quest-serial> shell setprop debug.rusty.manifold.pose.publish.enabled tr
 adb -s <quest-serial> shell setprop debug.rusty.manifold.pose.stream stream.motion.object_pose
 adb -s <quest-serial> shell setprop debug.rusty.manifold.pose.controller right
 adb -s <quest-serial> shell setprop debug.rusty.manifold.pose.kind grip
-adb -s <quest-serial> shell setprop debug.rusty.manifold.pose.sample.hz 20
+adb -s <quest-serial> shell setprop debug.rusty.manifold.pose.sample.hz 90
 ```
 
 The projection-target joystick scale control is on by default for the current
@@ -522,12 +522,43 @@ valid camera window should reveal native passthrough based on source color.
 The Makepad path uses premultiplied RGB, so alpha-zero mask regions do not leak
 camera color. `tools\Send-MakepadCameraControls.ps1` accepts the same
 alpha mode, scale, and bias properties for short headset A/B checks.
-Add `-ProcessingLayer blur -BlurRadiusPx 2.0` to enable the public diagnostic
-blur layer for valid camera samples while keeping the same projection border
-policy. The gate writes `debug.rustyquest.makepad.processing.layer` and
-`debug.rustyquest.makepad.camera.blur.radius.px`, and the running app also accepts those
-properties through `tools\Send-MakepadCameraControls.ps1` for short
-operator A/B checks.
+Set `makepad.processing.layer=blur` to enable the public diagnostic blur layer
+for valid camera samples while keeping the same projection border policy. The
+default blur settings keep the original 1280-domain route available:
+`makepad.camera.blur.sample_domain=source-1280`,
+`makepad.camera.blur.radius_px=2.0`,
+`makepad.camera.blur.source_size_px=1280.0`, and
+`makepad.camera.blur.sample_step_gain=4.0`, with
+`makepad.camera.blur.tap_layout=final-pass-box-5x5`. Use
+`fixtures\profiles\camera-hwb-live-blur-guide384.bundle.json` for the
+Rusty-Vision guide-equivalent 384-domain route; it sets the active values to
+`guide-384`, radius `1.0`, source size `384.0`, and step gain `1.0`, producing
+the same `-2..+2` tap spacing over `1/384` UV steps without making that a
+shader hard cap. That profile now selects
+`makepad.camera.blur.render_graph=offscreen-guide-texture`: a low-resolution
+guide graph performs horizontal blur from the external HWB camera input,
+vertical blur into a guide texture, and leaves the final projection pass with a
+single guide-texture sample instead of 25 external-camera samples per fragment.
+The earlier final-pass probes remain useful comparison evidence: exact
+guide-384 box blur dropped to roughly 47 FPS with about 18.6 ms GPU repaint,
+while the 9-tap final-pass probe improved to roughly 62 FPS with about
+13.1 ms GPU repaint but still reported stale frames. The offscreen guide graph
+recovers the latest Quest VrApi samples to about `73/72` with `Stale=0` and
+about 9-10 ms GPU repaint, although long readiness windows can still catch
+intermittent stale samples. Visual color/projection acceptance is intentionally
+separate: the current offscreen HWB guide path is performance evidence, not
+accepted color conformance, and the observed green/pink cast belongs to the
+next descriptor/color follow-up.
+
+Do not treat the breathing-room/peripheral-stretch path as equivalent blur
+evidence. That path is image processing over the camera projection, but its
+heavy work is UV remapping, target-footprint masks, and border blending; the
+final panel still takes one external camera sample per visible fragment. The
+Morphospace blur path is a texture-kernel operation over the external HWB camera
+texture, so `final-pass-cross-9tap` takes 9 external camera samples per
+fragment and `final-pass-box-5x5` takes 25. The breathing-room reference stayed
+at `FPS=72/72` or `73/72` with `Stale=0` and about 9.5 ms app/GPU timing
+because it preserved the single-sample camera path.
 
 The default broker-H.264 gate uses `127.0.0.1:8765`, left/right stream ports
 `8879` / `8880`, `1280x1280`, 6 Mbps, and a live-bounded 45-second stream with

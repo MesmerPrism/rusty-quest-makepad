@@ -53,6 +53,28 @@ requested frame cadence, the performance gate follows OpenXR
 `predictedDisplayPeriodNs` and VrApi `FPS=current/target` evidence while still
 recording the cadence value as a diagnostic.
 
+The diagnostic blur profile
+`fixtures/profiles/camera-hwb-live-blur-guide384.bundle.json` keeps the clean
+HWB camera route and switches the processing layer to blur with Rusty-Vision
+384-domain tap spacing. It now selects
+`makepad.camera.blur.render_graph=offscreen-guide-texture`, which does the
+external-HWB blur work in low-resolution offscreen guide passes and keeps the
+final projection pass to one guide-texture sample. Earlier final-pass blur
+probes remain comparison evidence only: 9 or 25 external HWB samples per
+fragment were the source of the poor blur performance. Quest evidence from the
+offscreen graph recovers the latest VrApi samples to about `73/72` with
+`Stale=0`, but long windows can still catch intermittent stale samples.
+Projection/color acceptance is separate; the current HWB guide path has a
+known green/pink color cast and is not color-conformance evidence.
+
+The breathing-room/peripheral-stretch camera route is the performance baseline
+for the clean direct-HWB projection path, but it is not blur performance
+evidence. It bends UVs, computes the target-footprint/border blend, then keeps
+one external camera sample per visible fragment. Use that distinction when
+triaging regressions: stretch staying green at `FPS=72/72` with `Stale=0` does
+not imply final-pass blur can stay green if it returns to multiplied external
+camera samples.
+
 Validate profile surfaces with:
 
 ```powershell
