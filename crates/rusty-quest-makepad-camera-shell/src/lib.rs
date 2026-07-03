@@ -1916,52 +1916,52 @@ mod tests {
 
     #[test]
     fn parses_remote_camera_session_handoff_settings() {
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             EFFECTIVE_SETTINGS_FIXTURE,
             SETTING_REMOTE_CAMERA_ENABLED,
             serde_json::json!(true),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_SESSION_ID,
             serde_json::json!("session.remote_camera.q2q_two_way_lan_smoke"),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_TOPOLOGY_ID,
             serde_json::json!("quest_to_quest_two_way"),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_ENDPOINT_DEVICE_ID,
             serde_json::json!("quest-a"),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_ENDPOINT_DEVICE_KIND,
             serde_json::json!("quest"),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_ENDPOINT_ROLE,
             serde_json::json!("sender_receiver"),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_LANE_COUNT,
             serde_json::json!(4),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_INCOMING_LANE_COUNT,
             serde_json::json!(2),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_OUTGOING_LANE_COUNT,
             serde_json::json!(2),
         );
-        let remote = effective_settings_with_value(
+        let remote = effective_settings_with_appended_value(
             &remote,
             SETTING_REMOTE_CAMERA_TRANSPORT_KIND,
             serde_json::json!("lan_tcp"),
