@@ -1,14 +1,15 @@
 # Rusty Quest Makepad Agent Notes
 
-This is the clean source repository for Quest-specific Makepad apps and
-adapters in Rusty Morphospace. Keep committed content self-contained and free
-of local-only planning paths and historical naming drift.
+This is the legacy / explicit-request source repository for Quest-specific
+Makepad apps and adapters in Rusty Morphospace. Keep committed content
+self-contained and free of local-only planning paths and historical naming
+drift.
 
 Rusty Morphospace is the top-level project/platform umbrella. This repo remains
-the Quest-Makepad app lane inside that umbrella: Quest/OpenXR/Makepad shells,
-headset camera/passthrough panels, tracked input adapters, Lattice frame/view
-binding at the app-adapter boundary, and Quest-specific Makepad runtime
-profiles.
+the legacy Quest-Makepad app lane inside that umbrella: Quest/OpenXR/Makepad
+shells, headset camera/passthrough panels, tracked input adapters, Lattice
+frame/view binding at the app-adapter boundary, and Quest-specific Makepad
+runtime profiles.
 
 Project-owned source in this repo is licensed `AGPL-3.0-or-later`. The upstream
 Makepad fork remains an upstream-derived toolkit dependency under its own
@@ -20,6 +21,11 @@ Rusty Quest Makepad owns Quest-specific Makepad app adapters. Generic Makepad
 settings and descriptors live in `rusty-makepad`; platform write/readback
 transports live in `rusty-quest`; Matter, Optics, Lattice, and Manifold keep
 their source-of-truth lanes.
+
+Makepad is not a default Rusty Morphospace runtime target. Work in this repo
+only when the user explicitly requests Makepad compatibility, migration,
+regression repair, or historical evidence replay. New Quest runtime work
+defaults to native OpenXR/Vulkan and Meta Spatial SDK in `rusty-quest`.
 
 ## Required Skills
 
@@ -40,8 +46,8 @@ APK, logcat, screenshot, Perfetto, or Wi-Fi ADB work.
 
 Open detailed agent runbooks only when they match the task:
 
-- `docs/agent-instructions/hostess-quest-apk.md`: Proven Hostess Quest Makepad
-  APK Route, app-private settings staging, generated Quest activity launch, and
+- `docs/agent-instructions/hostess-quest-apk.md`: legacy Hostess Quest Makepad
+  APK route, app-private settings staging, generated Quest activity launch, and
   settings invalidation guardrails.
 - `docs/agent-instructions/recorded-hand-particles.md`: recorded full
   hand-mesh replay, local data-plane artifacts, visual particle smoke, and
@@ -102,9 +108,10 @@ cargo test -p rusty-quest-makepad-matter-surface gpu_proofs
   App-scoped Android properties must be derived from the effective-settings
   surface and use the consumer namespace; raw property readback is not enough
   without a matching app marker or receipt.
-- Hostess APK validation must use the generated Morphospace Makepad Quest
-  manifest and `.MakepadAppXr` Quest activity. Do not add an app-local Android
-  manifest template just to remove camera permissions.
+- When Makepad is explicitly in scope, Hostess APK validation must use the
+  generated Morphospace Makepad Quest manifest and `.MakepadAppXr` Quest
+  activity. Do not add an app-local Android manifest template just to remove
+  camera permissions.
 - Use `--quest-camera-permissions=false` for the camera-free particle/SDF smoke
   path; camera streaming remains controlled by effective settings.
 - Stage Hostess Makepad settings through the Hostess helper, which uses
