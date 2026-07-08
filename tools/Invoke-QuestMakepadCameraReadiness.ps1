@@ -195,6 +195,28 @@ function ConvertTo-ReadinessDouble {
     return $null
 }
 
+function Get-FileSha256Hex {
+    param([Parameter(Mandatory=$true)][string]$Path)
+
+    $cmd = Get-Command Get-FileHash -ErrorAction SilentlyContinue
+    if ($null -ne $cmd) {
+        return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $hash = $sha.ComputeHash($stream)
+            return -join ($hash | ForEach-Object { $_.ToString("x2") })
+        } finally {
+            $sha.Dispose()
+        }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
 function Set-DevicePropertyWithReadback {
     param(
         [Parameter(Mandatory=$true)]
@@ -675,7 +697,7 @@ $scorecard = [ordered]@{
     activity = $Activity
     apk = [ordered]@{
         path = $Apk
-        sha256 = (Get-FileHash -LiteralPath $Apk -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-FileSha256Hex -Path $Apk
         length = (Get-Item -LiteralPath $Apk).Length
     }
     adb = [ordered]@{

@@ -116,6 +116,8 @@ fn main() {
 }
 
 static STARTUP_MARKERS_EMITTED: AtomicBool = AtomicBool::new(false);
+#[cfg(target_os = "android")]
+static ANDROID_XR_START_FALLBACK_REQUESTED: AtomicBool = AtomicBool::new(false);
 static PAIRED_IMPORT_SIGNAL_READY: AtomicBool = AtomicBool::new(false);
 static CAMERA_PANEL_DRAW_MARKER_EMITTED: AtomicBool = AtomicBool::new(false);
 static VIDEO_EVENT_RAW_MARKERS_EMITTED: AtomicUsize = AtomicUsize::new(0);
@@ -3608,6 +3610,25 @@ impl App {
         } else {
             Self::start_camera_probe_once();
         }
+    }
+
+    #[cfg(target_os = "android")]
+    fn request_android_xr_start_fallback_once(&mut self, cx: &mut Cx, phase: &str) {
+        if ANDROID_XR_START_FALLBACK_REQUESTED.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        if cx.in_xr_mode() {
+            emit_marker_line(&format!(
+                "RUSTY_QUEST_MAKEPAD_XR_START_FALLBACK schema=rusty.quest.makepad.xr_start_fallback.v1 phase={} status=already_presenting directXrActivity=true",
+                phase
+            ));
+            return;
+        }
+        cx.xr_start_presenting();
+        emit_marker_line(&format!(
+            "RUSTY_QUEST_MAKEPAD_XR_START_FALLBACK schema=rusty.quest.makepad.xr_start_fallback.v1 phase={} status=requested directXrActivity=true permissionFlowFallback=true",
+            phase
+        ));
     }
 
     fn emit_status_marker(phase: &str) {
@@ -8577,6 +8598,8 @@ impl MatchEvent for App {
         let config = Self::runtime_config();
         cx.xr_set_native_passthrough(makepad_native_passthrough_enabled());
         cx.xr_set_render_scale(runtime_float(&config, KEY_XR_RENDER_SCALE) as f32);
+        #[cfg(target_os = "android")]
+        self.request_android_xr_start_fallback_once(cx, "match_startup");
         self.configure_mesh_replay(cx, "startup");
     }
 
@@ -8603,6 +8626,8 @@ impl AppMain for App {
     }
 
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
+        #[cfg(target_os = "android")]
+        self.request_android_xr_start_fallback_once(cx, "first_event");
         self.match_event(cx, event);
         self.handle_cadence_event(cx, event);
         self.handle_paired_import_event(cx, event);

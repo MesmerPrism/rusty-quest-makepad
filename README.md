@@ -123,6 +123,10 @@ work; it repeats launch/stop and pause/resume cycles, requires the camera
 texture metadata, descriptor/color, video-texture, shader-layout visual smoke,
 and performance gates, and records Vulkan HWB cache/retire evidence. Projection
 visual acceptance remains a separate scorecard field.
+On Android, the camera shell owns active XR startup: it requests
+`cx.xr_start_presenting()` through a one-shot fallback and emits
+`RUSTY_QUEST_MAKEPAD_XR_START_FALLBACK`. Focus on `.MakepadAppXr` is not enough
+without OpenXR frame-flow markers showing submitted frames.
 
 The same surface now carries remote-camera handoff settings under
 `quest.remote_camera.*`. Those settings identify a validated Quest

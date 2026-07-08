@@ -112,6 +112,16 @@ The route-readiness scorecard must show:
   tear samples, and observed display/effective frame rates near 72 Hz
 - zero targeted fatal, ANR, GPU page-fault, or app-process signal lines
 
+The camera shell must explicitly enter active XR presenting. On Android the app
+uses a one-shot `cx.xr_start_presenting()` fallback and emits
+`RUSTY_QUEST_MAKEPAD_XR_START_FALLBACK` with
+`schema=rusty.quest.makepad.xr_start_fallback.v1`. A focused
+`.MakepadAppXr` window without `RUSTY_XR_MAKEPAD_FRAME_FLOW ... status=submitted
+... shouldRender=true` is not readiness evidence; it is only a Horizon window
+focus diagnostic. The July 7 active-XR preflight
+`S:\Work\repos\active\rusty-quest-makepad\local-artifacts\quest-makepad-camera-readiness\qcl099-active-xr-preflight-xrstart-20260707T140755`
+is the current reference for the fixed startup path.
+
 Projection-mapping and visual-release markers are reported separately under
 `markers.projection_ready`. They are parity evidence, not the route-ownership
 gate for moving the build/profile/launch path out of Rusty-XR.
