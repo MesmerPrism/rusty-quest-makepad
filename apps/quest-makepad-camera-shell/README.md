@@ -16,17 +16,19 @@ probe plus a delayed Makepad-owned paired hardware-buffer import probe so
 renderer smoke runs can be lined up against the custom APK camera-stereo
 baseline before performance parity is measured.
 
-This example consumes the maintained Makepad fork default branch as an
+This example consumes one full revision of the maintained Makepad fork as an
 app-shell dependency only. Morphospace core stays Makepad-independent; the
-relationship and fork-patch policy are documented in
-[../../docs/MAKEPAD_FORK_RELATIONSHIP.md](../../docs/MAKEPAD_FORK_RELATIONSHIP.md).
+historical relationship and fork-patch policy are documented in the public
+[Rusty-XR Makepad fork relationship](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_FORK_RELATIONSHIP.md).
 
 ## Current Scope
 
 - Uses `cargo-makepad android --variant=quest`.
-- Uses the maintained Makepad fork default branch, currently `dev`. The exact
-  Makepad revision for this example is pinned in `Cargo.lock`. Local evidence
-  builds run the wrapper with `-MakepadSourceRoot <makepad-fork-checkout>` or
+- Uses maintained Makepad fork revision
+  `c74a9659bd5cd92d9bd9b6f3627c24a893444354`, pinned by full `rev` in
+  `Cargo.toml` and mirrored in `Cargo.lock`. The `dev` branch is an update
+  source, not a dependency-resolution input. Local evidence builds run the
+  wrapper with `-MakepadSourceRoot <makepad-fork-checkout>` or
   `RUSTY_QUEST_MAKEPAD_SOURCE_ROOT` so the packager and app Makepad dependencies
   both come from the maintained fork checkout. The wrapper requires that source
   root by default. Use `-NoPatchMakepadXrFromSource` only for an intentional
@@ -36,6 +38,10 @@ relationship and fork-patch policy are documented in
   cube marker, `XrPermissionsFlow`, and an empty root.
 - Reads its startup marker values through `rusty-quest-projection-runtime-config`, so this
   shell is already attached to a framework-neutral Morphospace core crate.
+- Resolves `rusty-quest-projection-runtime-config` through the declared
+  manifest-relative `rusty-quest` sibling. That path is a composition-only
+  build edge: a standalone checkout of this repository is not a complete Cargo
+  closure, and `rusty-quest` retains ownership of the dependency's build truth.
 - Emits `RUSTY_QUEST_MAKEPAD_CAMERA_STATUS` and
   `RUSTY_QUEST_MAKEPAD_STEREO_COMPARISON` on startup.
 - On Android, emits those startup markers directly through logcat under a
@@ -1040,5 +1046,4 @@ window remains an `ok` run with the reason recorded. Record whether the run was
   sequence.
 
 The current step-by-step implementation ledger is tracked in
-[../../docs/MAKEPAD_STEREO_COMPARISON_ITERATION.md](../../docs/MAKEPAD_STEREO_COMPARISON_ITERATION.md).
-
+[the pinned Rusty-XR stereo-comparison ledger](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_STEREO_COMPARISON_ITERATION.md).

@@ -43,13 +43,6 @@
       "required": true
     },
     {
-      "label": "Rusty Quest Makepad runtime configuration core",
-      "kind": "rust-source",
-      "scope": "workspace",
-      "path": "../../crates/rusty-quest-projection-runtime-config/src/lib.rs",
-      "required": true
-    },
-    {
       "label": "Example README",
       "kind": "documentation",
       "path": "README.md",
@@ -59,6 +52,12 @@
   "generatedInputs": [],
   "externalInputs": [
     {
+      "label": "Rusty Quest projection runtime configuration core",
+      "kind": "rust-path-dependency",
+      "providedBy": "rusty-quest repository",
+      "notes": "Composition-only dependency; Cargo.toml declares the manifest-relative sibling and rusty-quest retains its build truth."
+    },
+    {
       "label": "cargo-makepad",
       "kind": "android-packager",
       "providedBy": "Makepad tools/cargo_makepad"
@@ -67,7 +66,7 @@
       "label": "Makepad framework source",
       "kind": "rust-git-dependency",
       "providedBy": "Maintained public Makepad fork checkout",
-      "notes": "The package consumes the git branch listed in Cargo.toml; Cargo.lock records the resolved commit."
+      "notes": "The package consumes the exact git revision declared in Cargo.toml; Cargo.lock records the same source revision."
     },
     {
       "label": "Android SDK",

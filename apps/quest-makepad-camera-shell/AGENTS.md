@@ -10,11 +10,16 @@ paths are historical compatibility evidence only.
 Before editing this example, read:
 
 - `README.md`
-- `../../docs/MAKEPAD_FORK_RELATIONSHIP.md`
-- `../../docs/MAKEPAD_ANDROID_BUILD_COMPATIBILITY_PLAN.md`
-- `../../docs/MAKEPAD_CAMERA_PARALLEL_APPROACH_COMPARISON.md`
-- `../../docs/MAKEPAD_XR_GPU_PAGE_FAULT_INVESTIGATION.md`
-- `../../docs/MAKEPAD_STEREO_COMPARISON_ITERATION.md`
+- `../../docs/VALIDATION.md`
+
+Historical compatibility context is pinned to Rusty-XR revision
+`b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a`:
+
+- [Makepad fork relationship](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_FORK_RELATIONSHIP.md)
+- [Android build compatibility plan](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_ANDROID_BUILD_COMPATIBILITY_PLAN.md)
+- [Camera parallel-approach comparison](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_CAMERA_PARALLEL_APPROACH_COMPARISON.md)
+- [XR GPU page-fault investigation](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_XR_GPU_PAGE_FAULT_INVESTIGATION.md)
+- [Stereo comparison iteration](https://github.com/MesmerPrism/Rusty-XR/blob/b6d726ee40ba67a3756ecf13f4aa3f315ea33e7a/docs/MAKEPAD_STEREO_COMPARISON_ITERATION.md)
 
 ## Boundaries
 
@@ -58,9 +63,14 @@ For source changes in this example, run:
 ```powershell
 cargo check --manifest-path apps\quest-makepad-camera-shell\Cargo.toml
 cargo test --locked --manifest-path apps\quest-makepad-camera-shell\Cargo.toml
-python tools\docs\check_links.py --repo-root .
-python tools\schema\check_android_build_manifest.py apps\quest-makepad-camera-shell\build-manifest.public.json
 ```
+
+Documentation-link and public Android-build-manifest checks remain required,
+but this repository does not currently own the previously named Python
+entrypoints. Until equivalent repo-owned checks land through locked
+validation-authority review, use an unchanged checker from a pinned external
+owner, record its exact commit and path, and do not claim that absent local
+scripts ran. See `../../docs/VALIDATION.md` for the composition prerequisites.
 
 This example is intentionally standalone rather than a root-workspace member.
 Do not run `cargo check -p rusty-quest-makepad-camera-shell` from the workspace
@@ -119,4 +129,3 @@ readiness, nonzero left/right texture-update cadence, zero decode errors, and
 the derived `surface_to_camera`, `screen_to_surface`, and `screen_to_camera`
 rows. `max_packets=0` means a live/unbounded broker stream and must not be
 clamped to a one-packet stream.
-

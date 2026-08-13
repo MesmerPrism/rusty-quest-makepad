@@ -1,5 +1,22 @@
 # Rusty Quest Makepad Validation
 
+## Composition Prerequisites
+
+Root-workspace Cargo commands resolve path dependencies from sibling
+`rusty-lattice`, `rusty-matter`, and `rusty-optics` repositories. The excluded,
+standalone `apps/quest-makepad-camera-shell` package instead requires the
+manifest-relative `rusty-quest` sibling declared in its own `Cargo.toml`.
+These checkouts are composition inputs only; their repositories retain source
+and build authority. Do not replace them with absolute machine paths or copied
+crates.
+
+The standalone app also requires documentation-link and public
+Android-build-manifest checks. This repository does not currently contain the
+Python entrypoints previously named by its nested instructions. Until
+equivalent repo-owned checks land through locked validation-authority review,
+validation evidence must identify an unchanged external checker by exact owner
+commit and path. Candidate-added validation code must not approve itself.
+
 Run:
 
 ```powershell

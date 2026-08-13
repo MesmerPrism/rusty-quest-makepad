@@ -15,7 +15,7 @@ makepad-hwb-ycbcr-metadata = []
 [dependencies]
 rusty-quest-camera-model = { path = "support/rusty-quest-camera-model" }
 rusty-quest-projection-runtime-config = { path = "../../../rusty-quest/crates/rusty-quest-projection-runtime-config" }
-rusty-quest-makepad-xr = { package = "makepad-xr", git = "https://github.com/MesmerPrism/makepad.git", branch = "dev", version = "1.0.0" }
+rusty-quest-makepad-xr = { package = "makepad-xr", git = "https://github.com/MesmerPrism/makepad.git", rev = "c74a9659bd5cd92d9bd9b6f3627c24a893444354", version = "1.0.0" }
 serde_json = "1"
 
 [target.'cfg(target_os = "android")'.dependencies]
