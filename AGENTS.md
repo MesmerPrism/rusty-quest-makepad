@@ -27,6 +27,11 @@ only when the user explicitly requests Makepad compatibility, migration,
 regression repair, or historical evidence replay. New Quest runtime work
 defaults to native OpenXR/Vulkan and Meta Spatial SDK in `rusty-quest`.
 
+Root-workspace Cargo validation requires manifest-relative sibling checkouts of
+`rusty-lattice`, `rusty-matter`, and `rusty-optics`; the excluded standalone
+camera app requires `rusty-quest`. Treat them as composition-only inputs and
+keep their build truth in their owning repositories. See `docs/VALIDATION.md`.
+
 ## Required Skills
 
 Use `$rusty-morphospace-context` for repo-family routing, naming, and

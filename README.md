@@ -7,6 +7,16 @@ The initial slice defines the Quest Makepad camera shell settings surface and
 profile bundle used to move mesh replay and future SDF/ADF, collision, and
 particle controls out of ad hoc launch settings.
 
+## Composition Prerequisites
+
+This repository is not independently Cargo-consumable at its root. Its
+manifest-relative workspace dependencies expect `rusty-lattice`,
+`rusty-matter`, and `rusty-optics` as sibling repositories. The standalone
+camera app additionally expects a `rusty-quest` sibling. These are
+composition-only inputs: every sibling retains its own build truth, and the
+paths must not be replaced with machine-absolute paths or copied owner crates.
+See `docs/VALIDATION.md` for the focused and root-workspace validation split.
+
 Use the runtime bundle builder as the single entry point for this profile:
 
 ```powershell
